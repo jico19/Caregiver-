@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import usePaginatedFetch from '../../hooks/usePaginatedFetch';
+import Pagination from '../../components/common/Pagination';
 import { STATUS_META } from '../../utils/caregiverStatus';
 
 function badgeClass(status) {
@@ -11,33 +12,23 @@ function badgeClass(status) {
 
 export default function CaregiversPage() {
   const { token } = useAuth();
-  const [applications, setApplications] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-
-    const url = statusFilter === 'all' ? '/admin/caregivers' : `/admin/caregivers?status=${statusFilter}`;
-    api.get(url, token)
-      .then((res) => {
-        if (!isMounted) return;
-        setApplications(res?.applications || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load caregiver application queue.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [statusFilter, token]);
+  const {
+    items: applications,
+    total,
+    pages,
+    page,
+    pageSize,
+    loading,
+    error,
+    setPage,
+    setPageSize,
+  } = usePaginatedFetch({
+    url: '/admin/caregivers',
+    token,
+    params: { status: statusFilter },
+    listKey: 'applications',
+  });
 
   return (
     <div className="page-container">
@@ -71,9 +62,9 @@ export default function CaregiversPage() {
         </div>
       </div>
 
-      {errorMsg && (
+      {error && (
         <div role="alert" className="alert alert-error">
-          {errorMsg}
+          {error}
         </div>
       )}
 
@@ -135,6 +126,16 @@ export default function CaregiversPage() {
             </table>
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={pageSize}
+          listLabel="applications"
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

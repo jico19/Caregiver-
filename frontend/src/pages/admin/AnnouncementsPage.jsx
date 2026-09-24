@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import { queryClient } from '../../lib/queryClient';
 import LoadingState from '../../components/common/LoadingState';
+import usePaginatedFetch from '../../hooks/usePaginatedFetch';
+import Pagination from '../../components/common/Pagination';
 
 const AUDIENCE_OPTIONS = [
   { value: 'caregiver', label: 'Caregivers' },
@@ -20,41 +23,35 @@ const EMPTY_FORM = { title: '', body: '', audience: 'caregiver', state_id: '' };
 
 export default function AnnouncementsPage() {
   const { token } = useAuth();
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [form, setForm] = useState(EMPTY_FORM);
   const [busy, setBusy] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  function loadAnnouncements() {
-    return api.get('/admin/announcements', token)
-      .then((res) => setAnnouncements(res?.announcements || []))
-      .catch(() => setErrorMsg('Failed to load announcements.'));
-  }
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    api.get('/admin/announcements', token)
-      .then((res) => {
-        if (!isMounted) return;
-        setAnnouncements(res?.announcements || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg(err.detail || 'Failed to load announcements.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+  const {
+    items: announcements,
+    total,
+    pages,
+    page,
+    pageSize,
+    loading,
+    error,
+    setPage,
+    setPageSize,
+    reload,
+  } = usePaginatedFetch({
+    url: '/admin/announcements',
+    token,
+    listKey: 'announcements',
+  });
 
   function setField(key, val) {
     setForm((f) => ({ ...f, [key]: val }));
+  }
+
+  function invalidateAnnouncementCaches() {
+    queryClient.invalidateQueries({ queryKey: ['/caregivers/me/announcements'] });
+    queryClient.invalidateQueries({ queryKey: ['/clients/me/announcements'] });
   }
 
   async function handleCreate(e) {
@@ -76,7 +73,9 @@ export default function AnnouncementsPage() {
       }, token);
       setSuccessMsg('Announcement published to the caregiver/client portals.');
       setForm(EMPTY_FORM);
-      await loadAnnouncements().catch(() => {});
+      setPage(1);
+      reload();
+      invalidateAnnouncementCaches();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to create announcement.');
     } finally {
@@ -89,7 +88,8 @@ export default function AnnouncementsPage() {
     setSuccessMsg('');
     try {
       await api.patch(`/admin/announcements/${ann.id}`, { is_active: !ann.is_active }, token);
-      await loadAnnouncements().catch(() => {});
+      reload();
+      invalidateAnnouncementCaches();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to update announcement.');
     }
@@ -102,7 +102,8 @@ export default function AnnouncementsPage() {
     try {
       await api.delete(`/admin/announcements/${ann.id}`, token);
       setSuccessMsg('Announcement deleted.');
-      await loadAnnouncements().catch(() => {});
+      reload();
+      invalidateAnnouncementCaches();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to delete announcement.');
     }
@@ -118,6 +119,12 @@ export default function AnnouncementsPage() {
           Broadcast in-app messages to caregivers and clients. Announcements appear on the relevant portal dashboard.
         </p>
       </div>
+
+      {error && (
+        <div role="alert" className="alert alert-error">
+          {error}
+        </div>
+      )}
 
       {errorMsg && (
         <div role="alert" className="alert alert-error">
@@ -193,7 +200,7 @@ export default function AnnouncementsPage() {
 
       <div className="admin-card">
         <h2 className="section-title">
-          Published Announcements ({announcements.length})
+          Published Announcements ({total})
         </h2>
 
         {loading ? (
@@ -246,6 +253,16 @@ export default function AnnouncementsPage() {
             ))}
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={pageSize}
+          listLabel="announcements"
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

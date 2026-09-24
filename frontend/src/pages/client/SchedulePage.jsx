@@ -51,6 +51,17 @@ export default function SchedulePage() {
         </div>
       )}
 
+      {schedule.length === 0 && !errorMsg && (
+        <div className="card p-8 text-center">
+          <h2 className="card-title mb-1">No Visits Scheduled Yet</h2>
+          <p className="empty-text">
+            Your care coordinator has not confirmed any caregiver visits yet.
+            Once a weekly schedule is set, your visit days and times will appear here.
+          </p>
+        </div>
+      )}
+
+      {schedule.length > 0 && (
       <div className="grid grid-cols-3 max-md:grid-cols-1 gap-4">
         {schedule.map((item, idx) => (
           <div
@@ -80,6 +91,7 @@ export default function SchedulePage() {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

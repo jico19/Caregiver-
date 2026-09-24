@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import { queryClient } from '../../lib/queryClient';
+import usePaginatedFetch from '../../hooks/usePaginatedFetch';
+import Pagination from '../../components/common/Pagination';
 
 const STATUS_BADGE = {
   pending_review: { className: 'badge badge-yellow', label: 'Pending' },
@@ -11,35 +14,28 @@ const STATUS_BADGE = {
 
 export default function DocumentsPage() {
   const { token } = useAuth();
-  const [documents, setDocuments] = useState([]);
   const [statusFilter, setStatusFilter] = useState('pending_review');
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-
-    const url = statusFilter === 'all' ? '/admin/documents' : `/admin/documents?status=${statusFilter}`;
-    api.get(url, token)
-      .then((res) => {
-        if (!isMounted) return;
-        setDocuments(res?.documents || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load compliance document queue.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [statusFilter, token]);
+  const {
+    items: documents,
+    total,
+    pages,
+    page,
+    pageSize,
+    loading,
+    error,
+    setItems,
+    setPage,
+    setPageSize,
+  } = usePaginatedFetch({
+    url: '/admin/documents',
+    token,
+    params: { status: statusFilter },
+    listKey: 'documents',
+  });
 
   async function handleReview(docId, newStatus) {
     setErrorMsg('');
@@ -49,9 +45,13 @@ export default function DocumentsPage() {
     try {
       await api.post(`/admin/documents/${docId}/review`, { status: newStatus }, token);
       setSuccessMsg(`Document marked as ${newStatus}.`);
-      setDocuments((prev) =>
+      setItems((prev) =>
         prev.map((d) => (d.id === docId ? { ...d, status: newStatus } : d))
       );
+      queryClient.invalidateQueries({ queryKey: ['paginated', '/admin/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/admin/dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['/caregivers/me/documents'] });
+      queryClient.invalidateQueries({ queryKey: ['/caregivers/me/credential-status'] });
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to update document status.');
     } finally {
@@ -100,9 +100,9 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {errorMsg && (
+      {(error || errorMsg) && (
         <div role="alert" className="alert alert-error">
-          {errorMsg}
+          {error || errorMsg}
         </div>
       )}
 
@@ -198,6 +198,16 @@ export default function DocumentsPage() {
             </table>
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={pageSize}
+          listLabel="documents"
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

@@ -1,24 +1,13 @@
-import { useState, useEffect } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { api } from '../services/api';
+import useFetch from '../hooks/useFetch';
 import PortalNavbar from '../components/common/PortalNavbar';
 
 export default function ClientLayout() {
   const { user, token, loading, logout } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  useEffect(() => {
-    let isMounted = true;
-    if (token) {
-      api.get('/clients/me/notifications', token).then((res) => {
-        if (!isMounted) return;
-        const list = res?.notifications || (Array.isArray(res) ? res : []);
-        setUnreadCount(list.filter((n) => !n.read).length);
-      }).catch(() => {});
-    }
-    return () => { isMounted = false; };
-  }, [token]);
+  const { data: notifications } = useFetch('/clients/me/notifications', { enabled: !!token, defaultData: [] });
+  const list = notifications?.notifications || (Array.isArray(notifications) ? notifications : []);
+  const unreadCount = list.filter((n) => !n.read).length;
 
   if (loading) {
     return (
@@ -35,6 +24,7 @@ export default function ClientLayout() {
   const navLinks = [
     { label: 'Dashboard', to: '/client/dashboard' },
     { label: 'Intake', to: '/client/intake' },
+    { label: 'Forms', to: '/client/forms' },
     { label: 'Records', to: '/client/documents' },
     { label: 'Authorizations', to: '/client/authorizations' },
     { label: 'Care Plan', to: '/client/care-plan' },

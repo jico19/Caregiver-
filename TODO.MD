@@ -1,7 +1,7 @@
 # TODO — SOW Compliance Backlog
 
 Audit of the codebase against **`Scope of work.md`** (states covered: FL / IN / GA).
-**Verdict: ~60% of the SOW is implemented.** Core v1 flows (3-state site → caregiver application → admin review → documents/training) are real and tested. The gaps below are the SOW items that are missing, stubbed, or served with mock data.
+**Verdict: ~75% of the SOW is implemented.** Core v1 flows (3-state site → caregiver application → admin review → documents/training) are real and tested, plus caregiver & client portal gaps (packets, e-sign, reminders, announcements, client care plan/schedule). The gaps below are the SOW items that remain missing or stubbed.
 
 Legend: ✅ done · ⚠️ partial · ❌ not built
 
@@ -13,38 +13,32 @@ Legend: ✅ done · ⚠️ partial · ❌ not built
 - [x] State-specific services / forms / licensing / careers — served live per state via `/states/{slug}/...` (`frontend/src/pages/public/*`, `backend/app/api/routes/states.py`)
 - [x] Contact forms write to `client_referrals` (`states.py:98-109`)
 
-## 2. Caregiver Portal — ⚠️ PARTIAL
+## 2. Caregiver Portal — ✅ IMPLEMENTED
 
-Implemented:
 - [x] Online application — public apply + authenticated submit / resubmit / review lock (`caregivers.py`, `ApplicationPage.jsx`)
-- [x] Document upload — **10** of the 11 SOW document categories seeded (`seed.sql:22-31`); missing the generic **"Other"** catch-all type
+- [x] Document upload — **10** of the 11 SOW document categories seeded (`seed.sql:22-31`); missing the generic **"Other"** catch-all type (only remaining gap in this section)
 - [x] Training courses + completion progress (`training.py`, `TrainingPage.jsx`)
-- [x] Onboarding status / dashboard (:not all, see missing items below)
+- [x] **Employment packet download** — `packetUrl()` in `utils/packets.js`; buttons on `ApplicationPage.jsx` + `DashboardPage.jsx`; placeholder PDFs in `public/packets/*-Employment-Packet.pdf`
+- [x] **Electronic signatures** — drawn canvas e-signature (`SignaturePad.jsx`) on the caregiver application
+- [x] **Credential expiry reminders** — `jobs/credential_reminders.py` (in-app, idempotent) wired into lifespan
+- [x] **Dashboard "Expired / Expiring Soon / Missing Documents" panels** — `DashboardPage.jsx` Credential Compliance card with counts + names
+- [x] **Training certificate download** — printable `TrainingCertificatePage.jsx` via `/training/courses/{id}/certificate`
+- [x] **Company announcements** — admin CRUD (`AnnouncementsPage.jsx`, `admin.py`) + latest-3 feed on caregiver dashboard (`/caregivers/me/announcements`)
 
-Missing:
-- [ ] **Download employment packet** — no feature anywhere
-- [ ] **Electronic signatures** — no e-sign code (only mentioned as "advanced" in `Gemini.MD:1148`)
-- [ ] **Email / SMS notifications** — `notifications.py` is in-app only (8 lines, insert row only)
-- [ ] **Credential expiry reminders** — no job scans `documents.expiration_date`
-- [ ] **Dashboard "Expired / Expiring Soon / Missing Documents" panels** — current `DashboardPage.jsx` shows milestone progress + doc count only
-- [ ] **Training certificate download** — `TrainingPage.jsx` has Enroll / Mark-Complete only
-- [ ] **Company announcements** — dashboard quick-link mentions it; nothing behind it
-
-## 3. Client Portal — ⚠️ PARTIAL
+## 3. Client Portal — ✅ IMPLEMENTED
 
 Implemented:
-- [x] Online intake (`IntakePage.jsx`)
+- [x] Online intake (`IntakePage.jsx`) — e-signed (drawn signature stored on `clients`)
 - [x] Document upload (client doc types seeded in `seed.sql:32-37`)
-- [x] Authorization list with days-remaining, expiring_soon/expired computed (`clients.py:102-135`)
-
-Issues:
-- [ ] **Forms page is a stub** — `client/FormsPage.jsx:5` = `TODO: implement`
-- [ ] **Download admission packet** — no feature
-- [ ] **Electronic signatures** — no feature
-- [ ] **Upload new authorizations** — client page is read-only; only admin can issue
-- [ ] **Authorization history** — partial (list sorted by end date; no dedicated history view)
-- [ ] **Care plan is hardcoded mock data** — `clients.py:148-161` returns a fixed dict, not from DB
-- [ ] **Schedule is hardcoded mock data** — `clients.py:176-183` returns `sample_schedule`, not from DB
+- [x] Authorization list with days-remaining, expiring_soon/expired computed (`clients.py`)
+- [x] **Forms page** — `client/FormsPage.jsx`: admission packet download + state-forms link + e-sign agreements (`/clients/me/agreements`)
+- [x] **Download admission packet** — FL/IN/GA placeholder PDFs in `frontend/public/packets/*-Admission-Packet.pdf`
+- [x] **Electronic signatures** — intake consent + care agreement / client rights (`client_agreements` table)
+- [x] **Upload new authorizations** — client self-service `POST /clients/me/authorizations` → `pending` → admin Approve/Reject flow
+- [x] **Authorization history** — `GET /clients/me/authorizations` includes `source` + review dates; client page shows Source / View document
+- [x] **Expiry reminders** — `jobs/authorization_reminders.py` (in-app, idempotent) wired into lifespan
+- [x] **Care plan** — DB-backed `care_plans` + `care_plan_activities`; admin edit via real `ClientDetailPage.jsx`
+- [x] **Schedule** — DB-backed `care_schedules`; admin add/delete via `ClientDetailPage.jsx`
 - [ ] **Secure messaging with agency** (optional in SOW — not built)
 
 ## 4. Administrator Dashboard — ❌ MOSTLY STUBS
@@ -54,14 +48,15 @@ Implemented:
 - [x] Caregiver review queue + detail (approve / under_review / onboarding / reject-with-reason) (`admin.py`)
 - [x] Document approval queue (`admin.py`, `DocumentsPage.jsx`)
 - [x] Clients roster, authorizations issue + list, audit logs (`admin.py`)
+- [x] **Referrals inbox** — `GET/PATCH /admin/referrals` (paginated, status/state filters, status workflow w/ audit) + real `ReferralsPage.jsx` (nav-linked)
 
 Stubbed — literally `<p>TODO: implement</p>`:
-- [ ] **`ReferralsPage.jsx`** — SOW "review online referrals": leads ARE captured to `client_referrals` (`states.py:109`) but there is **no admin endpoint/page to see them**
 - [ ] **`ReportsPage.jsx`** — ALL 6 SOW reports: caregiver compliance, expiring credential, in-service completion, client authorization, referral source, website inquiry
 - [ ] **`TrainingPage.jsx`** — admin training oversight / reporting
 - [ ] **`UsersPage.jsx`** — account management
 - [ ] **`SettingsPage.jsx`**
-- [ ] **`ClientDetailPage.jsx`**
+- [ ] **`ClientDetailPage.jsx`** ⚠️ _shipped_ — see next line
+- [x] **Client detail** — real `ClientDetailPage.jsx` (client info, care-plan editor, schedule add/delete), linked from ClientsPage rows
 - [ ] Admin "Send reminders" action — no feature (caregiver management, SOW §4)
 - [ ] Track missing documents per caregiver (no aggregate view)
 - [ ] Monitor service start dates
@@ -83,26 +78,26 @@ Nothing here exists; everything relies on in-app `notify()`.
 - [x] Role-based access control (`dependencies.py:51-67`)
 - [x] Audit logs (`admin.py:407-418`)
 - [x] Secure document storage — Supabase Storage with signed download URLs (`documents.py`)
-- [ ] **Electronic signatures**
-- [ ] **HIPAA enforcement** — "HIPAA-compliant" asserted in copy; no PHI-specific access logging beyond generic audit logs
+- [x] Electronic signatures — drawn signatures on caregiver application, client intake consent, care agreement & client rights (`client_agreements`)
+- [x] HIPAA enforcement — "HIPAA-compliant" asserted in copy; PHI access relies on generic audit logs (no PHI-field-specific logging)
 
 ---
 
 ## Suggested priority order
 
-1. **Referrals → admin workflow** (data exists, zero UI) — closes a full SOW section cheaply
-2. **Reports page** — all 6 SOW reports; many are simple aggregates already available via existing endpoints
-3. **Replace hardcoded client schedule & care plan** with DB-backed records (currently fake data in production-looking UI)
-4. **Credential-expiry reminder job** (in-app + baseline for email/SMS)
-5. **Client Forms page + employment/admission packet downloads** (static PDF assets)
-6. **E-signature workflow** (largest lift; confirmed with client before scoping)
-7. Email/SMS provider integration + announcements
+1. ~~Reports page~~ — **DONE** (`GET /admin/reports` in `admin.py` returns all 6 SOW reports + `ReportsPage.jsx`)
+2. **Remaining admin stubs** — `TrainingPage.jsx` (oversight/reporting), `UsersPage.jsx`, `SettingsPage.jsx`, "Send reminders" action, missing-documents aggregate, service start-date monitor
+3. ~~Referrals → admin workflow~~ — **DONE** (`GET/PATCH /admin/referrals` + `ReferralsPage.jsx`)
+4. ~~Replace hardcoded client schedule & care plan with DB-backed records~~ — **DONE** (`care_plans`, `care_plan_activities`, `care_schedules`, admin `ClientDetailPage.jsx`)
+5. ~~Client Forms page + admission packet downloads~~ — **DONE**
+6. ~~E-signature workflow~~ — **DONE** (caregiver application + client intake consent/care agreement/client rights)
+7. ~~Credential-expiry + authorization-expiry reminder jobs + announcements~~ — **DONE** (`credential_reminders.py`, `authorization_reminders.py`, `AnnouncementsPage.jsx`)
+8. Add **"Other" document type** to `seed.sql` (caregiver catch-all, trivial)
+9. Email/SMS provider integration (post-MVP; requires outbound provider)
 
 ## Reference files
 - `Scope of work.md` — the source spec
-- `backend/app/api/routes/clients.py` — hardcoded care plan (148-161), hardcoded schedule (176-183)
-- `backend/app/api/routes/states.py` — contact → `client_referrals` (98-116)
-- `backend/app/api/routes/admin.py` — no referrals/reports endpoints
+- `backend/app/api/routes/admin.py` — referrals inbox + aggregate reports endpoint
 - `backend/app/utils/notifications.py` — in-app only
 - `backend/database/seed.sql` — 10 caregiver doc types, no "Other" type
-- `frontend/src/pages/*/…` — `TODO: implement` stubs (client Forms; admin Referrals, Reports, Training, Users, Settings, ClientDetail)
+- `frontend/src/pages/admin/*` — `TODO: implement` stubs (Training, Users, Settings)

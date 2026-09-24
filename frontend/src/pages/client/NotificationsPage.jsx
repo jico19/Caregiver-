@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import { queryClient } from '../../lib/queryClient';
 
 export default function NotificationsPage() {
   const { token } = useAuth();
@@ -36,6 +37,7 @@ export default function NotificationsPage() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
+      queryClient.invalidateQueries({ queryKey: ['/clients/me/notifications'] });
     } catch {
       // Ignore
     }

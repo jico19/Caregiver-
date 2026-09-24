@@ -1,39 +1,14 @@
-import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
 import { packetUrl } from '../../utils/packets';
 
 export default function CareersPage() {
   const { state = 'florida' } = useParams();
-  const [careers, setCareers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
+  const { data, isLoading: loading, error: errorMsg } = useFetch(`/states/${state}/careers`, { defaultData: [] });
 
+  const careers = data?.careers || [];
   const stateName = state.charAt(0).toUpperCase() + state.slice(1);
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    setErrorMsg('');
-
-    api.get(`/states/${state}/careers`)
-      .then((res) => {
-        if (!isMounted) return;
-        setCareers(res?.careers || []);
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setErrorMsg(`Failed to load ${stateName} career postings.`);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [state]);
 
   return (
     <div className="page-container">

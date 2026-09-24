@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime, timezone, date, timedelta
-from app.core.dependencies import require_caregiver
+from app.core.dependencies import require_caregiver, validate_state_id
 from app.core.supabase import get_supabase, get_supabase_anon
 from app.schemas.caregivers import CaregiverApplicationSubmit, CaregiverProfileUpdate, PublicCaregiverApplicationSubmit
 from app.utils.notifications import notify
@@ -36,7 +36,7 @@ def _validate_signature(payload):
 
 
 @router.get("/me")
-async def get_my_profile(user: dict = Depends(require_caregiver)):
+def get_my_profile(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -54,7 +54,7 @@ async def get_my_profile(user: dict = Depends(require_caregiver)):
 
 
 @router.get("/me/application")
-async def get_my_application(user: dict = Depends(require_caregiver)):
+def get_my_application(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -74,11 +74,13 @@ async def get_my_application(user: dict = Depends(require_caregiver)):
 
 
 @router.post("/apply-public")
-async def apply_public(payload: PublicCaregiverApplicationSubmit):
+def apply_public(payload: PublicCaregiverApplicationSubmit):
     supabase = get_supabase()
     anon_client = get_supabase_anon()
 
     signature = _validate_signature(payload)
+
+    state_id = validate_state_id(supabase, payload.state_id)
 
     # 1. Create auth user
     try:
@@ -115,14 +117,14 @@ async def apply_public(payload: PublicCaregiverApplicationSubmit):
         "id": user_id,
         "email": payload.email,
         "role_id": role_id,
-        "state_id": payload.state_id,
+        "state_id": state_id,
         "status": "active",
     }).execute()
 
     # 3. Create caregiver profile
     profile_data = {
         "id": user_id,
-        "state_id": payload.state_id,
+        "state_id": state_id,
         "first_name": payload.first_name,
         "last_name": payload.last_name,
         "phone": payload.phone,
@@ -136,7 +138,7 @@ async def apply_public(payload: PublicCaregiverApplicationSubmit):
     now_iso = datetime.now(timezone.utc).isoformat()
     app_data = {
         "caregiver_id": user_id,
-        "state_id": payload.state_id,
+        "state_id": state_id,
         "status": "submitted",
         "submitted_at": now_iso,
         "notes": payload.notes,
@@ -176,7 +178,7 @@ async def apply_public(payload: PublicCaregiverApplicationSubmit):
                 "token_type": "bearer",
                 "user_id": user_id,
                 "role": "caregiver",
-                "state_id": payload.state_id,
+                "state_id": state_id,
             }
     except Exception:
         pass
@@ -189,7 +191,7 @@ async def apply_public(payload: PublicCaregiverApplicationSubmit):
 
 
 @router.post("/applications")
-async def submit_application(
+def submit_application(
     payload: CaregiverApplicationSubmit,
     user: dict = Depends(require_caregiver),
 ):
@@ -197,6 +199,8 @@ async def submit_application(
     user_id = user.get("sub")
 
     signature = _validate_signature(payload)
+
+    validate_state_id(supabase, payload.state_id)
 
     # 1. Upsert caregiver profile
     profile_data = {
@@ -322,7 +326,7 @@ async def submit_application(
 
 
 @router.post("/applications/resubmit")
-async def resubmit_application(
+def resubmit_application(
     payload: CaregiverApplicationSubmit,
     user: dict = Depends(require_caregiver),
 ):
@@ -330,6 +334,8 @@ async def resubmit_application(
     user_id = user.get("sub")
 
     signature = _validate_signature(payload)
+
+    validate_state_id(supabase, payload.state_id)
 
     # 1. Load most recent application for this caregiver
     app_q = (
@@ -424,7 +430,7 @@ async def resubmit_application(
 
 
 @router.get("/me/documents")
-async def get_my_documents(user: dict = Depends(require_caregiver)):
+def get_my_documents(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -440,12 +446,14 @@ async def get_my_documents(user: dict = Depends(require_caregiver)):
 
 
 @router.patch("/me/profile")
-async def update_my_profile(
+def update_my_profile(
     payload: CaregiverProfileUpdate,
     user: dict = Depends(require_caregiver),
 ):
     supabase = get_supabase()
     user_id = user.get("sub")
+
+    validate_state_id(supabase, payload.state_id)
 
     profile_data = {
         "id": user_id,
@@ -471,7 +479,7 @@ async def update_my_profile(
 
 
 @router.get("/me/notifications")
-async def get_my_notifications(user: dict = Depends(require_caregiver)):
+def get_my_notifications(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -487,7 +495,7 @@ async def get_my_notifications(user: dict = Depends(require_caregiver)):
 
 
 @router.patch("/me/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: str, user: dict = Depends(require_caregiver)):
+def mark_notification_read(notification_id: str, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -503,7 +511,7 @@ async def mark_notification_read(notification_id: str, user: dict = Depends(requ
 
 
 @router.patch("/me/notifications/read-all")
-async def mark_all_notifications_read(user: dict = Depends(require_caregiver)):
+def mark_all_notifications_read(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -522,7 +530,7 @@ def _parse_date(value):
 
 
 @router.get("/me/credential-status")
-async def get_credential_status(user: dict = Depends(require_caregiver)):
+def get_credential_status(user: dict = Depends(require_caregiver)):
     """Aggregate credential health vs. the state's required document types."""
     supabase = get_supabase()
     user_id = user.get("sub")
@@ -600,7 +608,7 @@ async def get_credential_status(user: dict = Depends(require_caregiver)):
 
 
 @router.get("/me/announcements")
-async def get_my_announcements(user: dict = Depends(require_caregiver)):
+def get_my_announcements(user: dict = Depends(require_caregiver)):
     """Latest active announcements targeted at all caregivers or this caregiver's state."""
     supabase = get_supabase()
     user_id = user.get("sub")

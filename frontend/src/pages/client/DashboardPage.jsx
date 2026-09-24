@@ -1,42 +1,19 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
+import { admissionPacketUrl, STATE_PACKET_CODE } from '../../utils/packets';
 
 export default function DashboardPage() {
   const { token, user } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [authorizations, setAuthorizations] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  const { data: profileRes, isLoading: profileLoading } = useFetch('/clients/me', { enabled: !!token });
+  const { data: authRes, isLoading: authLoading } = useFetch('/clients/me/authorizations', { enabled: !!token, defaultData: [] });
 
-    async function loadClientDashboard() {
-      try {
-        const [profRes, authRes] = await Promise.all([
-          api.get('/clients/me', token),
-          api.get('/clients/me/authorizations', token),
-        ]);
+  const profile = profileRes?.profile || null;
+  const authorizations = authRes?.authorizations || [];
 
-        if (!isMounted) return;
-        setProfile(profRes?.profile || null);
-        setAuthorizations(authRes?.authorizations || []);
-      } catch (err) {
-        // Fallback gracefully
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    if (token) loadClientDashboard();
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
-
-  if (loading) {
+  if (profileLoading || authLoading) {
     return (
       <LoadingState
         title="Loading Client Care Portal..."
@@ -48,6 +25,7 @@ export default function DashboardPage() {
 
   const isIntakeComplete = Boolean(profile?.first_name && profile?.last_name);
   const stateName = profile?.states?.name || (user?.state_id === 1 ? 'Florida' : user?.state_id === 2 ? 'Indiana' : 'Georgia');
+  const stateCode = profile?.states?.code || STATE_PACKET_CODE[user?.state_id] || 'FL';
 
   return (
     <div className="container-wide">
@@ -60,8 +38,19 @@ export default function DashboardPage() {
             Managed Home Care Services · {stateName} Office
           </p>
         </div>
-        <div className="badge badge-green badge-lg">
-          Account: <strong className="capitalize ml-1">{user?.email}</strong>
+        <div className="flex items-center gap-3">
+          <a
+            href={admissionPacketUrl(stateCode)}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-outline-secondary"
+          >
+            Download Admission Packet
+          </a>
+          <div className="badge badge-green badge-lg">
+            Account: <strong className="capitalize ml-1">{user?.email}</strong>
+          </div>
         </div>
       </div>
 

@@ -22,8 +22,10 @@ export default function AdminLayout() {
     { label: 'Dashboard', to: '/admin/dashboard' },
     { label: 'Caregivers', to: '/admin/caregivers' },
     { label: 'Clients', to: '/admin/clients' },
+    { label: 'Referrals', to: '/admin/referrals' },
     { label: 'Compliance', to: '/admin/documents' },
     { label: 'Authorizations', to: '/admin/authorizations' },
+    { label: 'Reports', to: '/admin/reports' },
     { label: 'Announcements', to: '/admin/announcements' },
     { label: 'Audit Logs', to: '/admin/audit-logs' },
   ];

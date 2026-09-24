@@ -72,3 +72,16 @@ def validate_state(state: str) -> str:
     if state not in settings.VALID_STATES:
         raise HTTPException(status_code=404, detail=f"State '{state}' not found")
     return state
+
+
+def validate_state_id(supabase, state_id: int) -> int:
+    """Ensure a client-supplied state_id exists in the states table."""
+    if state_id is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="state_id is required")
+    res = supabase.table("states").select("id").eq("id", state_id).single().execute()
+    if not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid state_id '{state_id}'",
+        )
+    return state_id

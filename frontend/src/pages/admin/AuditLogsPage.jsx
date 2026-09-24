@@ -1,33 +1,24 @@
-import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import usePaginatedFetch from '../../hooks/usePaginatedFetch';
+import Pagination from '../../components/common/Pagination';
 
 export default function AuditLogsPage() {
   const { token } = useAuth();
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-
-    api.get('/admin/audit-logs', token)
-      .then((res) => {
-        if (!isMounted) return;
-        setLogs(res?.audit_logs || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load audit logs.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+  const {
+    items: logs,
+    total,
+    pages,
+    page,
+    pageSize,
+    loading,
+    error,
+    setPage,
+    setPageSize,
+  } = usePaginatedFetch({
+    url: '/admin/audit-logs',
+    token,
+    listKey: 'audit_logs',
+  });
 
   return (
     <div className="page-container">
@@ -40,15 +31,15 @@ export default function AuditLogsPage() {
         </p>
       </div>
 
-      {errorMsg && (
+      {error && (
         <div role="alert" className="alert alert-error">
-          {errorMsg}
+          {error}
         </div>
       )}
 
       <div className="admin-card">
         <h2 className="section-title">
-          Recent Activity Stream ({logs.length})
+          Recent Activity Stream ({total})
         </h2>
 
         {loading ? (
@@ -95,6 +86,16 @@ export default function AuditLogsPage() {
             </table>
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={pageSize}
+          listLabel="entries"
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

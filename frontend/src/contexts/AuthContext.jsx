@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { queryClient } from '../lib/queryClient';
 
 const AuthContext = createContext(null);
 const TOKEN_KEY = 'caregiver_access_token';
@@ -36,6 +37,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(email, password) {
+    queryClient.clear();
     const data = await api.post('/auth/login', { email, password });
     localStorage.setItem(TOKEN_KEY, data.access_token);
     setToken(data.access_token);
@@ -77,6 +79,7 @@ export function AuthProvider({ children }) {
     } catch {
       // Ignore network errors on logout
     } finally {
+      queryClient.clear();
       localStorage.removeItem(TOKEN_KEY);
       setUser(null);
       setToken(null);

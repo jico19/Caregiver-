@@ -1,36 +1,13 @@
-import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
 
 export default function ServicesPage() {
   const { state } = useParams();
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data, isLoading: loading, error: errorText } = useFetch(`/states/${state}/services`, { defaultData: [] });
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    setError(null);
-
-    api.get(`/states/${state}/services`)
-      .then((data) => {
-        if (!isMounted) return;
-        setServices(data?.services || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.detail || 'Failed to load services.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [state]);
+  const services = data?.services || [];
+  const error = errorText || null;
 
   const stateName = state ? state.charAt(0).toUpperCase() + state.slice(1) : '';
 

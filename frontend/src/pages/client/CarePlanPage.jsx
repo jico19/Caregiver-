@@ -51,6 +51,18 @@ export default function CarePlanPage() {
         </div>
       )}
 
+      {!carePlan && !errorMsg && (
+        <div className="card p-8 text-center">
+          <h2 className="card-title mb-1">No Plan of Care on File Yet</h2>
+          <p className="empty-text">
+            Your care coordinator is still preparing your personalized plan of care.
+            Once published, your daily care activities and emergency protocol will appear here.
+          </p>
+        </div>
+      )}
+
+      {carePlan && (
+        <>
       {/* Plan Header */}
       <div className="card mb-6">
         <div className="grid grid-cols-4 max-md:grid-cols-1 gap-4">
@@ -124,6 +136,8 @@ export default function CarePlanPage() {
           {carePlan?.emergency_protocol}
         </p>
       </div>
+        </>
+      )}
     </div>
   );
 }

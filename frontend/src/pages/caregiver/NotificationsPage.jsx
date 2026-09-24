@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import { queryClient } from '../../lib/queryClient';
 
 export default function NotificationsPage() {
   const { token } = useAuth();
@@ -36,6 +37,7 @@ export default function NotificationsPage() {
       setNotifications((prev) =>
         prev.map((n) => (n.id === id ? { ...n, read: true } : n))
       );
+      queryClient.invalidateQueries({ queryKey: ['/caregivers/me/notifications'] });
     } catch {
       // Ignore
     }
@@ -45,6 +47,7 @@ export default function NotificationsPage() {
     try {
       await api.patch('/caregivers/me/notifications/read-all', null, token);
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      queryClient.invalidateQueries({ queryKey: ['/caregivers/me/notifications'] });
     } catch {
       // Ignore
     }

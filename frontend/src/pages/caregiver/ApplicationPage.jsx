@@ -13,7 +13,7 @@ import {
 } from '../../utils/caregiverStatus';
 import { saveDraft, loadDraft, clearDraft, DRAFT_TTL_MS } from '../../utils/draftStorage';
 import { caregiverApplicationSchema, applicationDefaultValues, toApplicationPayload } from '../../utils/validation';
-import SignaturePad from '../../components/caregiver/SignaturePad';
+import SignaturePad from '../../components/common/SignaturePad';
 import { packetUrl, STATE_PACKET_CODE } from '../../utils/packets';
 
 const STATE_SLUG_MAP = {

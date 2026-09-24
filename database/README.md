@@ -7,6 +7,20 @@
 3. Paste and run `schema.sql` first
 4. Paste and run `seed.sql` second
 5. Paste and run `seed_careers.sql` third (or when adding career openings)
+6. Paste and run the migrations in `migrations/` (in numeric order: `06_` → `07_` → `08_` → `09_` → `10_`)
+
+`09_documents_bucket.sql` provisions the private `documents` Storage bucket the
+backend uploads files to; `10_rls_policies.sql` adds Row Level Security policies
+matching the app's access model (own-row for users, admin override, public read
+for content tables). Both are idempotent.
+
+### Security model (read this before touching RLS)
+
+All application traffic goes through the FastAPI backend using the **service-role**
+key, which bypasses RLS. RLS policies are **defense in depth** — they bound what the
+Data API roles (`anon`/`authenticated`) could read/write if a Supabase client were
+ever added, and they protect the data if the service-role key leaks. Never weaken
+these policies to make a client-side call work; extend the backend instead.
 
 ### Seeding test accounts (`seed.sql`)
 

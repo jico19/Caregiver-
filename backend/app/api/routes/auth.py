@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest
 from app.core.supabase import get_supabase_anon, get_supabase
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, validate_state_id
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login(data: LoginRequest):
+def login(data: LoginRequest):
     supabase = get_supabase_anon()
     try:
         res = supabase.auth.sign_in_with_password({"email": data.email, "password": data.password})
@@ -37,7 +37,7 @@ async def login(data: LoginRequest):
 
 
 @router.post("/register")
-async def register(data: RegisterRequest):
+def register(data: RegisterRequest):
     from app.models.enums import UserRole
 
     # Self-signup is restricted to caregiver/client. Administrator accounts are
@@ -65,7 +65,7 @@ async def register(data: RegisterRequest):
         raise HTTPException(status_code=400, detail="Registration failed")
 
     user_id = str(auth_res.user.id)
-    state_id = data.state_id or 1  # Florida default, matches frontend
+    state_id = validate_state_id(supabase, data.state_id or 1)  # Florida default, matches frontend
 
     # Look up role id
     role_row = supabase.table("roles").select("id").eq("name", data.role).single().execute()
@@ -99,12 +99,12 @@ async def register(data: RegisterRequest):
 
 
 @router.post("/logout")
-async def logout(user: dict = Depends(get_current_user)):
+def logout(user: dict = Depends(get_current_user)):
     return {"message": "Logged out"}
 
 
 @router.get("/me")
-async def get_me(user: dict = Depends(get_current_user)):
+def get_me(user: dict = Depends(get_current_user)):
     admin_client = get_supabase()
     user_row = admin_client.table("users").select("*, roles(name), states(name, slug, code)").eq("id", user.get("sub")).single().execute()
     if not user_row.data:

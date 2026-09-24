@@ -6,14 +6,14 @@ router = APIRouter()
 
 
 @router.get("/")
-async def list_states():
+def list_states():
     supabase = get_supabase()
     res = supabase.table("states").select("*").eq("active", True).order("name").execute()
     return res.data
 
 
 @router.get("/{state}")
-async def get_state(state: str = Depends(validate_state)):
+def get_state(state: str = Depends(validate_state)):
     supabase = get_supabase()
     res = supabase.table("states").select("*").eq("slug", state).single().execute()
     if not res.data:
@@ -22,7 +22,7 @@ async def get_state(state: str = Depends(validate_state)):
 
 
 @router.get("/{state}/services")
-async def get_state_services(state: str = Depends(validate_state)):
+def get_state_services(state: str = Depends(validate_state)):
     supabase = get_supabase()
     state_row = supabase.table("states").select("id").eq("slug", state).single().execute()
     if not state_row.data:
@@ -32,7 +32,7 @@ async def get_state_services(state: str = Depends(validate_state)):
 
 
 @router.get("/{state}/forms")
-async def get_state_forms(state: str = Depends(validate_state)):
+def get_state_forms(state: str = Depends(validate_state)):
     supabase = get_supabase()
     state_row = supabase.table("states").select("id").eq("slug", state).single().execute()
     if not state_row.data:
@@ -42,7 +42,7 @@ async def get_state_forms(state: str = Depends(validate_state)):
 
 
 @router.get("/{state}/licensing")
-async def get_state_licensing(state: str = Depends(validate_state)):
+def get_state_licensing(state: str = Depends(validate_state)):
     supabase = get_supabase()
     state_row = supabase.table("states").select("id").eq("slug", state).single().execute()
     if not state_row.data:
@@ -52,23 +52,20 @@ async def get_state_licensing(state: str = Depends(validate_state)):
 
 
 @router.get("/{state}/careers")
-async def get_state_careers(state: str = Depends(validate_state)):
+def get_state_careers(state: str = Depends(validate_state)):
     supabase = get_supabase()
     state_row = supabase.table("states").select("id").eq("slug", state).single().execute()
     if not state_row.data:
         raise HTTPException(status_code=404, detail="State not found")
-    try:
-        res = (
-            supabase.table("job_postings")
-            .select("*")
-            .eq("state_id", state_row.data["id"])
-            .eq("active", True)
-            .order("sort_order")
-            .execute()
-        )
-        return {"state": state, "careers": res.data}
-    except Exception as e:
-        return {"state": state, "careers": [], "db_pending": True, "detail": str(e)}
+    res = (
+        supabase.table("job_postings")
+        .select("*")
+        .eq("state_id", state_row.data["id"])
+        .eq("active", True)
+        .order("sort_order")
+        .execute()
+    )
+    return {"state": state, "careers": res.data}
 
 
 
@@ -86,7 +83,7 @@ class ContactInquiryRequest(BaseModel):
 
 
 @router.post("/{state}/contact")
-async def submit_contact_inquiry(
+def submit_contact_inquiry(
     payload: ContactInquiryRequest,
     state: str = Depends(validate_state),
 ):

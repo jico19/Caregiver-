@@ -24,6 +24,7 @@ import CaregiverNotificationsPage from '../pages/caregiver/NotificationsPage';
 import ClientLoginPage from '../pages/client/LoginPage';
 import ClientDashboardPage from '../pages/client/DashboardPage';
 import ClientIntakePage from '../pages/client/IntakePage';
+import ClientFormsPage from '../pages/client/FormsPage';
 import ClientDocumentsPage from '../pages/client/DocumentsPage';
 import ClientAuthorizationsPage from '../pages/client/AuthorizationsPage';
 import ClientCarePlanPage from '../pages/client/CarePlanPage';
@@ -95,6 +96,7 @@ export default function AppRoutes() {
       <Route path="/client" element={<ClientLayout />}>
         <Route path="dashboard" element={<ClientDashboardPage />} />
         <Route path="intake" element={<ClientIntakePage />} />
+        <Route path="forms" element={<ClientFormsPage />} />
         <Route path="documents" element={<ClientDocumentsPage />} />
         <Route path="authorizations" element={<ClientAuthorizationsPage />} />
         <Route path="care-plan" element={<ClientCarePlanPage />} />

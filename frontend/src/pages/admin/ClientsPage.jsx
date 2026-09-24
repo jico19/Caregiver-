@@ -1,34 +1,25 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import usePaginatedFetch from '../../hooks/usePaginatedFetch';
+import Pagination from '../../components/common/Pagination';
 
 export default function ClientsPage() {
   const { token } = useAuth();
-  const [clients, setClients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-
-    api.get('/admin/clients', token)
-      .then((res) => {
-        if (!isMounted) return;
-        setClients(res?.clients || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load client roster.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+  const {
+    items: clients,
+    total,
+    pages,
+    page,
+    pageSize,
+    loading,
+    error,
+    setPage,
+    setPageSize,
+  } = usePaginatedFetch({
+    url: '/admin/clients',
+    token,
+    listKey: 'clients',
+  });
 
   return (
     <div className="page-container">
@@ -50,9 +41,9 @@ export default function ClientsPage() {
         </Link>
       </div>
 
-      {errorMsg && (
+      {error && (
         <div role="alert" className="alert alert-error">
-          {errorMsg}
+          {error}
         </div>
       )}
 
@@ -99,12 +90,20 @@ export default function ClientsPage() {
                       {new Date(c.created_at).toLocaleDateString()}
                     </td>
                     <td className="text-right">
-                      <Link
-                        to={`/admin/authorizations?client_id=${c.id}&client_name=${encodeURIComponent(`${c.first_name} ${c.last_name}`)}&state_id=${c.state_id}`}
-                        className="btn-ghost-download btn-xs"
-                      >
-                        Authorizations
-                      </Link>
+                      <div className="inline-flex items-center gap-2">
+                        <Link
+                          to={`/admin/clients/${c.id}`}
+                          className="btn-ghost-download btn-xs"
+                        >
+                          View
+                        </Link>
+                        <Link
+                          to={`/admin/authorizations?client_id=${c.id}&client_name=${encodeURIComponent(`${c.first_name} ${c.last_name}`)}&state_id=${c.state_id}`}
+                          className="btn-ghost-download btn-xs"
+                        >
+                          Authorizations
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -112,6 +111,16 @@ export default function ClientsPage() {
             </table>
           </div>
         )}
+
+        <Pagination
+          page={page}
+          pages={pages}
+          total={total}
+          pageSize={pageSize}
+          listLabel="clients"
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+        />
       </div>
     </div>
   );

@@ -1,37 +1,13 @@
-import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
 
 export default function FormsPage() {
   const { state = 'florida' } = useParams();
-  const [forms, setForms] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
+  const { data, isLoading: loading, error: errorMsg } = useFetch(`/states/${state}/forms`, { defaultData: [] });
 
+  const forms = data?.forms || [];
   const stateName = state.charAt(0).toUpperCase() + state.slice(1);
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-
-    api.get(`/states/${state}/forms`)
-      .then((res) => {
-        if (!isMounted) return;
-        setForms(res?.forms || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg(`Failed to load ${stateName} state forms.`);
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [state]);
 
   return (
     <div className="page-container">

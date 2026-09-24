@@ -1,41 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 
 export default function DashboardPage() {
   const { token } = useAuth();
   const [selectedState, setSelectedState] = useState('all');
-  const [metrics, setMetrics] = useState({
+
+  const { data, isLoading, error } = useFetch('/admin/dashboard', {
+    params: { state: selectedState },
+    enabled: !!token,
+  });
+
+  const metrics = data?.metrics || {
     total_caregivers: 0,
     total_clients: 0,
     pending_applications: 0,
     pending_documents: 0,
-  });
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-
-    api.get(`/admin/dashboard?state=${selectedState}`, token)
-      .then((res) => {
-        if (!isMounted) return;
-        setMetrics(res?.metrics || {});
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load operational metrics.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedState, token]);
+  };
+  const errorMsg = error ? 'Failed to load operational metrics.' : '';
 
   return (
     <div className="page-container">
@@ -64,7 +47,7 @@ export default function DashboardPage() {
             <option value="indiana">Indiana Only</option>
             <option value="georgia">Georgia Only</option>
           </select>
-          {loading && (
+          {isLoading && (
             <span className="loading-inline">
               <svg className="spinner-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="3">
                 <path d="M21 12a9 9 0 1 1-6.219-8.56" />
@@ -86,7 +69,7 @@ export default function DashboardPage() {
         <div className="kpi-card">
           <div className="kpi-label">Active Caregivers</div>
           <div className="kpi-value">
-            {loading ? <div className="skeleton-box skeleton-value" /> : metrics.total_caregivers}
+            {isLoading ? <div className="skeleton-box skeleton-value" /> : metrics.total_caregivers}
           </div>
           <Link to="/admin/caregivers" className="kpi-link-blue">
             Manage Caregivers →
@@ -96,7 +79,7 @@ export default function DashboardPage() {
         <div className="kpi-card">
           <div className="kpi-label">Registered Clients</div>
           <div className="kpi-value">
-            {loading ? <div className="skeleton-box skeleton-value" /> : metrics.total_clients}
+            {isLoading ? <div className="skeleton-box skeleton-value" /> : metrics.total_clients}
           </div>
           <Link to="/admin/clients" className="kpi-link-green">
             View Client Roster →
@@ -106,7 +89,7 @@ export default function DashboardPage() {
         <div className="kpi-card kpi-card-warning">
           <div className="kpi-label kpi-label-warning">Applications Pending</div>
           <div className="kpi-value kpi-value-warning">
-            {loading ? <div className="skeleton-box skeleton-value" /> : metrics.pending_applications}
+            {isLoading ? <div className="skeleton-box skeleton-value" /> : metrics.pending_applications}
           </div>
           <Link to="/admin/caregivers" className="kpi-link-warning">
             Review Applications →
@@ -116,7 +99,7 @@ export default function DashboardPage() {
         <div className="kpi-card kpi-card-info">
           <div className="kpi-label kpi-label-info">Documents for Review</div>
           <div className="kpi-value kpi-value-info">
-            {loading ? <div className="skeleton-box skeleton-value" /> : metrics.pending_documents}
+            {isLoading ? <div className="skeleton-box skeleton-value" /> : metrics.pending_documents}
           </div>
           <Link to="/admin/documents" className="kpi-link-info">
             Verify Credentials →

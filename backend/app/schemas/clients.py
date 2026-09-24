@@ -11,6 +11,13 @@ class ClientIntakeSubmit(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     address: Optional[str] = None
     medicaid_number: Optional[str] = Field(None, max_length=50)
+    signature_data: Optional[str] = None
+    signed_name: Optional[str] = None
+
+
+class AgreementSignSubmit(BaseModel):
+    signature_data: str = Field(..., min_length=1)
+    signed_name: str = Field(..., min_length=1, max_length=200)
 
 
 class ClientResponse(BaseModel):

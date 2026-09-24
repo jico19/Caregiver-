@@ -265,6 +265,20 @@
   .page-title-lg { @apply text-[2rem] mb-3; }
   .page-subtitle-lg { @apply text-[1.125rem] max-w-[680px] leading-[1.6]; }
   .page-subtitle-md { @apply text-[1.05rem] max-w-[720px] leading-normal; }
+
+  /* Pagination */
+  .pager { @apply flex flex-wrap items-center justify-between gap-3 mt-4 pt-4 border-t border-line; }
+  .pager-range { @apply text-[0.85rem] text-secondary; }
+  .pager-range strong { @apply text-ink font-semibold; }
+  .pager-controls { @apply flex items-center gap-1.5; }
+  .pager-btn { @apply min-w-[2rem] bg-surface border border-line-strong rounded-sm text-[0.85rem] text-secondary cursor-pointer py-[0.4rem] px-3; }
+  .pager-btn:hover:not(:disabled) { @apply bg-primary-light text-primary border-primary; }
+  .pager-btn:disabled { @apply opacity-50 cursor-not-allowed; }
+  .pager-btn-active { @apply bg-primary text-white border-primary font-semibold; }
+  .pager-btn-active:hover:not(:disabled) { @apply bg-primary-hover text-white; }
+  .pager-ellipsis { @apply px-1 text-muted select-none; }
+  .pager-size { @apply flex items-center gap-2 text-[0.85rem] text-secondary m-0; }
+  .pager-size .select-compact { @apply w-auto; }
   .container-880 { @apply max-w-[880px] mx-auto py-4 w-full; }
 
   /* Section rules & alert internals */

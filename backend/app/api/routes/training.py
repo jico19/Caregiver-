@@ -9,7 +9,7 @@ router = APIRouter()
 
 
 @router.get("/courses")
-async def list_courses(user: dict = Depends(get_current_user)):
+def list_courses(user: dict = Depends(get_current_user)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -50,7 +50,7 @@ async def list_courses(user: dict = Depends(get_current_user)):
 
 
 @router.get("/my-enrollments")
-async def get_my_enrollments(user: dict = Depends(require_caregiver)):
+def get_my_enrollments(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -66,7 +66,7 @@ async def get_my_enrollments(user: dict = Depends(require_caregiver)):
 
 
 @router.post("/courses/{course_id}/enroll")
-async def enroll_in_course(course_id: str, user: dict = Depends(require_caregiver)):
+def enroll_in_course(course_id: str, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -100,7 +100,7 @@ async def enroll_in_course(course_id: str, user: dict = Depends(require_caregive
 
 
 @router.post("/courses/{course_id}/complete")
-async def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
+def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -149,7 +149,7 @@ async def complete_course(course_id: str, user: dict = Depends(require_caregiver
 
 
 @router.get("/courses/{course_id}/certificate")
-async def get_course_certificate(course_id: str, user: dict = Depends(require_caregiver)):
+def get_course_certificate(course_id: str, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 

@@ -1,37 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import { queryClient } from '../../lib/queryClient';
+import useFetch from '../../hooks/useFetch';
 
 export default function TrainingPage() {
   const { token } = useAuth();
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadCourses() {
-      try {
-        const res = await api.get('/training/courses', token);
-        if (!isMounted) return;
-        setCourses(res?.courses || []);
-      } catch (err) {
-        if (!isMounted) return;
-        setErrorMsg('Failed to load in-service training courses.');
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    if (token) loadCourses();
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+  const { data, isLoading: loading, error: loadError } = useFetch('/training/courses', { enabled: !!token, defaultData: [] });
+  const courses = data?.courses || [];
+  const listError = loadError || '';
 
   async function handleEnroll(courseId) {
     setErrorMsg('');
@@ -41,8 +23,7 @@ export default function TrainingPage() {
     try {
       await api.post(`/training/courses/${courseId}/enroll`, null, token);
       setSuccessMsg('You have enrolled in the training course.');
-      const res = await api.get('/training/courses', token);
-      setCourses(res?.courses || []);
+      queryClient.invalidateQueries({ queryKey: ['/training/courses'] });
     } catch (err) {
       setErrorMsg(err.detail || 'Enrollment failed.');
     } finally {
@@ -58,8 +39,7 @@ export default function TrainingPage() {
     try {
       await api.post(`/training/courses/${courseId}/complete`, null, token);
       setSuccessMsg('Course successfully marked as completed.');
-      const res = await api.get('/training/courses', token);
-      setCourses(res?.courses || []);
+      queryClient.invalidateQueries({ queryKey: ['/training/courses'] });
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to complete course.');
     } finally {
@@ -85,9 +65,9 @@ export default function TrainingPage() {
         </p>
       </div>
 
-      {errorMsg && (
+      {(errorMsg || listError) && (
         <div role="alert" className="alert alert-error">
-          {errorMsg}
+          {errorMsg || listError}
         </div>
       )}
 

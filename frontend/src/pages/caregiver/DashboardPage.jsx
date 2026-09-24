@@ -1,51 +1,25 @@
-import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
 import { STATUS_META, milestoneMeta, badgeClass } from '../../utils/caregiverStatus';
 import { packetUrl, STATE_PACKET_CODE } from '../../utils/packets';
 
 export default function DashboardPage() {
   const { token, user } = useAuth();
-  const [profile, setProfile] = useState(null);
-  const [application, setApplication] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [credentialStatus, setCredentialStatus] = useState(null);
-  const [announcements, setAnnouncements] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let isMounted = true;
+  const { data: profileRes, isLoading: profileLoading } = useFetch('/caregivers/me', { enabled: !!token });
+  const { data: appRes, isLoading: appLoading } = useFetch('/caregivers/me/application', { enabled: !!token });
+  const { data: docRes, isLoading: docsLoading } = useFetch('/caregivers/me/documents', { enabled: !!token, defaultData: [] });
+  const { data: credentialStatus, isLoading: credLoading } = useFetch('/caregivers/me/credential-status', { enabled: !!token });
+  const { data: annRes, isLoading: annLoading } = useFetch('/caregivers/me/announcements', { enabled: !!token, defaultData: [] });
 
-    async function loadDashboard() {
-      try {
-        const [profRes, appRes, docRes, credRes, annRes] = await Promise.all([
-          api.get('/caregivers/me', token),
-          api.get('/caregivers/me/application', token),
-          api.get('/caregivers/me/documents', token),
-          api.get('/caregivers/me/credential-status', token),
-          api.get('/caregivers/me/announcements', token),
-        ]);
+  const profile = profileRes?.profile || null;
+  const application = appRes?.application || null;
+  const documents = docRes?.documents || [];
+  const announcements = annRes?.announcements || [];
 
-        if (!isMounted) return;
-        setProfile(profRes?.profile || null);
-        setApplication(appRes?.application || null);
-        setDocuments(docRes?.documents || []);
-        setCredentialStatus(credRes || null);
-        setAnnouncements(annRes?.announcements || []);
-      } catch (err) {
-        // Handled silently for dashboard fallback
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    }
-
-    if (token) loadDashboard();
-    return () => {
-      isMounted = false;
-    };
-  }, [token]);
+  const loading = profileLoading || appLoading || docsLoading || credLoading || annLoading;
 
   if (loading) {
     return (

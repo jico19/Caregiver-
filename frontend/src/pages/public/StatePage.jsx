@@ -1,41 +1,15 @@
-import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import LoadingState from '../../components/common/LoadingState';
 
 export default function StatePage() {
   const { state } = useParams();
-  const [stateInfo, setStateInfo] = useState(null);
-  const [services, setServices] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: stateInfo, isLoading: stateLoading, error: stateError } = useFetch(`/states/${state}`);
+  const { data: servicesRes, isLoading: servicesLoading, error: servicesError } = useFetch(`/states/${state}/services`, { defaultData: [] });
 
-  useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    setError(null);
-
-    Promise.all([
-      api.get(`/states/${state}`),
-      api.get(`/states/${state}/services`),
-    ])
-      .then(([stateData, servicesData]) => {
-        if (!isMounted) return;
-        setStateInfo(stateData);
-        setServices(servicesData?.services || []);
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        setError(err.detail || 'Failed to load state information.');
-      })
-      .finally(() => {
-        if (isMounted) setLoading(false);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [state]);
+  const services = servicesRes?.services || [];
+  const loading = stateLoading || servicesLoading;
+  const error = stateError || servicesError || null;
 
   if (loading) {
     const formattedState = state ? state.charAt(0).toUpperCase() + state.slice(1) : 'State';

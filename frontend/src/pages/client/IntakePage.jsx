@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import SignaturePad from '../../components/common/SignaturePad';
+import { admissionPacketUrl, ADMISSION_PACKET_ITEMS, STATE_PACKET_CODE } from '../../utils/packets';
 
 export default function IntakePage() {
   const { token, user } = useAuth();
@@ -20,6 +22,11 @@ export default function IntakePage() {
   const [medicaidNumber, setMedicaidNumber] = useState('');
   const [stateId, setStateId] = useState(user?.state_id ? String(user.state_id) : '1');
 
+  // E-signature
+  const [signatureData, setSignatureData] = useState(null);
+  const [signedName, setSignedName] = useState('');
+  const [packetOpen, setPacketOpen] = useState(false);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -37,6 +44,7 @@ export default function IntakePage() {
           setAddress(p.address || '');
           setMedicaidNumber(p.medicaid_number || '');
           if (p.state_id) setStateId(String(p.state_id));
+          setSignedName(p.signed_name || `${p.first_name || ''} ${p.last_name || ''}`.trim());
         }
       } catch (err) {
         if (!isMounted) return;
@@ -56,6 +64,14 @@ export default function IntakePage() {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    if (!signatureData) {
+      setErrorMsg('Please draw your signature to confirm the intake information.');
+      return;
+    }
+    if (!signedName.trim()) {
+      setErrorMsg('Please enter your full legal name to sign.');
+      return;
+    }
     setSubmitting(true);
 
     const payload = {
@@ -66,17 +82,22 @@ export default function IntakePage() {
       phone: phone.trim() || null,
       address: address.trim() || null,
       medicaid_number: medicaidNumber.trim() || null,
+      signature_data: signatureData,
+      signed_name: signedName.trim(),
     };
 
     try {
       await api.post('/clients/intake', payload, token);
-      setSuccessMsg('Your intake information has been recorded successfully. An intake coordinator will reach out to assess your care requirements.');
+      setSuccessMsg('Your intake information has been recorded and signed successfully. An intake coordinator will reach out to assess your care requirements.');
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to submit client intake. Please verify your information.');
     } finally {
       setSubmitting(false);
     }
   }
+
+  const stateCode = STATE_PACKET_CODE[stateId] || STATE_PACKET_CODE[1];
+  const admissionItems = ADMISSION_PACKET_ITEMS[stateCode];
 
   if (loading) {
     return <div className="loading-text">Loading client intake profile...</div>;
@@ -208,12 +229,77 @@ export default function IntakePage() {
           />
         </div>
 
+        <div className="admission-packet-card">
+          <div className="flex justify-between items-center gap-4">
+            <div>
+              <h3 className="section-title m-0">
+                Client Admission Packet
+              </h3>
+              <p className="text-sm text-muted mt-1">
+                Review the forms included in this state's admission packet before signing.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPacketOpen(!packetOpen)}
+              className="btn-outline-secondary"
+            >
+              {packetOpen ? 'Hide forms' : 'View included forms'}
+            </button>
+          </div>
+
+          {packetOpen && (
+            <ul className="list-disc pl-5 mt-3 text-sm text-secondary">
+              {admissionItems.map((item) => <li key={item}>{item}</li>)}
+            </ul>
+          )}
+
+          <a
+            href={admissionPacketUrl(stateId)}
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-success mt-4 inline-flex items-center gap-2"
+          >
+            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13m0 0l-4-4m4 4l4-4" /></svg>
+            Download {stateId === '2' ? 'Indiana' : stateId === '3' ? 'Georgia' : 'Florida'} Admission Packet (PDF)
+          </a>
+        </div>
+
+        <h2 className="section-title-bordered">
+          Client Acknowledgement & Signature
+        </h2>
+        <p className="text-sm text-muted">
+          By signing below, you confirm the care recipient information above is accurate and acknowledge receipt of the admission packet.
+        </p>
+
+        <div>
+          <label htmlFor="client-signed-name">
+            Full Legal Name (typed) *
+          </label>
+          <input
+            id="client-signed-name"
+            type="text"
+            required
+            value={signedName}
+            onChange={(e) => setSignedName(e.target.value)}
+            placeholder="Enter the signer's full legal name"
+          />
+        </div>
+
+        <div>
+          <label>
+            Draw Signature *
+          </label>
+          <SignaturePad value={signatureData} onChange={setSignatureData} height={180} />
+        </div>
+
         <button
           type="submit"
           disabled={submitting}
           className="btn-success-full"
         >
-          {submitting ? 'Saving Intake...' : 'Save & Submit Intake'}
+          {submitting ? 'Saving Intake...' : 'Sign & Submit Intake'}
         </button>
       </form>
 

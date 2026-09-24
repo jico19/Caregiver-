@@ -1,13 +1,57 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from datetime import date, datetime
+from fastapi import UploadFile, File, Form
+from starlette.concurrency import run_in_threadpool
+from datetime import date, datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field
-from app.core.dependencies import require_client
+from app.core.dependencies import require_client, validate_state_id
 from app.core.supabase import get_supabase
-from app.schemas.clients import ClientIntakeSubmit
+from app.schemas.clients import ClientIntakeSubmit, AgreementSignSubmit
 from app.utils.notifications import notify
+from app.services.document_service import document_service
+from app.api.routes.admin import record_audit_log
 
 router = APIRouter()
+
+
+def _validate_signature(payload):
+    """Require a drawn e-signature before intake is submitted or an agreement is signed."""
+    sig = (payload.signature_data or "").strip()
+    name = (payload.signed_name or "").strip()
+    if not sig:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A drawn signature is required.",
+        )
+    if not sig.startswith("data:image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Signature must be a drawn image (data URL).",
+        )
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Your full name is required to sign.",
+        )
+    return {
+        "signature_data": sig,
+        "signed_name": name,
+        "signed_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+AGREEMENT_TEMPLATES = [
+    {
+        "agreement_key": "care_agreement",
+        "title": "Care Agreement & Authorization for Services",
+        "body": "I authorize the agency to provide home care services to the care recipient identified in my intake, including personal care, homemaking, and medication reminders as documented in the plan of care. I understand services are subject to authorization approval and that I may update my records at any time.",
+    },
+    {
+        "agreement_key": "client_rights",
+        "title": "Client Rights & Responsibilities",
+        "body": "I acknowledge receipt of the program's client rights statement, including dignity and respect, confidentiality of health information, the right to be informed about services, and the right to voice grievances without retaliation.",
+    },
+]
 
 
 class ClientProfileUpdate(BaseModel):
@@ -17,7 +61,7 @@ class ClientProfileUpdate(BaseModel):
 
 
 @router.get("/me")
-async def get_my_profile(user: dict = Depends(require_client)):
+def get_my_profile(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -35,7 +79,7 @@ async def get_my_profile(user: dict = Depends(require_client)):
 
 
 @router.patch("/me/profile")
-async def update_my_profile(
+def update_my_profile(
     payload: ClientProfileUpdate,
     user: dict = Depends(require_client),
 ):
@@ -58,12 +102,15 @@ async def update_my_profile(
 
 
 @router.post("/intake")
-async def submit_intake(
+def submit_intake(
     payload: ClientIntakeSubmit,
     user: dict = Depends(require_client),
 ):
     supabase = get_supabase()
     user_id = user.get("sub")
+
+    signature = _validate_signature(payload)
+    validate_state_id(supabase, payload.state_id)
 
     client_data = {
         "id": user_id,
@@ -74,6 +121,7 @@ async def submit_intake(
         "phone": payload.phone,
         "address": payload.address,
         "medicaid_number": payload.medicaid_number,
+        **signature,
     }
 
     res = supabase.table("clients").upsert(client_data).execute()
@@ -84,6 +132,15 @@ async def submit_intake(
         )
 
     supabase.table("users").update({"state_id": payload.state_id}).eq("id", user_id).execute()
+
+    record_audit_log(
+        supabase,
+        user_id,
+        "client_intake_signed",
+        "clients",
+        user_id,
+        new_values={"signed_name": signature["signed_name"], "signed_at": signature["signed_at"]},
+    )
 
     notify(
         supabase,
@@ -99,8 +156,161 @@ async def submit_intake(
     }
 
 
+@router.get("/me/agreements")
+def get_my_agreements(user: dict = Depends(require_client)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    res = (
+        supabase.table("client_agreements")
+        .select("*")
+        .eq("client_id", user_id)
+        .order("agreement_key")
+        .execute()
+    )
+    signed = {a["agreement_key"]: a for a in res.data or []}
+
+    items = []
+    for tpl in AGREEMENT_TEMPLATES:
+        record = signed.get(tpl["agreement_key"])
+        items.append({
+            **tpl,
+            "signed": bool(record and record.get("signed_at")),
+            "signed_at": record.get("signed_at") if record else None,
+            "signed_name": record.get("signed_name") if record else None,
+        })
+
+    return {"agreements": items}
+
+
+@router.post("/me/agreements/{agreement_key}/sign")
+def sign_agreement(
+    agreement_key: str,
+    payload: AgreementSignSubmit,
+    user: dict = Depends(require_client),
+):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    tpl = next((t for t in AGREEMENT_TEMPLATES if t["agreement_key"] == agreement_key), None)
+    if tpl is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agreement not found.")
+
+    signature = _validate_signature(payload)
+
+    agreement_data = {
+        "client_id": user_id,
+        "state_id": user.get("state_id"),
+        "agreement_key": agreement_key,
+        "title": tpl["title"],
+        "body": tpl["body"],
+        **signature,
+    }
+
+    res = supabase.table("client_agreements").upsert(agreement_data).execute()
+    if not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record agreement signature.",
+        )
+
+    record_audit_log(
+        supabase,
+        user_id,
+        "client_agreement_signed",
+        "client_agreements",
+        agreement_key,
+        new_values={"signed_name": signature["signed_name"], "signed_at": signature["signed_at"]},
+    )
+
+    notify(
+        supabase,
+        user_id,
+        "agreement_signed",
+        "Form Signed",
+        f"'{tpl['title']}' has been signed electronically and stored on your record.",
+    )
+
+    return {"message": "Agreement signed successfully", "agreement": res.data[0]}
+
+
+@router.post("/me/authorizations")
+async def upload_authorization(
+    file: UploadFile = File(...),
+    start_date: str = Form(...),
+    end_date: str = Form(...),
+    notes: Optional[str] = Form(None),
+    user: dict = Depends(require_client),
+):
+    """Client self-service: upload an authorization document -> pending authorization record."""
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    try:
+        start_d = date.fromisoformat(start_date.strip())
+        end_d = date.fromisoformat(end_date.strip())
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid start or end date.")
+    if end_d < start_d:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be on or after start date.")
+
+    type_res = (
+        supabase.table("document_types")
+        .select("id")
+        .eq("name", "Authorization Document")
+        .single()
+        .execute()
+    )
+    if not type_res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Authorization Document type is not configured.",
+        )
+
+    file_bytes = await file.read()
+    record = await run_in_threadpool(
+        document_service.upload_document,
+        owner_id=user_id,
+        role="client",
+        state_id=user.get("state_id"),
+        document_type_id=type_res.data["id"],
+        file_bytes=file_bytes,
+        original_filename=file.filename or "authorization",
+        content_type=file.content_type or "application/octet-stream",
+        expiration_date=None,
+    )
+
+    auth_data = {
+        "client_id": user_id,
+        "state_id": user.get("state_id"),
+        "authorization_number": f"PENDING-{record.get('id', '')[:8].upper()}",
+        "start_date": start_d.isoformat(),
+        "end_date": end_d.isoformat(),
+        "status": "pending",
+        "source": "client",
+        "document_id": record.get("id"),
+        "notes": notes.strip() if notes else "Submitted for authorization review.",
+    }
+    auth_res = supabase.table("authorizations").insert(auth_data).execute()
+    if not auth_res.data:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to record authorization request.",
+        )
+
+    notify(
+        supabase,
+        user_id,
+        "authorization_uploaded",
+        "Authorization Submitted",
+        "Your authorization document has been received and queued for care coordinator review.",
+    )
+
+    return {"message": "Authorization submitted for review", "authorization": auth_res.data[0]}
+
+
 @router.get("/me/authorizations")
-async def get_my_authorizations(user: dict = Depends(require_client)):
+def get_my_authorizations(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -135,36 +345,87 @@ async def get_my_authorizations(user: dict = Depends(require_client)):
     return {"authorizations": computed_list}
 
 
+# Day-of-week ordering for schedule display (matches frontend weekly layout).
+DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+
+SCHEDULE_STATUS_LABELS = {
+    "scheduled": "Scheduled",
+    "confirmed": "Confirmed",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+}
+
+
+def _format_time_12h(value):
+    """Format a TIME value ('14:00:00') as a 12-hour clock string ('02:00 PM')."""
+    if not value:
+        return ""
+    try:
+        hh, mm = value.split(":")[0:2]
+    except (ValueError, AttributeError):
+        return str(value)
+    hour = int(hh)
+    minute = int(mm)
+    period = "AM" if hour < 12 else "PM"
+    hour12 = hour % 12 or 12
+    return f"{hour12:02d}:{minute:02d} {period}"
+
+
+def _fetch_care_plan(supabase, client_id):
+    plan_res = (
+        supabase.table("care_plans")
+        .select("*")
+        .eq("client_id", client_id)
+        .single()
+        .execute()
+    )
+    return plan_res.data
+
+
+def _fetch_plan_activities(supabase, care_plan_id):
+    if not care_plan_id:
+        return []
+    res = (
+        supabase.table("care_plan_activities")
+        .select("*")
+        .eq("care_plan_id", care_plan_id)
+        .order("sort_order")
+        .execute()
+    )
+    return res.data or []
+
+
 @router.get("/me/care-plan")
-async def get_my_care_plan(user: dict = Depends(require_client)):
+def get_my_care_plan(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    # Fetch client info
     client_res = supabase.table("clients").select("*, states(name, code)").eq("id", user_id).execute()
     client = client_res.data[0] if client_res.data else None
 
-    # Structured care plan
+    plan = _fetch_care_plan(supabase, user_id)
+    if not plan:
+        return {"care_plan": None}
+
+    activities = _fetch_plan_activities(supabase, plan["id"])
+
     care_plan = {
         "client_name": f"{client['first_name']} {client['last_name']}" if client else "Client",
-        "plan_status": "active" if client else "pending_intake",
-        "primary_nurse": "Registered Nurse Supervisor (RN)",
-        "effective_date": client["created_at"][:10] if client else str(date.today()),
+        "plan_status": plan.get("status", "active"),
+        "primary_nurse": plan.get("primary_nurse"),
+        "effective_date": plan.get("effective_date"),
         "daily_activities": [
-            {"task": "Personal Hygiene & Grooming", "frequency": "Daily (Morning)", "notes": "Assistance with bathing and dressing."},
-            {"task": "Meal Preparation & Hydration", "frequency": "Daily (Lunch & Dinner)", "notes": "Low-sodium dietary support."},
-            {"task": "Medication Reminders", "frequency": "Twice daily", "notes": "Verify client self-administers prescribed medicines."},
-            {"task": "Mobility & Fall Prevention", "frequency": "As needed", "notes": "Support with transfers and light ambulation."},
-            {"task": "Light Housekeeping & Sanitization", "frequency": "3x / week", "notes": "Keep client care area tidy and clean."},
+            {"task": a["task"], "frequency": a.get("frequency"), "notes": a.get("notes")}
+            for a in activities
         ],
-        "emergency_protocol": "In event of medical emergency, contact 911 immediately, then notify agency on-call supervisor.",
+        "emergency_protocol": plan.get("emergency_protocol"),
     }
 
     return {"care_plan": care_plan}
 
 
 @router.get("/me/schedule")
-async def get_my_schedule(user: dict = Depends(require_client)):
+def get_my_schedule(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -172,19 +433,39 @@ async def get_my_schedule(user: dict = Depends(require_client)):
     client = client_res.data[0] if client_res.data else None
     state_code = client.get("states", {}).get("code", "FL") if client else "FL"
 
-    # Standard upcoming shifts preview
-    sample_schedule = [
-        {"day": "Monday", "time": "09:00 AM - 01:00 PM", "service": "Personal Care Assistance", "status": "Confirmed", "branch": state_code},
-        {"day": "Wednesday", "time": "09:00 AM - 01:00 PM", "service": "Personal Care Assistance", "status": "Confirmed", "branch": state_code},
-        {"day": "Friday", "time": "09:00 AM - 01:00 PM", "service": "Personal Care & Homemaking", "status": "Scheduled", "branch": state_code},
-        {"day": "Saturday", "time": "10:00 AM - 02:00 PM", "service": "Respite Care Support", "status": "Scheduled", "branch": state_code},
+    res = (
+        supabase.table("care_schedules")
+        .select("*")
+        .eq("client_id", user_id)
+        .execute()
+    )
+    records = res.data or []
+
+    def day_index(r):
+        try:
+            return DAY_ORDER.index(r.get("day_of_week"))
+        except ValueError:
+            return len(DAY_ORDER)
+
+    records.sort(key=lambda r: (day_index(r), r.get("sort_order") or 0))
+
+    schedule = [
+        {
+            "day": r.get("day_of_week"),
+            "time": f"{_format_time_12h(r.get('start_time'))} - {_format_time_12h(r.get('end_time'))}",
+            "service": r.get("service"),
+            "status": SCHEDULE_STATUS_LABELS.get(r.get("status"), r.get("status")),
+            "branch": state_code,
+            "notes": r.get("notes"),
+        }
+        for r in records
     ]
 
-    return {"schedule": sample_schedule}
+    return {"schedule": schedule}
 
 
 @router.get("/me/notifications")
-async def get_my_notifications(user: dict = Depends(require_client)):
+def get_my_notifications(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -200,7 +481,7 @@ async def get_my_notifications(user: dict = Depends(require_client)):
 
 
 @router.patch("/me/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: str, user: dict = Depends(require_client)):
+def mark_notification_read(notification_id: str, user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 

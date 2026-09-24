@@ -13,6 +13,8 @@ const STATUS_BADGE_CLASS = {
   active: 'badge badge-green',
   expiring_soon: 'badge badge-yellow',
   expired: 'badge badge-red',
+  pending: 'badge badge-blue',
+  rejected: 'badge badge-gray',
 };
 
 const STATUS_DAYS_CLASS = {
@@ -47,6 +49,22 @@ function generateAuthNumber(stateCode = 'FL') {
 }
 
 function getAuthStatusDetails(startDateStr, endDateStr, rawStatus) {
+  if (rawStatus === 'pending') {
+    return {
+      statusKey: 'pending',
+      label: 'Pending Review',
+      daysText: 'Awaiting review',
+    };
+  }
+
+  if (rawStatus === 'rejected') {
+    return {
+      statusKey: 'rejected',
+      label: 'Rejected',
+      daysText: 'Not approved',
+    };
+  }
+
   if (!endDateStr) {
     return {
       statusKey: rawStatus || 'active',
@@ -103,6 +121,10 @@ export default function AuthorizationsPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Pending-review actions
+  const [reviewingId, setReviewingId] = useState(null);
+  const [reviewAction, setReviewAction] = useState('');
+
   // UI state
   const [showForm, setShowForm] = useState(Boolean(searchParams.get('client_id')));
   const [searchTerm, setSearchTerm] = useState('');
@@ -127,8 +149,8 @@ export default function AuthorizationsPage() {
     async function loadData() {
       try {
         const [authRes, clientRes] = await Promise.all([
-          api.get('/admin/authorizations', token),
-          api.get('/admin/clients', token),
+          api.get('/admin/authorizations?page_size=100', token),
+          api.get('/admin/clients?page_size=100', token),
         ]);
 
         if (!isMounted) return;
@@ -234,7 +256,7 @@ export default function AuthorizationsPage() {
       setNotes('');
 
       // Refresh list
-      const res = await api.get('/admin/authorizations', token);
+      const res = await api.get('/admin/authorizations?page_size=100', token);
       setAuthorizations(res?.authorizations || []);
       setShowForm(false);
     } catch (err) {
@@ -244,7 +266,29 @@ export default function AuthorizationsPage() {
     }
   }
 
-  // Calculate metrics
+  async function handleReview(authorizationId, action) {
+    if (!window.confirm(`Mark this authorization ${action === 'approved' ? 'approved (Active)' : 'rejected'}? The client will be notified.`)) {
+      return;
+    }
+    setErrorMsg('');
+    setSuccessMsg('');
+    setReviewingId(authorizationId);
+    setReviewAction(action);
+    try {
+      await api.post(`/admin/authorizations/${authorizationId}/review`, { status: action }, token);
+      setSuccessMsg(action === 'approved'
+        ? 'Authorization approved and activated.'
+        : 'Authorization rejected.');
+      setReviewingId(null);
+      setReviewAction('');
+      const res = await api.get('/admin/authorizations?page_size=100', token);
+      setAuthorizations(res?.authorizations || []);
+    } catch (err) {
+      setErrorMsg(err.detail || `Failed to ${action} the authorization.`);
+      setReviewingId(null);
+      setReviewAction('');
+    }
+  }
   const metrics = useMemo(() => {
     let total = authorizations.length;
     let active = 0;
@@ -747,6 +791,7 @@ export default function AuthorizationsPage() {
                   <th>End Date</th>
                   <th>Status</th>
                   <th>Covered Services / Notes</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -824,6 +869,37 @@ export default function AuthorizationsPage() {
                           </div>
                         ) : (
                           <span className="text-italic-muted">Standard authorization</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="whitespace-nowrap">
+                        {a.status === 'pending' ? (
+                          <div className="inline-flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleReview(a.id, 'approved')}
+                              disabled={reviewingId === a.id}
+                              className="btn-sm btn-success"
+                            >
+                              {reviewingId === a.id && reviewAction === 'approved' ? 'Approving...' : 'Approve'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReview(a.id, 'rejected')}
+                              disabled={reviewingId === a.id}
+                              className="btn-sm border border-red-300 text-red-600 bg-white hover:bg-red-50"
+                            >
+                              {reviewingId === a.id && reviewAction === 'rejected' ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        ) : (
+                          <a
+                            href={`/admin/clients/${a.client_id}`}
+                            className="text-sm font-medium text-secondary underline"
+                          >
+                            View client
+                          </a>
                         )}
                       </td>
                     </tr>
