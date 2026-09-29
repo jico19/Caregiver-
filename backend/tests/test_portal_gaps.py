@@ -141,8 +141,16 @@ def test_admin_announcement_create_update_delete(client):
 
     r = c.delete(f"/api/v1/admin/announcements/{ann_id}", headers=admin)
     assert r.status_code == 200
-    assert db["announcements"] == []
+    # Soft delete: the row is retained and stamped, not removed.
+    assert len(db["announcements"]) == 1
+    assert db["announcements"][0]["deleted_at"] is not None
+    assert db["announcements"][0]["deleted_by"] == "u-admin"
     assert any(l["action"] == "announcement_deleted" for l in db["audit_logs"])
+
+    # ...and it disappears from the admin list and the caregiver feed.
+    r = c.get("/api/v1/admin/announcements", headers=admin)
+    assert r.status_code == 200
+    assert r.json()["announcements"] == []
 
 
 def test_admin_announcement_update_requires_exists(client):

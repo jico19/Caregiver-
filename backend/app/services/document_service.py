@@ -3,6 +3,7 @@ import re
 from typing import Optional
 from fastapi import HTTPException, status
 from app.core.supabase import get_supabase
+from app.core.soft_delete import active_only
 from app.utils.notifications import notify
 
 ALLOWED_MIME_TYPES = {
@@ -28,9 +29,22 @@ class DocumentService:
         return res.data or []
 
     def get_user_documents(self, user_id: str):
+        owner_res = (
+            self.supabase.table("users").select("id, deleted_at")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
+        if owner_res.data and owner_res.data.get("deleted_at"):
+            return []
+
         res = (
-            self.supabase.table("documents")
-            .select("*, document_types(name, for_role, requires_expiration)")
+            active_only(
+                self.supabase.table("documents").select(
+                    "*, document_types(name, for_role, requires_expiration)"
+                ),
+                "documents",
+            )
             .eq("owner_id", user_id)
             .order("uploaded_at", desc=True)
             .execute()
@@ -114,8 +128,7 @@ class DocumentService:
         denied to a state-scoped admin.
         """
         res = (
-            self.supabase.table("documents")
-            .select("*")
+            active_only(self.supabase.table("documents").select("*"), "documents")
             .eq("id", document_id)
             .single()
             .execute()
@@ -124,6 +137,17 @@ class DocumentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
         doc = res.data
+
+        # If the document owner is soft-deleted, their documents are inaccessible.
+        owner_res = (
+            self.supabase.table("users").select("id, deleted_at")
+            .eq("id", doc["owner_id"])
+            .single()
+            .execute()
+        )
+        if owner_res.data and owner_res.data.get("deleted_at"):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
         if is_admin:
             if admin_states is not None and doc.get("state_id") not in admin_states:
                 raise HTTPException(

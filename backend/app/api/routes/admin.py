@@ -9,9 +9,18 @@ from app.core.dependencies import (
     assert_state_allowed,
     require_admin,
     require_admin_scoped,
+    require_super_admin,
     scope_query,
 )
 from app.core.supabase import get_supabase
+from app.core.soft_delete import (
+    IMMUTABLE_TABLES,
+    SOFT_DELETE_TABLES,
+    active_only,
+    restore_stamp,
+    soft_delete_stamp,
+    trim_embedded,
+)
 from app.models.enums import ALLOWED_TRANSITIONS
 from app.utils.notifications import notify
 from app.utils.pagination import PaginationParams, paginate
@@ -119,15 +128,39 @@ def get_dashboard(
 ):
     supabase = get_supabase()
 
-    # Base counts, always constrained to the caller's permitted states.
-    caregivers_q = scope_query(supabase.table("caregivers").select("id", count="exact"), scope)
-    clients_q = scope_query(supabase.table("clients").select("id", count="exact"), scope)
+    # Base counts, always constrained to the caller's permitted states. These
+    # use count="exact", so a missing soft-delete filter shows up directly as an
+    # inflated metric rather than as an extra row.
+    caregivers_q = scope_query(
+        active_only(
+            supabase.table("caregivers").select("id", count="exact"),
+            "caregivers",
+        ),
+        scope,
+    )
+    clients_q = scope_query(
+        active_only(
+            supabase.table("clients").select("id", count="exact"),
+            "clients",
+        ),
+        scope,
+    )
     apps_pending_q = scope_query(
-        supabase.table("caregiver_applications").select("id", count="exact").in_("status", ["submitted", "under_review"]),
+        active_only(
+            supabase.table("caregiver_applications")
+            .select("id", count="exact")
+            .in_("status", ["submitted", "under_review"]),
+            "caregiver_applications",
+        ),
         scope,
     )
     docs_pending_q = scope_query(
-        supabase.table("documents").select("id", count="exact").eq("status", "pending_review"),
+        active_only(
+            supabase.table("documents")
+            .select("id", count="exact")
+            .eq("status", "pending_review"),
+            "documents",
+        ),
         scope,
     )
 
@@ -164,15 +197,21 @@ def list_caregivers(
 ):
     supabase = get_supabase()
 
-    query = supabase.table("caregiver_applications").select(
-        "*, caregivers(first_name, last_name, phone, address, ssn_last4), states(code, name, slug)",
-        count="exact",
+    query = active_only(
+        supabase.table("caregiver_applications").select(
+            "*, caregivers(first_name, last_name, phone, address, ssn_last4, deleted_at), states(code, name, slug)",
+            count="exact",
+        ),
+        "caregiver_applications",
     )
     query = scope_query(query, scope)
     if status_filter:
         query = query.eq("status", status_filter)
 
     result = paginate(query.order("created_at", desc=True), params)
+    # caregivers is a soft-deletable table embedded as a child; the service-role
+    # client bypasses RLS so the child's own policy does not filter it here.
+    trim_embedded(result["items"], "caregivers")
     return {"applications": result.pop("items"), **result}
 
 
@@ -267,8 +306,12 @@ def get_caregiver_application_detail(
     supabase = get_supabase()
 
     app_res = (
-        supabase.table("caregiver_applications")
-        .select("*, caregivers(first_name, last_name, phone, address, date_of_birth, ssn_last4), users(email, status), states(code, name, slug)")
+        active_only(
+            supabase.table("caregiver_applications").select(
+                "*, caregivers(first_name, last_name, phone, address, date_of_birth, ssn_last4, deleted_at), users:users!caregiver_applications_reviewed_by_fkey(email, status, deleted_at), states(code, name, slug)"
+            ),
+            "caregiver_applications",
+        )
         .eq("id", application_id)
         .single()
         .execute()
@@ -277,14 +320,21 @@ def get_caregiver_application_detail(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
     application = app_res.data
+    # caregivers and users are soft-deletable embedded children; service_role
+    # bypasses RLS so they must be trimmed explicitly.
+    trim_embedded([application], "caregivers", "users")
     assert_state_allowed(scope, application.get("state_id"))
     caregiver_id = application.get("caregiver_id")
 
     enrollments = []
     if caregiver_id:
         enr_res = (
-            supabase.table("training_enrollments")
-            .select("*, training_courses(name, description, duration_hours)")
+            active_only(
+                supabase.table("training_enrollments").select(
+                    "*, training_courses(name, description, duration_hours)"
+                ),
+                "training_enrollments",
+            )
             .eq("caregiver_id", caregiver_id)
             .order("enrolled_at", desc=True)
             .execute()
@@ -305,8 +355,10 @@ def get_caregiver_application_documents(
     supabase = get_supabase()
 
     app_res = (
-        supabase.table("caregiver_applications")
-        .select("caregiver_id, state_id")
+        active_only(
+            supabase.table("caregiver_applications").select("caregiver_id, state_id"),
+            "caregiver_applications",
+        )
         .eq("id", application_id)
         .single()
         .execute()
@@ -314,11 +366,26 @@ def get_caregiver_application_documents(
     if not app_res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
+    caregiver_id = app_res.data.get("caregiver_id")
+    if caregiver_id:
+        user_res = (
+            supabase.table("users").select("id, deleted_at")
+            .eq("id", caregiver_id)
+            .single()
+            .execute()
+        )
+        if user_res.data and user_res.data.get("deleted_at"):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caregiver not found.")
+
     assert_state_allowed(scope, app_res.data.get("state_id"))
 
     doc_res = scope_query(
-        supabase.table("documents")
-        .select("*, document_types(name, for_role, requires_expiration)")
+        active_only(
+            supabase.table("documents").select(
+                "*, document_types(name, for_role, requires_expiration)"
+            ),
+            "documents",
+        )
         .eq("owner_id", app_res.data["caregiver_id"]),
         scope,
     ).order("uploaded_at", desc=True).execute()
@@ -334,15 +401,28 @@ def list_admin_documents(
 ):
     supabase = get_supabase()
 
-    query = supabase.table("documents").select(
-        "*, document_types(name, for_role, requires_expiration), users:users!documents_owner_id_fkey(email, role_id), states(code, name)",
-        count="exact",
+    query = active_only(
+        supabase.table("documents").select(
+            "*, document_types(name, for_role, requires_expiration), users:users!documents_owner_id_fkey(email, role_id, deleted_at), states(code, name)",
+            count="exact",
+        ),
+        "documents",
     )
     query = scope_query(query, scope)
     if status_filter:
         query = query.eq("status", status_filter)
 
     result = paginate(query.order("uploaded_at", desc=True), params)
+    owner_ids = [item["owner_id"] for item in result["items"] if "owner_id" in item]
+    if owner_ids:
+        del_users = (
+            supabase.table("users").select("id, deleted_at")
+            .in_("id", owner_ids)
+            .execute()
+        )
+        del_user_ids = {u["id"] for u in (del_users.data or []) if u.get("deleted_at")}
+        result["items"] = [item for item in result["items"] if item.get("owner_id") not in del_user_ids]
+    trim_embedded(result["items"], "users")
     return {"documents": result.pop("items"), **result}
 
 
@@ -356,8 +436,7 @@ def review_document(
     admin_id = scope.user_id
 
     existing = (
-        supabase.table("documents")
-        .select("*")
+        active_only(supabase.table("documents").select("*"), "documents")
         .eq("id", document_id)
         .single()
         .execute()
@@ -377,8 +456,10 @@ def review_document(
     }
 
     res = scope_query(
-        supabase.table("documents")
-        .update(update_payload)
+        active_only(
+            supabase.table("documents").update(update_payload),
+            "documents",
+        )
         .eq("id", document_id),
         scope,
     ).execute()
@@ -418,13 +499,18 @@ def list_admin_clients(
 
     result = paginate(
         scope_query(
-            supabase.table("clients").select(
-                "*, states(code, name, slug), users(email, status)", count="exact"
+            active_only(
+                supabase.table("clients").select(
+                    "*, states(code, name, slug), users:users!clients_id_fkey(email, status, deleted_at)",
+                    count="exact",
+                ),
+                "clients",
             ),
             scope,
         ).order("created_at", desc=True),
         params,
     )
+    trim_embedded(result["items"], "users")
     return {"clients": result.pop("items"), **result}
 
 
@@ -436,8 +522,12 @@ def get_admin_client(
     supabase = get_supabase()
 
     res = (
-        supabase.table("clients")
-        .select("*, states(code, name, slug), users(email, status)")
+        active_only(
+            supabase.table("clients").select(
+                "*, states(code, name, slug), users:users!clients_id_fkey(email, status, deleted_at)"
+            ),
+            "clients",
+        )
         .eq("id", client_id)
         .single()
         .execute()
@@ -445,14 +535,17 @@ def get_admin_client(
     if not res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
 
+    trim_embedded([res.data], "users")
     assert_state_allowed(scope, res.data.get("state_id"))
     return {"client": res.data}
 
 
 def _get_client_or_404(supabase, client_id, scope: AdminScope):
     res = (
-        supabase.table("clients")
-        .select("id, state_id, first_name, last_name")
+        active_only(
+            supabase.table("clients").select("id, state_id, first_name, last_name"),
+            "clients",
+        )
         .eq("id", client_id)
         .single()
         .execute()
@@ -465,8 +558,7 @@ def _get_client_or_404(supabase, client_id, scope: AdminScope):
 
 def _fetch_care_plan_with_activities(supabase, client_id):
     plan_res = (
-        supabase.table("care_plans")
-        .select("*")
+        active_only(supabase.table("care_plans").select("*"), "care_plans")
         .eq("client_id", client_id)
         .single()
         .execute()
@@ -476,8 +568,10 @@ def _fetch_care_plan_with_activities(supabase, client_id):
         return {"care_plan": None}
 
     activities_res = (
-        supabase.table("care_plan_activities")
-        .select("*")
+        active_only(
+            supabase.table("care_plan_activities").select("*"),
+            "care_plan_activities",
+        )
         .eq("care_plan_id", plan["id"])
         .order("sort_order")
         .execute()
@@ -506,8 +600,10 @@ def update_client_care_plan(
     client = _get_client_or_404(supabase, client_id, scope)
 
     existing = (
-        supabase.table("care_plans")
-        .select("id")
+        active_only(
+            supabase.table("care_plans").select("id"),
+            "care_plans",
+        )
         .eq("client_id", client_id)
         .single()
         .execute()
@@ -526,7 +622,10 @@ def update_client_care_plan(
         plan_id = existing.data["id"]
         update_fields["updated_at"] = now_iso
         scope_query(
-            supabase.table("care_plans").update(update_fields).eq("client_id", client_id),
+            active_only(
+                supabase.table("care_plans").update(update_fields),
+                "care_plans",
+            ).eq("client_id", client_id),
             scope,
         ).execute()
     else:
@@ -543,8 +642,28 @@ def update_client_care_plan(
         plan_id = inserted.data[0]["id"]
 
     if payload.activities is not None:
-        # Full replacement of the activity list (mirrors admin "edit plan" semantics).
-        supabase.table("care_plan_activities").delete().eq("care_plan_id", plan_id).execute()
+        # Full replacement of the activity list (mirrors admin "edit plan"
+        # semantics). The outgoing activities are soft-deleted, never removed,
+        # so the previous plan version stays recoverable in the record. The
+        # re-read above filters deleted rows, so only the new set is returned.
+        (
+            active_only(
+                supabase.table("care_plan_activities").update(
+                    soft_delete_stamp(admin_id)
+                ),
+                "care_plan_activities",
+            )
+            .eq("care_plan_id", plan_id)
+            .execute()
+        )
+        record_audit_log(
+            supabase,
+            user_id=admin_id,
+            action="care_plan_activities_replaced",
+            table_name="care_plan_activities",
+            record_id=plan_id,
+            new_values={"activity_count": len(payload.activities)},
+        )
         for i, act in enumerate(payload.activities):
             supabase.table("care_plan_activities").insert({
                 "care_plan_id": plan_id,
@@ -566,8 +685,10 @@ def get_client_schedule(
     _get_client_or_404(supabase, client_id, scope)
 
     res = (
-        supabase.table("care_schedules")
-        .select("*")
+        active_only(
+            supabase.table("care_schedules").select("*"),
+            "care_schedules",
+        )
         .eq("client_id", client_id)
         .execute()
     )
@@ -637,9 +758,13 @@ def delete_client_schedule(
     supabase = get_supabase()
     _get_client_or_404(supabase, client_id, scope)
 
+    # Soft delete: the row is stamped and filtered out of every read path
+    # rather than removed, so the visit history stays intact and auditable.
     deleted = scope_query(
-        supabase.table("care_schedules")
-        .delete()
+        active_only(
+            supabase.table("care_schedules").update(soft_delete_stamp(scope.user_id)),
+            "care_schedules",
+        )
         .eq("id", schedule_id)
         .eq("client_id", client_id),
         scope,
@@ -649,6 +774,15 @@ def delete_client_schedule(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Schedule entry not found for this client.",
         )
+
+    record_audit_log(
+        supabase,
+        user_id=scope.user_id,
+        action="care_schedule_soft_deleted",
+        table_name="care_schedules",
+        record_id=schedule_id,
+        new_values={"client_id": client_id},
+    )
 
     return {"message": "Schedule entry removed"}
 
@@ -662,13 +796,18 @@ def list_admin_authorizations(
 
     result = paginate(
         scope_query(
-            supabase.table("authorizations").select(
-                "*, clients(first_name, last_name, medicaid_number), states(code, name)", count="exact"
+            active_only(
+                supabase.table("authorizations").select(
+                    "*, clients:clients!authorizations_client_id_fkey(first_name, last_name, medicaid_number, deleted_at), states(code, name)",
+                    count="exact",
+                ),
+                "authorizations",
             ),
             scope,
         ).order("created_at", desc=True),
         params,
     )
+    trim_embedded(result["items"], "clients")
     return {"authorizations": result.pop("items"), **result}
 
 
@@ -742,8 +881,10 @@ def review_authorization(
     admin_id = scope.user_id
 
     existing = (
-        supabase.table("authorizations")
-        .select("*")
+        active_only(
+            supabase.table("authorizations").select("*"),
+            "authorizations",
+        )
         .eq("id", authorization_id)
         .single()
         .execute()
@@ -771,8 +912,10 @@ def review_authorization(
         update_payload["notes"] = payload.notes
 
     res = scope_query(
-        supabase.table("authorizations")
-        .update(update_payload)
+        active_only(
+            supabase.table("authorizations").update(update_payload),
+            "authorizations",
+        )
         .eq("id", authorization_id),
         scope,
     ).execute()
@@ -797,11 +940,14 @@ def review_authorization(
     if auth.get("document_id"):
         doc_status = "approved" if new_status == "active" else "rejected"
         scope_query(
-            supabase.table("documents").update({
-                "status": doc_status,
-                "reviewed_at": now_iso,
-                "reviewed_by": admin_id,
-            }).eq("id", auth["document_id"]),
+            active_only(
+                supabase.table("documents").update({
+                    "status": doc_status,
+                    "reviewed_at": now_iso,
+                    "reviewed_by": admin_id,
+                }),
+                "documents",
+            ).eq("id", auth["document_id"]),
             scope,
         ).execute()
 
@@ -860,11 +1006,18 @@ def list_announcements(
     # matching the fail-closed rule used for documents.
     result = paginate(
         scope_query(
-            supabase.table("announcements").select("*, users(email), states(code)", count="exact"),
+            active_only(
+                supabase.table("announcements").select(
+                    "*, users:users!announcements_created_by_fkey(email, deleted_at), states(code)",
+                    count="exact",
+                ),
+                "announcements",
+            ),
             scope,
         ).order("created_at", desc=True),
         params,
     )
+    trim_embedded(result["items"], "users")
     return {"announcements": result.pop("items"), **result}
 
 
@@ -925,7 +1078,15 @@ def update_announcement(
     supabase = get_supabase()
     admin_id = scope.user_id
 
-    existing = supabase.table("announcements").select("*").eq("id", announcement_id).single().execute()
+    existing = (
+        active_only(
+            supabase.table("announcements").select("*"),
+            "announcements",
+        )
+        .eq("id", announcement_id)
+        .single()
+        .execute()
+    )
     if not existing.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -948,8 +1109,10 @@ def update_announcement(
         )
 
     res = scope_query(
-        supabase.table("announcements")
-        .update(updates)
+        active_only(
+            supabase.table("announcements").update(updates),
+            "announcements",
+        )
         .eq("id", announcement_id),
         scope,
     ).execute()
@@ -979,7 +1142,15 @@ def delete_announcement(
     supabase = get_supabase()
     admin_id = scope.user_id
 
-    existing = supabase.table("announcements").select("*").eq("id", announcement_id).single().execute()
+    existing = (
+        active_only(
+            supabase.table("announcements").select("*"),
+            "announcements",
+        )
+        .eq("id", announcement_id)
+        .single()
+        .execute()
+    )
     if not existing.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -987,8 +1158,14 @@ def delete_announcement(
         )
     assert_state_allowed(scope, existing.data.get("state_id"))
 
+    # Soft delete. The row is stamped rather than removed, so an announcement
+    # that was published and later withdrawn stays in the audit trail.
     scope_query(
-        supabase.table("announcements").delete().eq("id", announcement_id),
+        active_only(
+            supabase.table("announcements").update(soft_delete_stamp(admin_id)),
+            "announcements",
+        )
+        .eq("id", announcement_id),
         scope,
     ).execute()
 
@@ -1014,7 +1191,10 @@ def list_referrals(
     supabase = get_supabase()
 
     query = scope_query(
-        supabase.table("client_referrals").select("*, states(code, name)", count="exact"),
+        active_only(
+            supabase.table("client_referrals").select("*, states(code, name)", count="exact"),
+            "client_referrals",
+        ),
         scope,
     ).order("created_at", desc=True)
     if status:
@@ -1036,7 +1216,15 @@ def update_referral_status(
     supabase = get_supabase()
     admin_id = scope.user_id
 
-    existing = supabase.table("client_referrals").select("*").eq("id", referral_id).single().execute()
+    existing = (
+        active_only(
+            supabase.table("client_referrals").select("*"),
+            "client_referrals",
+        )
+        .eq("id", referral_id)
+        .single()
+        .execute()
+    )
     if not existing.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -1046,8 +1234,12 @@ def update_referral_status(
     old_status = existing.data.get("status")
 
     res = scope_query(
-        supabase.table("client_referrals")
-        .update({"status": payload.status, "updated_at": datetime.now(timezone.utc).isoformat()})
+        active_only(
+            supabase.table("client_referrals").update(
+                {"status": payload.status, "updated_at": datetime.now(timezone.utc).isoformat()}
+            ),
+            "client_referrals",
+        )
         .eq("id", referral_id),
         scope,
     ).execute()
@@ -1093,7 +1285,13 @@ def generate_reports(scope: AdminScope = Depends(require_admin_scoped)):
     soon_through = today + timedelta(days=30)
 
     def _fetch_all(table, cols="*", state_scoped=True):
+        # `table` is a parameter here, so the soft-delete filter cannot be
+        # written at the call site. Reference tables (states, document_types,
+        # training_courses, document_requirements) are not soft-deletable and
+        # are passed through unfiltered.
         query = supabase.table(table).select(cols)
+        if table in SOFT_DELETE_TABLES:
+            query = active_only(query, table)
         if state_scoped:
             query = scope_query(query, scope)
         return (query.execute().data) or []
@@ -1293,3 +1491,62 @@ def generate_reports(scope: AdminScope = Depends(require_admin_scoped)):
             "recent": recent,
         },
     }
+
+
+@router.post("/{resource}/{id}/restore")
+def restore_resource(
+    resource: str,
+    id: str,
+    user: dict = Depends(require_super_admin),
+):
+    table_name = resource.replace("-", "_")
+    if table_name in IMMUTABLE_TABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"{resource} is immutable and cannot be restored",
+        )
+    if table_name not in SOFT_DELETE_TABLES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Resource '{resource}' is not soft-deletable",
+        )
+
+    supabase = get_supabase()
+    existing = (
+        supabase.table(table_name)
+        .select("*")
+        .eq("id", id)
+        .single()
+        .execute()
+    )
+    if not existing.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"{resource} not found.",
+        )
+
+    # Note: restore is non-cascading. Restoring a client does not restore its
+    # care plans or schedules; each must be restored deliberately.
+    update_payload = restore_stamp()
+    if table_name == "users":
+        update_payload["status"] = "active"
+
+    res = (
+        supabase.table(table_name)
+        .update(update_payload)
+        .eq("id", id)
+        .execute()
+    )
+
+    record_audit_log(
+        supabase,
+        user_id=user["sub"],
+        action=f"{table_name}_restored",
+        table_name=table_name,
+        record_id=id,
+        old_values={"deleted_at": existing.data.get("deleted_at"), "deleted_by": existing.data.get("deleted_by")},
+        new_values=update_payload,
+    )
+
+    return {"message": f"{resource} restored successfully", "item": res.data[0] if res.data else None}
+

@@ -19,6 +19,7 @@ from app.api.routes import auth as auth_mod
 from app.api.routes import states as states_mod
 from app.api.routes import caregivers as caregivers_mod
 from app.api.routes import admin as admin_mod
+from app.api.routes import admin_users as admin_users_mod
 from app.api.routes import training as training_mod
 from app.api.routes import clients as clients_mod
 
@@ -85,6 +86,13 @@ class FakeQuery:
         self.filters.append(("in", key, values))
         return self
 
+    def is_(self, key, value):
+        # supabase-py filter for IS / IS NOT. A None value must match rows
+        # where the key is absent, matching SQL `deleted_at IS NULL`.
+        self._require_transformable("is_")
+        self.filters.append(("is", key, value))
+        return self
+
     def order(self, col, desc=False):
         self._require_transformable("order")
         self.order_col = col
@@ -130,6 +138,8 @@ class FakeQuery:
             if ftype == "eq" and row.get(key) != value:
                 return False
             if ftype == "in" and row.get(key) not in value:
+                return False
+            if ftype == "is" and row.get(key) != value:
                 return False
         return True
 
@@ -329,6 +339,7 @@ def client(monkeypatch):
     monkeypatch.setattr(caregivers_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(caregivers_mod, "get_supabase_anon", lambda: fake)
     monkeypatch.setattr(admin_mod, "get_supabase", lambda: fake)
+    monkeypatch.setattr(admin_users_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(training_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(clients_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(document_service_mod, "get_supabase", lambda: fake)

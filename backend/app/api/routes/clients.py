@@ -5,6 +5,7 @@ from datetime import date, datetime, timezone
 from typing import Optional
 from pydantic import BaseModel, Field
 from app.core.dependencies import require_client, validate_state_id
+from app.core.soft_delete import active_only
 from app.core.supabase import get_supabase
 from app.schemas.clients import ClientIntakeSubmit, AgreementSignSubmit
 from app.utils.notifications import notify
@@ -66,8 +67,10 @@ def get_my_profile(user: dict = Depends(require_client)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("clients")
-        .select("*, states(name, code, slug)")
+        active_only(
+            supabase.table("clients").select("*, states(name, code, slug)"),
+            "clients",
+        )
         .eq("id", user_id)
         .execute()
     )
@@ -94,7 +97,11 @@ def update_my_profile(
     if payload.medicaid_number is not None:
         update_data["medicaid_number"] = payload.medicaid_number.strip() or None
 
-    res = supabase.table("clients").update(update_data).eq("id", user_id).execute()
+    res = (
+        active_only(supabase.table("clients").update(update_data), "clients")
+        .eq("id", user_id)
+        .execute()
+    )
     if not res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client profile not found.")
 
@@ -315,8 +322,10 @@ def get_my_authorizations(user: dict = Depends(require_client)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("authorizations")
-        .select("*, states(name, code, slug)")
+        active_only(
+            supabase.table("authorizations").select("*, states(name, code, slug)"),
+            "authorizations",
+        )
         .eq("client_id", user_id)
         .order("end_date", desc=True)
         .execute()
@@ -373,8 +382,7 @@ def _format_time_12h(value):
 
 def _fetch_care_plan(supabase, client_id):
     plan_res = (
-        supabase.table("care_plans")
-        .select("*")
+        active_only(supabase.table("care_plans").select("*"), "care_plans")
         .eq("client_id", client_id)
         .single()
         .execute()
@@ -386,8 +394,10 @@ def _fetch_plan_activities(supabase, care_plan_id):
     if not care_plan_id:
         return []
     res = (
-        supabase.table("care_plan_activities")
-        .select("*")
+        active_only(
+            supabase.table("care_plan_activities").select("*"),
+            "care_plan_activities",
+        )
         .eq("care_plan_id", care_plan_id)
         .order("sort_order")
         .execute()
@@ -400,7 +410,14 @@ def get_my_care_plan(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    client_res = supabase.table("clients").select("*, states(name, code)").eq("id", user_id).execute()
+    client_res = (
+        active_only(
+            supabase.table("clients").select("*, states(name, code)"),
+            "clients",
+        )
+        .eq("id", user_id)
+        .execute()
+    )
     client = client_res.data[0] if client_res.data else None
 
     plan = _fetch_care_plan(supabase, user_id)
@@ -429,13 +446,19 @@ def get_my_schedule(user: dict = Depends(require_client)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    client_res = supabase.table("clients").select("*, states(name, code)").eq("id", user_id).execute()
+    client_res = (
+        active_only(
+            supabase.table("clients").select("*, states(name, code)"),
+            "clients",
+        )
+        .eq("id", user_id)
+        .execute()
+    )
     client = client_res.data[0] if client_res.data else None
     state_code = client.get("states", {}).get("code", "FL") if client else "FL"
 
     res = (
-        supabase.table("care_schedules")
-        .select("*")
+        active_only(supabase.table("care_schedules").select("*"), "care_schedules")
         .eq("client_id", user_id)
         .execute()
     )
@@ -470,8 +493,7 @@ def get_my_notifications(user: dict = Depends(require_client)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("notifications")
-        .select("*")
+        active_only(supabase.table("notifications").select("*"), "notifications")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()
@@ -485,6 +507,14 @@ def mark_notification_read(notification_id: str, user: dict = Depends(require_cl
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    supabase.table("notifications").update({"read": True}).eq("id", notification_id).eq("user_id", user_id).execute()
+    (
+        active_only(
+            supabase.table("notifications").update({"read": True}),
+            "notifications",
+        )
+        .eq("id", notification_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
 
     return {"message": "Notification marked as read"}

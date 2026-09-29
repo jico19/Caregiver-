@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 import hashlib
 from app.core.dependencies import require_caregiver, get_current_user
 from app.core.supabase import get_supabase
+from app.core.soft_delete import active_only
 from app.utils.notifications import notify
 
 router = APIRouter()
@@ -27,8 +28,10 @@ def list_courses(user: dict = Depends(get_current_user)):
     enrollment_map = {}
     if user.get("role") in ["caregiver", "administrator"]:
         enr_res = (
-            supabase.table("training_enrollments")
-            .select("*")
+            active_only(
+                supabase.table("training_enrollments").select("*"),
+                "training_enrollments",
+            )
             .eq("caregiver_id", user_id)
             .execute()
         )
@@ -55,8 +58,10 @@ def get_my_enrollments(user: dict = Depends(require_caregiver)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("training_enrollments")
-        .select("*, training_courses(*)")
+        active_only(
+            supabase.table("training_enrollments").select("*, training_courses(*)"),
+            "training_enrollments",
+        )
         .eq("caregiver_id", user_id)
         .order("enrolled_at", desc=True)
         .execute()
@@ -75,10 +80,14 @@ def enroll_in_course(course_id: str, user: dict = Depends(require_caregiver)):
     if not course.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Training course not found.")
 
-    # Check existing enrollment
+    # Check existing enrollment. A soft-deleted enrollment is treated as
+    # absent so a caregiver can re-enrol; the partial unique index on
+    # (course_id, caregiver_id) WHERE deleted_at IS NULL permits the new row.
     existing = (
-        supabase.table("training_enrollments")
-        .select("*")
+        active_only(
+            supabase.table("training_enrollments").select("*"),
+            "training_enrollments",
+        )
         .eq("course_id", course_id)
         .eq("caregiver_id", user_id)
         .execute()
@@ -110,10 +119,13 @@ def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
 
     now_iso = datetime.now(timezone.utc).isoformat()
 
-    # Check existing enrollment or create if not present
+    # Check existing enrollment or create if not present. Soft-deleted
+    # enrollments do not count, matching the partial unique index.
     existing = (
-        supabase.table("training_enrollments")
-        .select("*")
+        active_only(
+            supabase.table("training_enrollments").select("*"),
+            "training_enrollments",
+        )
         .eq("course_id", course_id)
         .eq("caregiver_id", user_id)
         .execute()
@@ -121,8 +133,12 @@ def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
 
     if existing.data:
         res = (
-            supabase.table("training_enrollments")
-            .update({"status": "completed", "completed_at": now_iso})
+            active_only(
+                supabase.table("training_enrollments").update(
+                    {"status": "completed", "completed_at": now_iso}
+                ),
+                "training_enrollments",
+            )
             .eq("id", existing.data[0]["id"])
             .execute()
         )
@@ -167,8 +183,10 @@ def get_course_certificate(course_id: str, user: dict = Depends(require_caregive
         )
 
     enrollment = (
-        supabase.table("training_enrollments")
-        .select("*")
+        active_only(
+            supabase.table("training_enrollments").select("*"),
+            "training_enrollments",
+        )
         .eq("course_id", course_id)
         .eq("caregiver_id", user_id)
         .single()
@@ -181,8 +199,10 @@ def get_course_certificate(course_id: str, user: dict = Depends(require_caregive
         )
 
     profile = (
-        supabase.table("caregivers")
-        .select("first_name, last_name")
+        active_only(
+            supabase.table("caregivers").select("first_name, last_name"),
+            "caregivers",
+        )
         .eq("id", user_id)
         .single()
         .execute()

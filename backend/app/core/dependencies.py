@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.core.config import settings
+from app.core.soft_delete import active_only
 
 bear = HTTPBearer(auto_error=False)
 
@@ -30,14 +31,27 @@ def get_current_user(
     if not user or not user.user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
-    # Fetch role from our users table with reconnect fallback
+    # Fetch role from our users table with reconnect fallback. A soft-deleted
+    # user must not authenticate at all, so the filter is part of the query
+    # that produces the row and no row means "not a member of this platform".
+    def _load_user_row(sb):
+        return (
+            active_only(
+                sb.table("users").select("role_id, state_id, status, roles(name)"),
+                "users",
+            )
+            .eq("id", str(user.user.id))
+            .single()
+            .execute()
+        )
+
     try:
-        row = supabase.table("users").select("role_id, state_id, status, roles(name)").eq("id", str(user.user.id)).single().execute()
+        row = _load_user_row(supabase)
     except Exception:
         from app.core.supabase import reset_supabase
         reset_supabase()
         supabase = get_supabase()
-        row = supabase.table("users").select("role_id, state_id, status, roles(name)").eq("id", str(user.user.id)).single().execute()
+        row = _load_user_row(supabase)
 
     role = "public"
     state_id = None
@@ -46,6 +60,11 @@ def get_current_user(
         state_id = row.data.get("state_id")
         if row.data.get("status") == "suspended":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account suspended")
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated or no longer present",
+        )
 
     return {
         "sub": str(user.user.id),
@@ -72,6 +91,10 @@ def require_caregiver(user: dict = Depends(require_role("caregiver", "administra
 
 
 def require_client(user: dict = Depends(require_role("client", "administrator", SUPER_ADMIN_ROLE))):
+    return user
+
+
+def require_super_admin(user: dict = Depends(require_role(SUPER_ADMIN_ROLE))):
     return user
 
 

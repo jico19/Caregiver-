@@ -27,6 +27,7 @@ export default function AdminLayout() {
       items: [
         { label: 'Caregivers', to: '/admin/caregivers' },
         { label: 'Clients', to: '/admin/clients' },
+        { label: 'Users', to: '/admin/users' },
         { label: 'Referrals', to: '/admin/referrals' },
       ],
     },

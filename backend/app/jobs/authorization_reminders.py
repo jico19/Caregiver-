@@ -7,6 +7,7 @@ so re-runs never spam the client.
 from datetime import date, timedelta
 
 from app.utils.notifications import notify
+from app.core.soft_delete import active_only
 
 EXPIRING_WINDOW_DAYS = 30
 
@@ -25,8 +26,12 @@ def scan_due_authorizations(supabase, today=None) -> int:
     soon_through = today + timedelta(days=EXPIRING_WINDOW_DAYS)
 
     res = (
-        supabase.table("authorizations")
-        .select("id, client_id, status, end_date, authorization_number")
+        active_only(
+            supabase.table("authorizations").select(
+                "id, client_id, status, end_date, authorization_number"
+            ),
+            "authorizations",
+        )
         .execute()
     )
 
@@ -62,8 +67,10 @@ def scan_due_authorizations(supabase, today=None) -> int:
             )
 
         exists = (
-            supabase.table("notifications")
-            .select("id")
+            active_only(
+                supabase.table("notifications").select("id"),
+                "notifications",
+            )
             .eq("user_id", client_id)
             .eq("type", notif_type)
             .eq("reference_id", str(auth.get("id")))

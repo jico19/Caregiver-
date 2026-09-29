@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from datetime import datetime, timezone, date, timedelta
 from app.core.dependencies import require_caregiver, validate_state_id
 from app.core.supabase import get_supabase, get_supabase_anon
+from app.core.soft_delete import active_only
 from app.schemas.caregivers import CaregiverApplicationSubmit, CaregiverProfileUpdate, PublicCaregiverApplicationSubmit
 from app.utils.notifications import notify
 from app.api.routes.admin import record_audit_log
@@ -41,8 +42,10 @@ def get_my_profile(user: dict = Depends(require_caregiver)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("caregivers")
-        .select("*, states(name, code, slug)")
+        active_only(
+            supabase.table("caregivers").select("*, states(name, code, slug)"),
+            "caregivers",
+        )
         .eq("id", user_id)
         .execute()
     )
@@ -59,8 +62,12 @@ def get_my_application(user: dict = Depends(require_caregiver)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("caregiver_applications")
-        .select("*, states(name, code, slug)")
+        active_only(
+            supabase.table("caregiver_applications").select(
+                "*, states(name, code, slug)"
+            ),
+            "caregiver_applications",
+        )
         .eq("caregiver_id", user_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -222,12 +229,23 @@ def submit_application(
         )
 
     # 2. Update users table state_id if needed
-    supabase.table("users").update({"state_id": payload.state_id}).eq("id", user_id).execute()
+    (
+        active_only(
+            supabase.table("users").update({"state_id": payload.state_id}),
+            "users",
+        )
+        .eq("id", user_id)
+        .execute()
+    )
 
-    # 3. Enforce the application state machine (one application per caregiver)
+    # 3. Enforce the application state machine (one application per caregiver).
+    #    A soft-deleted application does not count, so a caregiver whose
+    #    application was withdrawn may submit again.
     app_q = (
-        supabase.table("caregiver_applications")
-        .select("*")
+        active_only(
+            supabase.table("caregiver_applications").select("*"),
+            "caregiver_applications",
+        )
         .eq("caregiver_id", user_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -249,17 +267,19 @@ def submit_application(
 
         # Rejected → flip the existing row in place (mirror resubmit_application).
         app_res = (
-            supabase.table("caregiver_applications")
-            .update({
-                "state_id": payload.state_id,
-                "status": "submitted",
-                "submitted_at": now_iso,
-                "notes": payload.notes,
-                "rejection_reason": None,
-                "reviewed_at": None,
-                "reviewed_by": None,
-                **signature,
-            })
+            active_only(
+                supabase.table("caregiver_applications").update({
+                    "state_id": payload.state_id,
+                    "status": "submitted",
+                    "submitted_at": now_iso,
+                    "notes": payload.notes,
+                    "rejection_reason": None,
+                    "reviewed_at": None,
+                    "reviewed_by": None,
+                    **signature,
+                }),
+                "caregiver_applications",
+            )
             .eq("id", latest["id"])
             .execute()
         )
@@ -337,10 +357,12 @@ def resubmit_application(
 
     validate_state_id(supabase, payload.state_id)
 
-    # 1. Load most recent application for this caregiver
+    # 1. Load most recent live application for this caregiver
     app_q = (
-        supabase.table("caregiver_applications")
-        .select("*")
+        active_only(
+            supabase.table("caregiver_applications").select("*"),
+            "caregiver_applications",
+        )
         .eq("caregiver_id", user_id)
         .order("created_at", desc=True)
         .limit(1)
@@ -379,22 +401,31 @@ def resubmit_application(
         )
 
     # 3. Update users table state_id if needed
-    supabase.table("users").update({"state_id": payload.state_id}).eq("id", user_id).execute()
+    (
+        active_only(
+            supabase.table("users").update({"state_id": payload.state_id}),
+            "users",
+        )
+        .eq("id", user_id)
+        .execute()
+    )
 
     # 4. Flip the existing application record back to submitted (in-place resubmit)
     now_iso = datetime.now(timezone.utc).isoformat()
     app_res = (
-        supabase.table("caregiver_applications")
-        .update({
-            "state_id": payload.state_id,
-            "status": "submitted",
-            "submitted_at": now_iso,
-            "notes": payload.notes,
-            "rejection_reason": None,
-            "reviewed_at": None,
-            "reviewed_by": None,
-            **signature,
-        })
+        active_only(
+            supabase.table("caregiver_applications").update({
+                "state_id": payload.state_id,
+                "status": "submitted",
+                "submitted_at": now_iso,
+                "notes": payload.notes,
+                "rejection_reason": None,
+                "reviewed_at": None,
+                "reviewed_by": None,
+                **signature,
+            }),
+            "caregiver_applications",
+        )
         .eq("id", latest["id"])
         .execute()
     )
@@ -435,8 +466,12 @@ def get_my_documents(user: dict = Depends(require_caregiver)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("documents")
-        .select("*, document_types(name, requires_expiration)")
+        active_only(
+            supabase.table("documents").select(
+                "*, document_types(name, requires_expiration)"
+            ),
+            "documents",
+        )
         .eq("owner_id", user_id)
         .order("uploaded_at", desc=True)
         .execute()
@@ -484,7 +519,14 @@ def update_my_profile(
             detail="Failed to update caregiver profile.",
         )
 
-    supabase.table("users").update({"state_id": current_state_id}).eq("id", user_id).execute()
+    (
+        active_only(
+            supabase.table("users").update({"state_id": current_state_id}),
+            "users",
+        )
+        .eq("id", user_id)
+        .execute()
+    )
 
     return {"message": "Profile updated successfully", "profile": res.data[0]}
 
@@ -495,8 +537,7 @@ def get_my_notifications(user: dict = Depends(require_caregiver)):
     user_id = user.get("sub")
 
     res = (
-        supabase.table("notifications")
-        .select("*")
+        active_only(supabase.table("notifications").select("*"), "notifications")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
         .execute()
@@ -511,8 +552,10 @@ def mark_notification_read(notification_id: str, user: dict = Depends(require_ca
     user_id = user.get("sub")
 
     res = (
-        supabase.table("notifications")
-        .update({"read": True})
+        active_only(
+            supabase.table("notifications").update({"read": True}),
+            "notifications",
+        )
         .eq("id", notification_id)
         .eq("user_id", user_id)
         .execute()
@@ -526,7 +569,14 @@ def mark_all_notifications_read(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    supabase.table("notifications").update({"read": True}).eq("user_id", user_id).execute()
+    (
+        active_only(
+            supabase.table("notifications").update({"read": True}),
+            "notifications",
+        )
+        .eq("user_id", user_id)
+        .execute()
+    )
 
     return {"message": "All notifications marked as read"}
 
@@ -546,7 +596,15 @@ def get_credential_status(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    prof = supabase.table("caregivers").select("state_id").eq("id", user_id).single().execute()
+    prof = (
+        active_only(
+            supabase.table("caregivers").select("state_id"),
+            "caregivers",
+        )
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
     state_id = (prof.data or {}).get("state_id")
 
     required = []
@@ -560,8 +618,12 @@ def get_credential_status(user: dict = Depends(require_caregiver)):
         required = req_res.data or []
 
     docs_res = (
-        supabase.table("documents")
-        .select("*, document_types(name, requires_expiration)")
+        active_only(
+            supabase.table("documents").select(
+                "*, document_types(name, requires_expiration)"
+            ),
+            "documents",
+        )
         .eq("owner_id", user_id)
         .execute()
     )
@@ -624,13 +686,20 @@ def get_my_announcements(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
     state_id = None
-    prof = supabase.table("caregivers").select("state_id").eq("id", user_id).single().execute()
+    prof = (
+        active_only(
+            supabase.table("caregivers").select("state_id"),
+            "caregivers",
+        )
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
     if prof.data and prof.data.get("state_id"):
         state_id = prof.data["state_id"]
 
     res = (
-        supabase.table("announcements")
-        .select("*")
+        active_only(supabase.table("announcements").select("*"), "announcements")
         .eq("is_active", True)
         .order("created_at", desc=True)
         .limit(20)

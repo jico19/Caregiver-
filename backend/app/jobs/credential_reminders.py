@@ -7,6 +7,7 @@ never spam the caregiver.
 from datetime import date, timedelta
 
 from app.utils.notifications import notify
+from app.core.soft_delete import active_only
 
 EXPIRING_WINDOW_DAYS = 30
 
@@ -25,8 +26,12 @@ def scan_due_credentials(supabase, today=None) -> int:
     soon_through = today + timedelta(days=EXPIRING_WINDOW_DAYS)
 
     res = (
-        supabase.table("documents")
-        .select("id, owner_id, status, expiration_date, document_types(name)")
+        active_only(
+            supabase.table("documents").select(
+                "id, owner_id, status, expiration_date, document_types(name)"
+            ),
+            "documents",
+        )
         .execute()
     )
 
@@ -57,8 +62,10 @@ def scan_due_credentials(supabase, today=None) -> int:
             )
 
         exists = (
-            supabase.table("notifications")
-            .select("id")
+            active_only(
+                supabase.table("notifications").select("id"),
+                "notifications",
+            )
             .eq("user_id", owner_id)
             .eq("type", notif_type)
             .eq("reference_id", str(doc.get("id")))

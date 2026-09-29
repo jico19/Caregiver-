@@ -164,7 +164,17 @@ def test_admin_put_care_plan_replaces_activities(client):
     assert plan["status"] == "pending"
     assert plan["emergency_protocol"] == "Updated protocol."
     assert [a["task"] for a in plan["activities"]] == ["New Task A", "New Task B"]
-    assert len(db["care_plan_activities"]) == 2
+    # The replaced activities are soft-deleted, not removed: the rows stay for
+    # the audit trail but are filtered out of every read.
+    assert len(db["care_plan_activities"]) == 4
+    superseded = [a for a in db["care_plan_activities"] if a["task"] == "Bathing & Grooming"]
+    assert len(superseded) == 1
+    assert superseded[0]["deleted_at"] is not None
+    assert superseded[0]["deleted_by"] == "u-admin"
+    assert all(a.get("deleted_at") is None for a in db["care_plan_activities"] if a["task"].startswith("New Task"))
+    assert any(
+        l["action"] == "care_plan_activities_replaced" for l in db["audit_logs"]
+    )
 
 
 def test_admin_put_care_plan_unknown_client_404(client):

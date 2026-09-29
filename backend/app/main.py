@@ -13,7 +13,8 @@ from app.middleware.logging import log_requests
 from app.api.routes import (
     auth, states, services, forms,
     caregivers, clients, documents,
-    training, authorizations, admin
+    training, authorizations, admin,
+    admin_users
 )
 
 logging.basicConfig(
@@ -84,6 +85,7 @@ app.include_router(documents.router, prefix=f"{API_PREFIX}/documents", tags=["do
 app.include_router(training.router, prefix=f"{API_PREFIX}/training", tags=["training"])
 app.include_router(authorizations.router, prefix=f"{API_PREFIX}/authorizations", tags=["authorizations"])
 app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["admin"])
+app.include_router(admin_users.router, prefix=f"{API_PREFIX}/admin/users", tags=["admin-users"])
 
 
 @app.get("/health")

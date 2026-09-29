@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest
 from app.core.supabase import get_supabase_anon, get_supabase
 from app.core.dependencies import get_current_user, validate_state_id
+from app.core.soft_delete import active_only
 
 router = APIRouter()
 
@@ -17,9 +18,19 @@ def login(data: LoginRequest):
     if not res.user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Fetch the user's role and state from our users table
+    # Fetch the user's role and state from our users table. A soft-deleted
+    # account has no row here, so it resolves to the public role and cannot
+    # reach any role-gated surface.
     admin_client = get_supabase()
-    user_row = admin_client.table("users").select("role_id, state_id, roles(name)").eq("id", str(res.user.id)).single().execute()
+    user_row = (
+        active_only(
+            admin_client.table("users").select("role_id, state_id, roles(name)"),
+            "users",
+        )
+        .eq("id", str(res.user.id))
+        .single()
+        .execute()
+    )
 
     role = "public"
     state_id = None
@@ -106,7 +117,17 @@ def logout(user: dict = Depends(get_current_user)):
 @router.get("/me")
 def get_me(user: dict = Depends(get_current_user)):
     admin_client = get_supabase()
-    user_row = admin_client.table("users").select("*, roles(name), states(name, slug, code)").eq("id", user.get("sub")).single().execute()
+    user_row = (
+        active_only(
+            admin_client.table("users").select(
+                "*, roles(name), states(name, slug, code)"
+            ),
+            "users",
+        )
+        .eq("id", user.get("sub"))
+        .single()
+        .execute()
+    )
     if not user_row.data:
         raise HTTPException(status_code=404, detail="User not found")
     return user_row.data
