@@ -1,5 +1,9 @@
 -- ============================================================
--- Seed Data — Run AFTER schema.sql
+-- Core seed: states, roles, document types, careers, test accounts
+--
+-- Run by `supabase db reset` after all migrations. Must be the first
+-- seed file: the later ones insert rows that reference its users,
+-- states, and document types.
 -- ============================================================
 
 -- States
@@ -14,7 +18,8 @@ INSERT INTO roles (name, description) VALUES
   ('public',        'Unauthenticated public visitor'),
   ('caregiver',     'Caregiver applying for or employed by the agency'),
   ('client',        'Client receiving care services'),
-  ('administrator', 'Agency staff with administrative access')
+  ('administrator', 'Agency staff with administrative access'),
+  ('super_admin',   'Agency staff with administrative access to all states')
 ON CONFLICT (name) DO NOTHING;
 
 -- Document Types
@@ -34,10 +39,15 @@ INSERT INTO document_types (name, for_role, requires_expiration) VALUES
   ('Physician Orders',      'client',    TRUE),
   ('Plan of Care',          'client',    TRUE),
   ('Client Identification', 'client',    FALSE),
-  ('Authorization Document','client',    TRUE)
+  ('Authorization Document','client',    TRUE),
+  -- Catch-all for uploads the caregiver has no document for. Excluded
+  -- from the per-state requirement matrix in 02_document_requirements.sql.
+  ('Other',                 'caregiver', FALSE)
 ON CONFLICT (name) DO NOTHING;
 
 -- Job Postings / Careers
+-- One posting per (state, title); the unique index that enforces it is
+-- created by migrations/20260924101200_job_postings.sql.
 INSERT INTO job_postings (state_id, title, job_type, compensation, requirements, description, sort_order) VALUES
   (1, 'Certified Nursing Assistant (CNA)', 'Full-Time / Part-Time', '$19 - $23 / hour', 'Active Florida CNA certification in good standing, CPR/BLS certification, AHCA Level 2 background screening cleared.', 'Provide compassionate hands-on personal care, assistance with ADLs, vital signs monitoring, and mobility support for home care patients across Florida.', 1),
   (1, 'Home Health Aide (HHA)', 'Flexible Hours / PRN', '$17 - $20 / hour', 'Florida 75-hour HHA certificate or active CNA license, valid driver license, negative TB screening within last 12 months.', 'Assist clients with daily living routines, meal preparation, medication reminders, companionship, and light housekeeping.', 2),
@@ -53,10 +63,11 @@ ON CONFLICT DO NOTHING;
 -- ============================================================
 -- TEST ACCOUNTS
 -- ============================================================
--- SECURITY: No password is committed to this repository.
--- Set one before running this file (Supabase SQL Editor), e.g.:
+-- SECURITY: No password is committed to this repository. This file aborts
+-- unless one has been set in the current session first:
 --   SELECT set_config('app.seed_pwd', 'your-strong-password', false);
--- The block below aborts if no password is set.
+-- See database/RUNBOOK.md for the one-liner that runs this file with the
+-- password supplied from your shell rather than committed.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$
@@ -117,8 +128,11 @@ INSERT INTO auth.identities (
 ON CONFLICT (provider, provider_id) DO NOTHING;
 
 -- Public users mapping
+-- The seeded admin is a super_admin (state_id NULL = all states) because
+-- administrators are state-scoped; see
+-- migrations/20260924101900_super_admin_state_scoping.sql
 INSERT INTO users (id, email, role_id, state_id, status) VALUES
-  ('3f9d1f38-b03e-466f-98bf-dab66163d63c', 'admin@caregiver.com', 4, 1, 'active'),
+  ('3f9d1f38-b03e-466f-98bf-dab66163d63c', 'admin@caregiver.com', (SELECT id FROM roles WHERE name = 'super_admin'), NULL, 'active'),
   ('26fecbcc-2b75-4770-86b3-95fd866a9b50', 'caregiver.fl@caregiver.com', 2, 1, 'active'),
   ('da6c3061-7845-4074-9dea-fd996bb91cc4', 'caregiver.in@caregiver.com', 2, 2, 'active'),
   ('515aad09-c5b7-456a-8d4f-4cd03beaad09', 'caregiver.ga@caregiver.com', 2, 3, 'active'),

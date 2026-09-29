@@ -6,6 +6,7 @@ class UserRole(str, Enum):
     CAREGIVER = "caregiver"
     CLIENT = "client"
     ADMINISTRATOR = "administrator"
+    SUPER_ADMIN = "super_admin"
 
 
 class ApplicationStatus(str, Enum):

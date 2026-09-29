@@ -15,13 +15,20 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from app.main import app
 from app.core import supabase as supabase_mod
 from app.services import document_service as document_service_mod
+from app.api.routes import auth as auth_mod
+from app.api.routes import states as states_mod
 from app.api.routes import caregivers as caregivers_mod
 from app.api.routes import admin as admin_mod
 from app.api.routes import training as training_mod
 from app.api.routes import clients as clients_mod
 
+# u-admin is the promoted super admin (state_id None == all states), matching
+# migrations/13. u-admin-fl/in/ga are state-scoped administrators.
 USERS = {
-    "u-admin": {"id": "u-admin", "email": "admin@test.com", "role": "administrator", "state_id": 1},
+    "u-admin": {"id": "u-admin", "email": "admin@test.com", "role": "super_admin", "state_id": None},
+    "u-admin-fl": {"id": "u-admin-fl", "email": "admin.fl@test.com", "role": "administrator", "state_id": 1},
+    "u-admin-in": {"id": "u-admin-in", "email": "admin.in@test.com", "role": "administrator", "state_id": 2},
+    "u-admin-ga": {"id": "u-admin-ga", "email": "admin.ga@test.com", "role": "administrator", "state_id": 3},
     "u-caregiver": {"id": "u-caregiver", "email": "caregiver@test.com", "role": "caregiver", "state_id": 1},
     "u-client": {"id": "u-client", "email": "client@test.com", "role": "client", "state_id": 1},
 }
@@ -264,12 +271,16 @@ def make_db():
             {"id": 3, "code": "GA", "name": "Georgia", "slug": "georgia", "active": True},
         ],
         "users": [
-            {"id": "u-admin", "email": "admin@test.com", "role_id": 4, "state_id": 1, "status": "active", "roles": {"name": "administrator"}},
+            {"id": "u-admin", "email": "admin@test.com", "role_id": 5, "state_id": None, "status": "active", "roles": {"name": "super_admin"}},
+            {"id": "u-admin-fl", "email": "admin.fl@test.com", "role_id": 4, "state_id": 1, "status": "active", "roles": {"name": "administrator"}},
+            {"id": "u-admin-in", "email": "admin.in@test.com", "role_id": 4, "state_id": 2, "status": "active", "roles": {"name": "administrator"}},
+            {"id": "u-admin-ga", "email": "admin.ga@test.com", "role_id": 4, "state_id": 3, "status": "active", "roles": {"name": "administrator"}},
             {"id": "u-caregiver", "email": "caregiver@test.com", "role_id": 2, "state_id": 1, "status": "active", "roles": {"name": "caregiver"}},
             {"id": "u-client", "email": "client@test.com", "role_id": 3, "state_id": 1, "status": "active", "roles": {"name": "client"}},
         ],
         "roles": [
             {"id": 2, "name": "caregiver"},
+            {"id": 5, "name": "super_admin"},
         ],
         "caregivers": [],
         "caregiver_applications": [],
@@ -312,6 +323,9 @@ def client(monkeypatch):
 
     monkeypatch.setattr(supabase_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(supabase_mod, "get_supabase_anon", lambda: fake)
+    monkeypatch.setattr(auth_mod, "get_supabase", lambda: fake)
+    monkeypatch.setattr(auth_mod, "get_supabase_anon", lambda: fake)
+    monkeypatch.setattr(states_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(caregivers_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(caregivers_mod, "get_supabase_anon", lambda: fake)
     monkeypatch.setattr(admin_mod, "get_supabase", lambda: fake)

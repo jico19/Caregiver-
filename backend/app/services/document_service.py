@@ -1,5 +1,6 @@
 import time
 import re
+from typing import Optional
 from fastapi import HTTPException, status
 from app.core.supabase import get_supabase
 from app.utils.notifications import notify
@@ -99,7 +100,19 @@ class DocumentService:
 
         return doc_record
 
-    def get_signed_url(self, document_id: str, requesting_user_id: str, is_admin: bool = False):
+    def get_signed_url(
+        self,
+        document_id: str,
+        requesting_user_id: str,
+        is_admin: bool = False,
+        admin_states: Optional[list[int]] = None,
+    ):
+        """Return a signed URL after checking ownership and state scope.
+
+        ``admin_states`` is the caller's permitted state list. ``None`` means
+        the admin is unrestricted (super_admin). A document with no state is
+        denied to a state-scoped admin.
+        """
         res = (
             self.supabase.table("documents")
             .select("*")
@@ -111,7 +124,13 @@ class DocumentService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
         doc = res.data
-        if not is_admin and doc["owner_id"] != requesting_user_id:
+        if is_admin:
+            if admin_states is not None and doc.get("state_id") not in admin_states:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You are not authorized to access this document.",
+                )
+        elif doc["owner_id"] != requesting_user_id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to access this document.",

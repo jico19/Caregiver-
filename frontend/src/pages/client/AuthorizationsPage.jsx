@@ -278,8 +278,8 @@ export default function AuthorizationsPage() {
                       </td>
                       <td className="text-secondary whitespace-nowrap">
                         {auth.start_date} to {auth.end_date}
-                        {!isExpiringSoon && auth.days_until_expiration !== null && auth.status === 'active' && (
-                          <div className="text-xs text-muted">
+                        {isExpiringSoon && auth.days_until_expiration !== null && auth.status === 'active' && (
+                          <div className="text-xs text-warning font-semibold">
                             {auth.days_until_expiration} days remaining
                           </div>
                         )}

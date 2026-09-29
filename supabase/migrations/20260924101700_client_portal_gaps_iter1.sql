@@ -1,9 +1,8 @@
 -- ============================================================
--- Migration 11: Client Portal SOW gaps — Iteration 1
+-- Client portal gaps — Iteration 1
 --  1. clients signature columns (intake consent e-signature)
 --  2. client_agreements table (care agreement / client rights e-sign)
 --  3. authorizations: source + review columns (client self-service uploads)
--- Re-runnable. Run in Supabase SQL Editor after 10_.
 -- ============================================================
 
 -- 1. Intake consent signature on clients
@@ -31,6 +30,7 @@ CREATE TABLE IF NOT EXISTS client_agreements (
 
 CREATE INDEX IF NOT EXISTS idx_client_agreements_client ON client_agreements(client_id);
 
+DROP TRIGGER IF EXISTS client_agreements_updated_at ON client_agreements;
 CREATE TRIGGER client_agreements_updated_at
   BEFORE UPDATE ON client_agreements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

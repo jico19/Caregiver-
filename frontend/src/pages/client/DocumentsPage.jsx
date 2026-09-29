@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 
@@ -16,6 +16,8 @@ export default function DocumentsPage() {
   const [selectedTypeId, setSelectedTypeId] = useState('');
   const [expirationDate, setExpirationDate] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
+
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -70,10 +72,18 @@ export default function DocumentsPage() {
       setSuccessMsg(`Document '${selectedFile.name}' received and queued for administrative review.`);
       setSelectedFile(null);
       setExpirationDate('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    } catch (err) {
+      setErrorMsg(err.detail || 'Failed to submit document. Ensure file is under 10 MB in PDF, JPEG, or PNG format.');
+      setUploading(false);
+      return;
+    }
+
+    try {
       const docsRes = await api.get('/documents/me', token);
       setDocuments(docsRes?.documents || []);
     } catch (err) {
-      setErrorMsg(err.detail || 'Failed to submit document. Ensure file is under 10 MB in PDF, JPEG, or PNG format.');
+      setErrorMsg('Upload succeeded, but the document list could not be refreshed. Please reload the page.');
     } finally {
       setUploading(false);
     }
@@ -173,6 +183,7 @@ export default function DocumentsPage() {
             </label>
             <input
               id="client-file"
+              ref={fileInputRef}
               type="file"
               required
               accept=".pdf,.png,.jpg,.jpeg"

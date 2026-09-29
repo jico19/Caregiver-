@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration 10: RLS policies matching the application access model
+-- RLS policies matching the application access model
 --
 -- All application traffic flows through the FastAPI backend using the
 -- service-role client, which bypasses RLS. These policies are defense in
@@ -7,8 +7,6 @@
 -- access the backend grants through FastAPI, so that if service_role were
 -- ever exposed or a client-side Supabase client were added, row access is
 -- still bounded to the caller's own records (or admin).
---
--- Run in Supabase SQL Editor. Re-runnable.
 -- ============================================================
 
 -- ============================================================
@@ -102,7 +100,7 @@ CREATE POLICY "p_roles_public_read"
   TO anon, authenticated
   USING (TRUE);
 
--- job_postings already has "Allow public read active job postings" (06).
+-- job_postings already has "Allow public read active job postings".
 
 -- ============================================================
 -- AUTHENTICATED, OWNERSHIP-BOUND POLICIES

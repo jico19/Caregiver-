@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import useFetch from '../hooks/useFetch';
 import PortalNavbar from '../components/common/PortalNavbar';
+import { isAdmin } from '../lib/roles';
 
 export default function CaregiverLayout({ children }) {
   const { user, token, loading, logout } = useAuth();
@@ -18,14 +19,19 @@ export default function CaregiverLayout({ children }) {
   }
 
   if (!user) return <Navigate to="/caregiver/login" replace />;
-  if (user.role === 'administrator') return <Navigate to="/admin/dashboard" replace />;
+  if (isAdmin(user)) return <Navigate to="/admin/dashboard" replace />;
   if (user.role === 'client') return <Navigate to="/client/dashboard" replace />;
 
+  // The brand links to the dashboard, which is why it is not repeated here.
   const navLinks = [
-    { label: 'Dashboard', to: '/caregiver/dashboard' },
     { label: 'Application', to: '/caregiver/application' },
-    { label: 'Credentials', to: '/caregiver/documents' },
-    { label: 'Training', to: '/caregiver/training' },
+    {
+      label: 'Compliance',
+      items: [
+        { label: 'Credentials', to: '/caregiver/documents' },
+        { label: 'Training', to: '/caregiver/training' },
+      ],
+    },
     { label: 'Profile', to: '/caregiver/profile' },
     { label: 'Notifications', to: '/caregiver/notifications', hasBadge: true, badgeCount: unreadCount },
   ];
@@ -34,7 +40,11 @@ export default function CaregiverLayout({ children }) {
     <div className="portal-shell">
       <PortalNavbar
         roleBadge="Caregiver"
-        roleBadgeColor={{ bg: 'var(--primary-light)', text: 'var(--primary)', border: '#bfdbfe' }}
+        roleBadgeColor={{
+          bg: 'var(--primary-light)',
+          text: 'var(--primary)',
+          border: 'var(--color-primary-border)',
+        }}
         homePath="/caregiver/dashboard"
         navLinks={navLinks}
         user={user}

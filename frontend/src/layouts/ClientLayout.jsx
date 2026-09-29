@@ -2,6 +2,7 @@ import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import useFetch from '../hooks/useFetch';
 import PortalNavbar from '../components/common/PortalNavbar';
+import { isAdmin } from '../lib/roles';
 
 export default function ClientLayout() {
   const { user, token, loading, logout } = useAuth();
@@ -18,17 +19,27 @@ export default function ClientLayout() {
   }
 
   if (!user) return <Navigate to="/client/login" replace />;
-  if (user.role === 'administrator') return <Navigate to="/admin/dashboard" replace />;
+  if (isAdmin(user)) return <Navigate to="/admin/dashboard" replace />;
   if (user.role === 'caregiver') return <Navigate to="/caregiver/dashboard" replace />;
 
+  // The brand links to the dashboard, which is why it is not repeated here.
   const navLinks = [
-    { label: 'Dashboard', to: '/client/dashboard' },
-    { label: 'Intake', to: '/client/intake' },
-    { label: 'Forms', to: '/client/forms' },
-    { label: 'Records', to: '/client/documents' },
-    { label: 'Authorizations', to: '/client/authorizations' },
-    { label: 'Care Plan', to: '/client/care-plan' },
-    { label: 'Schedule', to: '/client/schedule' },
+    {
+      label: 'My Care',
+      items: [
+        { label: 'Care Plan', to: '/client/care-plan' },
+        { label: 'Schedule', to: '/client/schedule' },
+      ],
+    },
+    {
+      label: 'Documents',
+      items: [
+        { label: 'Intake', to: '/client/intake' },
+        { label: 'Forms', to: '/client/forms' },
+        { label: 'Records', to: '/client/documents' },
+        { label: 'Authorizations', to: '/client/authorizations' },
+      ],
+    },
     { label: 'Profile', to: '/client/profile' },
     { label: 'Alerts', to: '/client/notifications', hasBadge: true, badgeCount: unreadCount },
   ];
@@ -37,7 +48,11 @@ export default function ClientLayout() {
     <div className="portal-shell">
       <PortalNavbar
         roleBadge="Client & Family"
-        roleBadgeColor={{ bg: 'var(--success-light)', text: 'var(--success)', border: '#a7f3d0' }}
+        roleBadgeColor={{
+          bg: 'var(--success-light)',
+          text: 'var(--success)',
+          border: 'var(--color-success-border)',
+        }}
         homePath="/client/dashboard"
         navLinks={navLinks}
         user={user} logout={logout} accentColor="emerald"

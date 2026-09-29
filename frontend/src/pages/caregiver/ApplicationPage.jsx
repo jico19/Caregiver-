@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams, useNavigate } from 'react-router-dom';
-import { useForm, Controller } from 'react-hook-form';
+import { useForm, useWatch, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
@@ -150,7 +150,20 @@ export default function ApplicationPage() {
 
   // Autosave the form to the browser as the applicant types (debounced).
   // Disabled while the application is locked or submitting.
-  const watched = watch();
+  // Subscribe to individual scalar fields so the effect deps are stable;
+  // `watch()` (no args) returns a fresh object identity every render and would
+  // re-trigger this effect (and a new save) on every keystroke forever.
+  const firstNameWatched = useWatch({ control, name: 'first_name' });
+  const lastNameWatched = useWatch({ control, name: 'last_name' });
+  const phoneWatched = useWatch({ control, name: 'phone' });
+  const addressWatched = useWatch({ control, name: 'address' });
+  const dobWatched = useWatch({ control, name: 'date_of_birth' });
+  const ssnWatched = useWatch({ control, name: 'ssn_last4' });
+  const stateWatched = useWatch({ control, name: 'state_id' });
+  const notesWatched = useWatch({ control, name: 'notes' });
+  const emailWatched = useWatch({ control, name: 'email' });
+
+  const lastDraftRef = useRef('');
 
   useEffect(() => {
     const meta = application ? STATUS_META[application.status] : null;
@@ -158,24 +171,31 @@ export default function ApplicationPage() {
 
     const timer = setTimeout(() => {
       const draft = {
-        firstName: watched.first_name,
-        lastName: watched.last_name,
-        phone: watched.phone,
-        address: watched.address,
-        dateOfBirth: watched.date_of_birth,
-        ssnLast4: watched.ssn_last4,
-        stateId: String(watched.state_id),
-        notes: watched.notes,
-        ...(user ? {} : { email: watched.email }),
+        firstName: firstNameWatched,
+        lastName: lastNameWatched,
+        phone: phoneWatched,
+        address: addressWatched,
+        dateOfBirth: dobWatched,
+        ssnLast4: ssnWatched,
+        stateId: String(stateWatched ?? ''),
+        notes: notesWatched,
+        ...(user ? {} : { email: emailWatched }),
       };
+      const serialized = JSON.stringify(draft);
+      if (serialized === lastDraftRef.current) return; // nothing changed since last save
       if (saveDraft(draftIdentity, draft)) {
+        lastDraftRef.current = serialized;
         setDraftSavedAt(new Date());
       }
     }, 500);
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watched, application, isSubmitting, token]);
+  }, [
+    firstNameWatched, lastNameWatched, phoneWatched, addressWatched,
+    dobWatched, ssnWatched, stateWatched, notesWatched, emailWatched,
+    application, isSubmitting, token,
+  ]);
 
   function handleClearDraft() {
     clearDraft();

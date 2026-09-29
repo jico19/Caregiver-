@@ -1,7 +1,6 @@
 # Plan 020 — Client Portal SOW Gap Closure
 
 **Source spec:** `Scope of work.md` §3 (Client Portal)
-**Audit reference:** `TODO.MD` §3
 **Status:** Approved — split into two iterations
 
 ## Approach (decided)
@@ -58,7 +57,7 @@ Build in **two iterations**, delivered in that order:
 2. `ClientLayout.jsx` nav += "Forms"; `AppRoutes.jsx` += `/client/forms`.
 
 ## Migration files (Iteration 1)
-- `database/migrations/11_client_portal_gaps_iter1.sql`
+- `supabase/migrations/20260924101700_client_portal_gaps_iter1.sql`
 
 ## Tests (Iteration 1)
 - E-sign: intake missing signature → 400; present → persisted + audit; agreement sign → row upserted + audit + notify.

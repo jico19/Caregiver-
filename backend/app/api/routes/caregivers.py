@@ -453,11 +453,22 @@ def update_my_profile(
     supabase = get_supabase()
     user_id = user.get("sub")
 
-    validate_state_id(supabase, payload.state_id)
+    # A profile edit must not change which state the caregiver belongs to.
+    # state_id is part of this payload because the edit form always submits
+    # it, so the current value is accepted and any change is refused.
+    # Moving a caregiver between states is an administrative action.
+    current_state_id = user.get("state_id")
+    if payload.state_id != current_state_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to change your assigned state.",
+        )
+
+    validate_state_id(supabase, current_state_id)
 
     profile_data = {
         "id": user_id,
-        "state_id": payload.state_id,
+        "state_id": current_state_id,
         "first_name": payload.first_name,
         "last_name": payload.last_name,
         "phone": payload.phone,
@@ -473,7 +484,7 @@ def update_my_profile(
             detail="Failed to update caregiver profile.",
         )
 
-    supabase.table("users").update({"state_id": payload.state_id}).eq("id", user_id).execute()
+    supabase.table("users").update({"state_id": current_state_id}).eq("id", user_id).execute()
 
     return {"message": "Profile updated successfully", "profile": res.data[0]}
 

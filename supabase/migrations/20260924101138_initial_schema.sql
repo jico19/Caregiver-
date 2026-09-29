@@ -1,6 +1,10 @@
 -- ============================================================
--- Caregiver Platform — Initial Schema
--- Run in Supabase SQL Editor
+-- Caregiver Platform — initial schema
+--
+-- Baseline of the schema that was previously applied by hand through the
+-- Supabase SQL Editor. Applied to production on the CLI transition date,
+-- not re-executed: see database/RUNBOOK.md for how the remote history
+-- was backfilled.
 -- ============================================================
 
 -- Auto-update trigger function
@@ -25,6 +29,7 @@ CREATE TABLE IF NOT EXISTS states (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+DROP TRIGGER IF EXISTS states_updated_at ON states;
 CREATE TRIGGER states_updated_at
   BEFORE UPDATE ON states
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -57,11 +62,12 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_users_email    ON users(email);
-CREATE INDEX idx_users_role_id  ON users(role_id);
-CREATE INDEX idx_users_state_id ON users(state_id);
-CREATE INDEX idx_users_status   ON users(status);
+CREATE INDEX IF NOT EXISTS idx_users_email    ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role_id  ON users(role_id);
+CREATE INDEX IF NOT EXISTS idx_users_state_id ON users(state_id);
+CREATE INDEX IF NOT EXISTS idx_users_status   ON users(status);
 
+DROP TRIGGER IF EXISTS users_updated_at ON users;
 CREATE TRIGGER users_updated_at
   BEFORE UPDATE ON users
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -83,8 +89,9 @@ CREATE TABLE IF NOT EXISTS website_content (
   UNIQUE (state_id, section, key)
 );
 
-CREATE INDEX idx_website_content_state ON website_content(state_id);
+CREATE INDEX IF NOT EXISTS idx_website_content_state ON website_content(state_id);
 
+DROP TRIGGER IF EXISTS website_content_updated_at ON website_content;
 CREATE TRIGGER website_content_updated_at
   BEFORE UPDATE ON website_content
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -105,8 +112,9 @@ CREATE TABLE IF NOT EXISTS services (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_services_state ON services(state_id);
+CREATE INDEX IF NOT EXISTS idx_services_state ON services(state_id);
 
+DROP TRIGGER IF EXISTS services_updated_at ON services;
 CREATE TRIGGER services_updated_at
   BEFORE UPDATE ON services
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -128,8 +136,9 @@ CREATE TABLE IF NOT EXISTS forms (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_forms_state ON forms(state_id);
+CREATE INDEX IF NOT EXISTS idx_forms_state ON forms(state_id);
 
+DROP TRIGGER IF EXISTS forms_updated_at ON forms;
 CREATE TRIGGER forms_updated_at
   BEFORE UPDATE ON forms
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -150,8 +159,9 @@ CREATE TABLE IF NOT EXISTS licensing_info (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_licensing_state ON licensing_info(state_id);
+CREATE INDEX IF NOT EXISTS idx_licensing_state ON licensing_info(state_id);
 
+DROP TRIGGER IF EXISTS licensing_info_updated_at ON licensing_info;
 CREATE TRIGGER licensing_info_updated_at
   BEFORE UPDATE ON licensing_info
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -185,8 +195,9 @@ CREATE TABLE IF NOT EXISTS document_requirements (
   UNIQUE (state_id, document_type_id)
 );
 
-CREATE INDEX idx_doc_req_state ON document_requirements(state_id);
+CREATE INDEX IF NOT EXISTS idx_doc_req_state ON document_requirements(state_id);
 
+DROP TRIGGER IF EXISTS document_requirements_updated_at ON document_requirements;
 CREATE TRIGGER document_requirements_updated_at
   BEFORE UPDATE ON document_requirements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -209,8 +220,9 @@ CREATE TABLE IF NOT EXISTS caregivers (
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_caregivers_state ON caregivers(state_id);
+CREATE INDEX IF NOT EXISTS idx_caregivers_state ON caregivers(state_id);
 
+DROP TRIGGER IF EXISTS caregivers_updated_at ON caregivers;
 CREATE TRIGGER caregivers_updated_at
   BEFORE UPDATE ON caregivers
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -235,10 +247,11 @@ CREATE TABLE IF NOT EXISTS caregiver_applications (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_applications_caregiver ON caregiver_applications(caregiver_id);
-CREATE INDEX idx_applications_state     ON caregiver_applications(state_id);
-CREATE INDEX idx_applications_status    ON caregiver_applications(status);
+CREATE INDEX IF NOT EXISTS idx_applications_caregiver ON caregiver_applications(caregiver_id);
+CREATE INDEX IF NOT EXISTS idx_applications_state     ON caregiver_applications(state_id);
+CREATE INDEX IF NOT EXISTS idx_applications_status    ON caregiver_applications(status);
 
+DROP TRIGGER IF EXISTS caregiver_applications_updated_at ON caregiver_applications;
 CREATE TRIGGER caregiver_applications_updated_at
   BEFORE UPDATE ON caregiver_applications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -265,11 +278,12 @@ CREATE TABLE IF NOT EXISTS documents (
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_documents_owner        ON documents(owner_id);
-CREATE INDEX idx_documents_type         ON documents(document_type_id);
-CREATE INDEX idx_documents_status       ON documents(status);
-CREATE INDEX idx_documents_expiration   ON documents(expiration_date);
+CREATE INDEX IF NOT EXISTS idx_documents_owner        ON documents(owner_id);
+CREATE INDEX IF NOT EXISTS idx_documents_type         ON documents(document_type_id);
+CREATE INDEX IF NOT EXISTS idx_documents_status       ON documents(status);
+CREATE INDEX IF NOT EXISTS idx_documents_expiration   ON documents(expiration_date);
 
+DROP TRIGGER IF EXISTS documents_updated_at ON documents;
 CREATE TRIGGER documents_updated_at
   BEFORE UPDATE ON documents
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -292,8 +306,9 @@ CREATE TABLE IF NOT EXISTS clients (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_clients_state ON clients(state_id);
+CREATE INDEX IF NOT EXISTS idx_clients_state ON clients(state_id);
 
+DROP TRIGGER IF EXISTS clients_updated_at ON clients;
 CREATE TRIGGER clients_updated_at
   BEFORE UPDATE ON clients
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -318,9 +333,10 @@ CREATE TABLE IF NOT EXISTS client_referrals (
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_referrals_state  ON client_referrals(state_id);
-CREATE INDEX idx_referrals_status ON client_referrals(status);
+CREATE INDEX IF NOT EXISTS idx_referrals_state  ON client_referrals(state_id);
+CREATE INDEX IF NOT EXISTS idx_referrals_status ON client_referrals(status);
 
+DROP TRIGGER IF EXISTS client_referrals_updated_at ON client_referrals;
 CREATE TRIGGER client_referrals_updated_at
   BEFORE UPDATE ON client_referrals
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -345,11 +361,12 @@ CREATE TABLE IF NOT EXISTS authorizations (
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_auth_client  ON authorizations(client_id);
-CREATE INDEX idx_auth_state   ON authorizations(state_id);
-CREATE INDEX idx_auth_status  ON authorizations(status);
-CREATE INDEX idx_auth_end     ON authorizations(end_date);
+CREATE INDEX IF NOT EXISTS idx_auth_client  ON authorizations(client_id);
+CREATE INDEX IF NOT EXISTS idx_auth_state   ON authorizations(state_id);
+CREATE INDEX IF NOT EXISTS idx_auth_status  ON authorizations(status);
+CREATE INDEX IF NOT EXISTS idx_auth_end     ON authorizations(end_date);
 
+DROP TRIGGER IF EXISTS authorizations_updated_at ON authorizations;
 CREATE TRIGGER authorizations_updated_at
   BEFORE UPDATE ON authorizations
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -370,8 +387,9 @@ CREATE TABLE IF NOT EXISTS training_courses (
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_courses_state ON training_courses(state_id);
+CREATE INDEX IF NOT EXISTS idx_courses_state ON training_courses(state_id);
 
+DROP TRIGGER IF EXISTS training_courses_updated_at ON training_courses;
 CREATE TRIGGER training_courses_updated_at
   BEFORE UPDATE ON training_courses
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -394,10 +412,11 @@ CREATE TABLE IF NOT EXISTS training_enrollments (
   UNIQUE (course_id, caregiver_id)
 );
 
-CREATE INDEX idx_enrollments_caregiver ON training_enrollments(caregiver_id);
-CREATE INDEX idx_enrollments_course    ON training_enrollments(course_id);
-CREATE INDEX idx_enrollments_status    ON training_enrollments(status);
+CREATE INDEX IF NOT EXISTS idx_enrollments_caregiver ON training_enrollments(caregiver_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_course    ON training_enrollments(course_id);
+CREATE INDEX IF NOT EXISTS idx_enrollments_status    ON training_enrollments(status);
 
+DROP TRIGGER IF EXISTS training_enrollments_updated_at ON training_enrollments;
 CREATE TRIGGER training_enrollments_updated_at
   BEFORE UPDATE ON training_enrollments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
@@ -417,8 +436,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_notifications_user ON notifications(user_id);
-CREATE INDEX idx_notifications_read ON notifications(read);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
@@ -437,9 +456,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_audit_user       ON audit_logs(user_id);
-CREATE INDEX idx_audit_table      ON audit_logs(table_name);
-CREATE INDEX idx_audit_created_at ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_user       ON audit_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_table      ON audit_logs(table_name);
+CREATE INDEX IF NOT EXISTS idx_audit_created_at ON audit_logs(created_at);
 
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 
@@ -460,9 +479,10 @@ CREATE TABLE IF NOT EXISTS job_postings (
   updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_job_postings_state  ON job_postings(state_id);
-CREATE INDEX idx_job_postings_active ON job_postings(active);
+CREATE INDEX IF NOT EXISTS idx_job_postings_state  ON job_postings(state_id);
+CREATE INDEX IF NOT EXISTS idx_job_postings_active ON job_postings(active);
 
+DROP TRIGGER IF EXISTS job_postings_updated_at ON job_postings;
 CREATE TRIGGER job_postings_updated_at
   BEFORE UPDATE ON job_postings
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();

@@ -3,7 +3,14 @@ from datetime import datetime, timezone, date, timedelta
 import logging
 from typing import Optional, List
 from pydantic import BaseModel, Field
-from app.core.dependencies import require_admin
+from app.core.dependencies import (
+    AdminScope,
+    assert_permitted_filter,
+    assert_state_allowed,
+    require_admin,
+    require_admin_scoped,
+    scope_query,
+)
 from app.core.supabase import get_supabase
 from app.models.enums import ALLOWED_TRANSITIONS
 from app.utils.notifications import notify
@@ -108,20 +115,27 @@ def record_audit_log(
 @router.get("/dashboard")
 def get_dashboard(
     state: Optional[str] = Query(None, description="florida, indiana, georgia, or all"),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
-    # Base counts
-    caregivers_q = supabase.table("caregivers").select("id", count="exact")
-    clients_q = supabase.table("clients").select("id", count="exact")
-    apps_pending_q = supabase.table("caregiver_applications").select("id", count="exact").in_("status", ["submitted", "under_review"])
-    docs_pending_q = supabase.table("documents").select("id", count="exact").eq("status", "pending_review")
+    # Base counts, always constrained to the caller's permitted states.
+    caregivers_q = scope_query(supabase.table("caregivers").select("id", count="exact"), scope)
+    clients_q = scope_query(supabase.table("clients").select("id", count="exact"), scope)
+    apps_pending_q = scope_query(
+        supabase.table("caregiver_applications").select("id", count="exact").in_("status", ["submitted", "under_review"]),
+        scope,
+    )
+    docs_pending_q = scope_query(
+        supabase.table("documents").select("id", count="exact").eq("status", "pending_review"),
+        scope,
+    )
 
     if state and state != "all":
         state_row = supabase.table("states").select("id").eq("slug", state).single().execute()
         if state_row.data:
-            s_id = state_row.data["id"]
+            # Narrows only. A state the caller may not see is rejected, not ignored.
+            s_id = assert_permitted_filter(scope, state_row.data["id"])
             caregivers_q = caregivers_q.eq("state_id", s_id)
             clients_q = clients_q.eq("state_id", s_id)
             apps_pending_q = apps_pending_q.eq("state_id", s_id)
@@ -146,7 +160,7 @@ def get_dashboard(
 def list_caregivers(
     status_filter: Optional[str] = Query(None, alias="status"),
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
@@ -154,6 +168,7 @@ def list_caregivers(
         "*, caregivers(first_name, last_name, phone, address, ssn_last4), states(code, name, slug)",
         count="exact",
     )
+    query = scope_query(query, scope)
     if status_filter:
         query = query.eq("status", status_filter)
 
@@ -165,10 +180,10 @@ def list_caregivers(
 def review_caregiver_application(
     application_id: str,
     payload: ApplicationReviewRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
 
     existing = (
         supabase.table("caregiver_applications")
@@ -181,6 +196,7 @@ def review_caregiver_application(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
     old_app = existing.data
+    assert_state_allowed(scope, old_app.get("state_id"))
     old_status = old_app.get("status")
 
     if payload.status not in ALLOWED_TRANSITIONS.get(old_status, set()):
@@ -207,12 +223,12 @@ def review_caregiver_application(
     elif payload.notes:
         update_payload["notes"] = payload.notes
 
-    res = (
+    res = scope_query(
         supabase.table("caregiver_applications")
         .update(update_payload)
-        .eq("id", application_id)
-        .execute()
-    )
+        .eq("id", application_id),
+        scope,
+    ).execute()
 
     record_audit_log(
         supabase,
@@ -246,7 +262,7 @@ def review_caregiver_application(
 @router.get("/caregivers/{application_id}")
 def get_caregiver_application_detail(
     application_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
@@ -261,6 +277,7 @@ def get_caregiver_application_detail(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
     application = app_res.data
+    assert_state_allowed(scope, application.get("state_id"))
     caregiver_id = application.get("caregiver_id")
 
     enrollments = []
@@ -283,13 +300,13 @@ def get_caregiver_application_detail(
 @router.get("/caregivers/{application_id}/documents")
 def get_caregiver_application_documents(
     application_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
     app_res = (
         supabase.table("caregiver_applications")
-        .select("caregiver_id")
+        .select("caregiver_id, state_id")
         .eq("id", application_id)
         .single()
         .execute()
@@ -297,13 +314,14 @@ def get_caregiver_application_documents(
     if not app_res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Application not found.")
 
-    doc_res = (
+    assert_state_allowed(scope, app_res.data.get("state_id"))
+
+    doc_res = scope_query(
         supabase.table("documents")
         .select("*, document_types(name, for_role, requires_expiration)")
-        .eq("owner_id", app_res.data["caregiver_id"])
-        .order("uploaded_at", desc=True)
-        .execute()
-    )
+        .eq("owner_id", app_res.data["caregiver_id"]),
+        scope,
+    ).order("uploaded_at", desc=True).execute()
 
     return {"documents": doc_res.data or []}
 
@@ -312,7 +330,7 @@ def get_caregiver_application_documents(
 def list_admin_documents(
     status_filter: Optional[str] = Query(None, alias="status"),
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
@@ -320,6 +338,7 @@ def list_admin_documents(
         "*, document_types(name, for_role, requires_expiration), users:users!documents_owner_id_fkey(email, role_id), states(code, name)",
         count="exact",
     )
+    query = scope_query(query, scope)
     if status_filter:
         query = query.eq("status", status_filter)
 
@@ -331,10 +350,10 @@ def list_admin_documents(
 def review_document(
     document_id: str,
     payload: DocumentReviewRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
 
     existing = (
         supabase.table("documents")
@@ -347,6 +366,7 @@ def review_document(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
 
     old_doc = existing.data
+    assert_state_allowed(scope, old_doc.get("state_id"))
     now_iso = datetime.now(timezone.utc).isoformat()
 
     update_payload = {
@@ -356,12 +376,12 @@ def review_document(
         "rejection_reason": payload.rejection_reason if payload.status == "rejected" else None,
     }
 
-    res = (
+    res = scope_query(
         supabase.table("documents")
         .update(update_payload)
-        .eq("id", document_id)
-        .execute()
-    )
+        .eq("id", document_id),
+        scope,
+    ).execute()
 
     record_audit_log(
         supabase,
@@ -392,13 +412,16 @@ def review_document(
 @router.get("/clients")
 def list_admin_clients(
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
     result = paginate(
-        supabase.table("clients").select(
-            "*, states(code, name, slug), users(email, status)", count="exact"
+        scope_query(
+            supabase.table("clients").select(
+                "*, states(code, name, slug), users(email, status)", count="exact"
+            ),
+            scope,
         ).order("created_at", desc=True),
         params,
     )
@@ -408,7 +431,7 @@ def list_admin_clients(
 @router.get("/clients/{client_id}")
 def get_admin_client(
     client_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
@@ -422,10 +445,11 @@ def get_admin_client(
     if not res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
 
+    assert_state_allowed(scope, res.data.get("state_id"))
     return {"client": res.data}
 
 
-def _get_client_or_404(supabase, client_id):
+def _get_client_or_404(supabase, client_id, scope: AdminScope):
     res = (
         supabase.table("clients")
         .select("id, state_id, first_name, last_name")
@@ -435,6 +459,7 @@ def _get_client_or_404(supabase, client_id):
     )
     if not res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client not found.")
+    assert_state_allowed(scope, res.data.get("state_id"))
     return res.data
 
 
@@ -463,10 +488,10 @@ def _fetch_care_plan_with_activities(supabase, client_id):
 @router.get("/clients/{client_id}/care-plan")
 def get_client_care_plan(
     client_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    _get_client_or_404(supabase, client_id)
+    _get_client_or_404(supabase, client_id, scope)
     return _fetch_care_plan_with_activities(supabase, client_id)
 
 
@@ -474,11 +499,11 @@ def get_client_care_plan(
 def update_client_care_plan(
     client_id: str,
     payload: CarePlanUpdateRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
-    client = _get_client_or_404(supabase, client_id)
+    admin_id = scope.user_id
+    client = _get_client_or_404(supabase, client_id, scope)
 
     existing = (
         supabase.table("care_plans")
@@ -500,7 +525,10 @@ def update_client_care_plan(
     if existing.data:
         plan_id = existing.data["id"]
         update_fields["updated_at"] = now_iso
-        supabase.table("care_plans").update(update_fields).eq("client_id", client_id).execute()
+        scope_query(
+            supabase.table("care_plans").update(update_fields).eq("client_id", client_id),
+            scope,
+        ).execute()
     else:
         inserted = (
             supabase.table("care_plans")
@@ -532,10 +560,10 @@ def update_client_care_plan(
 @router.get("/clients/{client_id}/schedule")
 def get_client_schedule(
     client_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    _get_client_or_404(supabase, client_id)
+    _get_client_or_404(supabase, client_id, scope)
 
     res = (
         supabase.table("care_schedules")
@@ -559,10 +587,10 @@ def get_client_schedule(
 def create_client_schedule(
     client_id: str,
     payload: ScheduleCreateRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    client = _get_client_or_404(supabase, client_id)
+    client = _get_client_or_404(supabase, client_id, scope)
 
     sort_order = payload.sort_order
     if sort_order is None:
@@ -604,18 +632,18 @@ def create_client_schedule(
 def delete_client_schedule(
     client_id: str,
     schedule_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    _get_client_or_404(supabase, client_id)
+    _get_client_or_404(supabase, client_id, scope)
 
-    deleted = (
+    deleted = scope_query(
         supabase.table("care_schedules")
         .delete()
         .eq("id", schedule_id)
-        .eq("client_id", client_id)
-        .execute()
-    )
+        .eq("client_id", client_id),
+        scope,
+    ).execute()
     if not deleted.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -628,13 +656,16 @@ def delete_client_schedule(
 @router.get("/authorizations")
 def list_admin_authorizations(
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
     result = paginate(
-        supabase.table("authorizations").select(
-            "*, clients(first_name, last_name, medicaid_number), states(code, name)", count="exact"
+        scope_query(
+            supabase.table("authorizations").select(
+                "*, clients(first_name, last_name, medicaid_number), states(code, name)", count="exact"
+            ),
+            scope,
         ).order("created_at", desc=True),
         params,
     )
@@ -644,14 +675,24 @@ def list_admin_authorizations(
 @router.post("/authorizations")
 def create_authorization(
     payload: AuthorizationCreateRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
+
+    # The authorization belongs to a client, so the client's own state is the
+    # authoritative one. A client-supplied state_id must never widen access.
+    client = _get_client_or_404(supabase, payload.client_id, scope)
+    client_state = client["state_id"]
+    if payload.state_id != client_state:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"state_id {payload.state_id} does not match the client's state ({client_state}).",
+        )
 
     auth_data = {
         "client_id": payload.client_id,
-        "state_id": payload.state_id,
+        "state_id": client_state,
         "authorization_number": payload.authorization_number.strip(),
         "start_date": payload.start_date,
         "end_date": payload.end_date,
@@ -659,6 +700,8 @@ def create_authorization(
         "notes": payload.notes,
     }
 
+    # state_id is taken from the client row (already state-checked above), and
+    # insert() builders are not filterable, so the value is safe to persist.
     res = supabase.table("authorizations").insert(auth_data).execute()
     if not res.data:
         raise HTTPException(
@@ -692,11 +735,11 @@ def create_authorization(
 def review_authorization(
     authorization_id: str,
     payload: AuthorizationReviewRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     """Admin review of a client-submitted (pending) authorization."""
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
 
     existing = (
         supabase.table("authorizations")
@@ -709,6 +752,7 @@ def review_authorization(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Authorization not found.")
 
     auth = existing.data
+    assert_state_allowed(scope, auth.get("state_id"))
     if auth.get("status") != "pending":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -726,12 +770,12 @@ def review_authorization(
     if payload.notes:
         update_payload["notes"] = payload.notes
 
-    res = (
+    res = scope_query(
         supabase.table("authorizations")
         .update(update_payload)
-        .eq("id", authorization_id)
-        .execute()
-    )
+        .eq("id", authorization_id),
+        scope,
+    ).execute()
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -748,14 +792,18 @@ def review_authorization(
         new_values=update_payload,
     )
 
-    # Mirror the decision onto the linked uploaded document.
+    # Mirror the decision onto the linked uploaded document. The document is a
+    # separate record and may carry a different state, so it is checked too.
     if auth.get("document_id"):
         doc_status = "approved" if new_status == "active" else "rejected"
-        supabase.table("documents").update({
-            "status": doc_status,
-            "reviewed_at": now_iso,
-            "reviewed_by": admin_id,
-        }).eq("id", auth["document_id"]).execute()
+        scope_query(
+            supabase.table("documents").update({
+                "status": doc_status,
+                "reviewed_at": now_iso,
+                "reviewed_by": admin_id,
+            }).eq("id", auth["document_id"]),
+            scope,
+        ).execute()
 
     if new_status == "active":
         notify(
@@ -783,6 +831,12 @@ def list_audit_logs(
     params: PaginationParams = Depends(),
     user: dict = Depends(require_admin),
 ):
+    """Cross-state audit trail.
+
+    audit_logs has no state_id column, so this endpoint cannot be state-scoped
+    without a schema change. Deliberately left global; see
+    migrations/13_super_admin_state_scoping.sql.
+    """
     supabase = get_supabase()
 
     result = paginate(
@@ -797,14 +851,18 @@ def list_audit_logs(
 @router.get("/announcements")
 def list_announcements(
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
+    # A scoped admin sees announcements targeted at its own state. Global
+    # announcements (state_id IS NULL) are visible to super admins only,
+    # matching the fail-closed rule used for documents.
     result = paginate(
-        supabase.table("announcements").select("*, users(email), states(code)", count="exact").order(
-            "created_at", desc=True
-        ),
+        scope_query(
+            supabase.table("announcements").select("*, users(email), states(code)", count="exact"),
+            scope,
+        ).order("created_at", desc=True),
         params,
     )
     return {"announcements": result.pop("items"), **result}
@@ -813,16 +871,26 @@ def list_announcements(
 @router.post("/announcements")
 def create_announcement(
     payload: AnnouncementCreateRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
+
+    if scope.is_super:
+        # Only an unrestricted caller may publish a company-wide announcement.
+        ann_state = payload.state_id
+    else:
+        # A scoped admin is pinned to its own state; it can neither target
+        # another state nor publish globally.
+        ann_state = (
+            assert_permitted_filter(scope, payload.state_id) or scope.states[0]
+        )
 
     ann_data = {
         "title": payload.title.strip(),
         "body": payload.body.strip(),
         "audience": payload.audience,
-        "state_id": payload.state_id,
+        "state_id": ann_state,
         "is_active": payload.is_active,
         "created_by": admin_id,
     }
@@ -852,10 +920,18 @@ def create_announcement(
 def update_announcement(
     announcement_id: str,
     payload: AnnouncementUpdateRequest,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
+
+    existing = supabase.table("announcements").select("*").eq("id", announcement_id).single().execute()
+    if not existing.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Announcement not found.",
+        )
+    assert_state_allowed(scope, existing.data.get("state_id"))
 
     updates = payload.model_dump(exclude_unset=True)
     if not updates:
@@ -864,12 +940,19 @@ def update_announcement(
             detail="No fields provided to update.",
         )
 
-    res = (
+    if "state_id" in updates and not scope.is_super:
+        # A scoped admin cannot retarget an announcement to another state or
+        # make it global by sending an explicit null.
+        updates["state_id"] = (
+            assert_permitted_filter(scope, updates["state_id"]) or scope.states[0]
+        )
+
+    res = scope_query(
         supabase.table("announcements")
         .update(updates)
-        .eq("id", announcement_id)
-        .execute()
-    )
+        .eq("id", announcement_id),
+        scope,
+    ).execute()
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -891,10 +974,10 @@ def update_announcement(
 @router.delete("/announcements/{announcement_id}")
 def delete_announcement(
     announcement_id: str,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
 
     existing = supabase.table("announcements").select("*").eq("id", announcement_id).single().execute()
     if not existing.data:
@@ -902,8 +985,12 @@ def delete_announcement(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Announcement not found.",
         )
+    assert_state_allowed(scope, existing.data.get("state_id"))
 
-    supabase.table("announcements").delete().eq("id", announcement_id).execute()
+    scope_query(
+        supabase.table("announcements").delete().eq("id", announcement_id),
+        scope,
+    ).execute()
 
     record_audit_log(
         supabase,
@@ -922,17 +1009,19 @@ def list_referrals(
     status: Optional[str] = Query(None, pattern="^(new|contacted|converted|closed)$"),
     state_id: Optional[int] = Query(None, ge=1),
     params: PaginationParams = Depends(),
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
 
-    query = supabase.table("client_referrals").select(
-        "*, states(code, name)", count="exact"
+    query = scope_query(
+        supabase.table("client_referrals").select("*, states(code, name)", count="exact"),
+        scope,
     ).order("created_at", desc=True)
     if status:
         query = query.eq("status", status)
     if state_id:
-        query = query.eq("state_id", state_id)
+        # Narrows only; a state the caller may not see is rejected.
+        query = query.eq("state_id", assert_permitted_filter(scope, state_id))
 
     result = paginate(query, params)
     return {"referrals": result.pop("items"), **result}
@@ -942,10 +1031,10 @@ def list_referrals(
 def update_referral_status(
     referral_id: str,
     payload: ReferralStatusUpdate,
-    user: dict = Depends(require_admin),
+    scope: AdminScope = Depends(require_admin_scoped),
 ):
     supabase = get_supabase()
-    admin_id = user["sub"]
+    admin_id = scope.user_id
 
     existing = supabase.table("client_referrals").select("*").eq("id", referral_id).single().execute()
     if not existing.data:
@@ -953,14 +1042,15 @@ def update_referral_status(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Referral not found.",
         )
+    assert_state_allowed(scope, existing.data.get("state_id"))
     old_status = existing.data.get("status")
 
-    res = (
+    res = scope_query(
         supabase.table("client_referrals")
         .update({"status": payload.status, "updated_at": datetime.now(timezone.utc).isoformat()})
-        .eq("id", referral_id)
-        .execute()
-    )
+        .eq("id", referral_id),
+        scope,
+    ).execute()
 
     record_audit_log(
         supabase,
@@ -987,31 +1077,47 @@ def _parse_iso_date(value):
 
 
 @router.get("/reports")
-def generate_reports(user: dict = Depends(require_admin)):
+def generate_reports(scope: AdminScope = Depends(require_admin_scoped)):
     """Aggregate snapshot across all SOW reports in one response.
 
     Reports: caregiver compliance, expiring credentials, in-service
     completion, client authorizations, referral sources, website inquiries.
     Computed Python-side (no relational joins) so it works against the fake
     in-memory Supabase used by tests.
+
+    Every state-scoped table is filtered in the query via scope_query, so a
+    scoped admin never receives another state's rows in the first place.
     """
     supabase = get_supabase()
     today = date.today()
     soon_through = today + timedelta(days=30)
 
-    def _fetch_all(table, cols="*"):
-        return (supabase.table(table).select(cols).execute().data) or []
+    def _fetch_all(table, cols="*", state_scoped=True):
+        query = supabase.table(table).select(cols)
+        if state_scoped:
+            query = scope_query(query, scope)
+        return (query.execute().data) or []
 
-    states = {s["id"]: s for s in _fetch_all("states")}
-    users = {u["id"]: u for u in _fetch_all("users", "id, email, status")}
-    doc_types = {d["id"]: d for d in _fetch_all("document_types")}
+    # states / document_types / training_courses are global lookups:
+    # a course with state_id IS NULL is company-wide, so filtering courses
+    # would hide it from a scoped admin. users is a caregiver-keyed email
+    # lookup over caregivers that are already state-filtered.
+    states = {s["id"]: s for s in _fetch_all("states", state_scoped=False)}
+    users = {u["id"]: u for u in _fetch_all("users", "id, email, status", state_scoped=False)}
+    doc_types = {d["id"]: d for d in _fetch_all("document_types", state_scoped=False)}
     caregivers = _fetch_all("caregivers")
     clients = {c["id"]: c for c in _fetch_all("clients")}
     requirements = _fetch_all("document_requirements")
     docs = _fetch_all("documents")
     authorizations = _fetch_all("authorizations")
-    courses = {c["id"]: c for c in _fetch_all("training_courses")}
-    enrollments = _fetch_all("training_enrollments")
+    courses = {c["id"]: c for c in _fetch_all("training_courses", state_scoped=False)}
+
+    # training_enrollments has no state_id, so it is scoped through the
+    # caregiver set. An unrestricted caller already sees every enrollment.
+    enrollments = _fetch_all("training_enrollments", state_scoped=False)
+    if scope.states is not None:
+        allowed_caregiver_ids = {c.get("id") for c in caregivers}
+        enrollments = [e for e in enrollments if e.get("caregiver_id") in allowed_caregiver_ids]
     referrals = _fetch_all("client_referrals")
 
     def state_code(sid):

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException
 from starlette.concurrency import run_in_threadpool
 from typing import Optional
-from app.core.dependencies import get_current_user
+from app.core.dependencies import admin_scope_for, get_current_user
 from app.services.document_service import document_service, MAX_FILE_SIZE
 
 router = APIRouter()
@@ -70,10 +70,13 @@ def get_document_download_url(
     document_id: str,
     user: dict = Depends(get_current_user),
 ):
-    is_admin = user.get("role") == "administrator"
+    # Admins reach documents in their permitted states only. Ownership still
+    # governs everyone else.
+    scope = admin_scope_for(user)
     url = document_service.get_signed_url(
         document_id=document_id,
         requesting_user_id=user["sub"],
-        is_admin=is_admin,
+        is_admin=scope is not None,
+        admin_states=scope.states if scope is not None else None,
     )
     return {"download_url": url}

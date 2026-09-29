@@ -28,10 +28,12 @@
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-light: #eff6ff;
+  --color-primary-border: #bfdbfe;
 
   --color-success: #059669;
   --color-success-hover: #047857;
   --color-success-light: #ecfdf5;
+  --color-success-border: #a7f3d0;
 
   --color-warning: #d97706;
   --color-warning-light: #fffbeb;
@@ -120,6 +122,15 @@
     @apply text-primary bg-primary-light no-underline;
   }
 
+  /* Links had no visible focus state anywhere, only buttons did. The accent
+     custom property is set per portal by the navbar, with the brand blue as
+     the fallback for headers that do not set one. */
+  header a:focus-visible {
+    outline: 2px solid var(--nav-accent, var(--primary));
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
   header strong {
     @apply text-ink font-bold text-[1.05rem];
   }
@@ -188,9 +199,13 @@
 }
 
 @layer components {
-  /* Responsive navigation */
+  /* Responsive navigation
+     Portals add their own .navbar-nav / .navbar-actions so the public navbar
+     keeps its original single-row behaviour. */
   .desktop-nav { @apply flex items-center gap-1; }
   .desktop-actions { @apply flex items-center gap-3; }
+  .navbar-nav { @apply flex-1 flex-wrap justify-center min-w-0 gap-y-[0.25rem]; }
+  .navbar-actions { @apply shrink-0; }
   .mobile-menu-toggle { @apply hidden; }
 
   @media (max-width: 768px) {
@@ -375,29 +390,106 @@
 
   .table-responsive { @apply w-full overflow-x-auto; }
 
-  /* Navbar, drawer & navigation */
-  .navbar-inner { @apply max-w-[1120px] mx-auto px-4 py-3 flex justify-between items-center gap-4; }
+  /* Navbar, drawer & navigation
+     --nav-accent / --nav-accent-soft are set on <header> by the navbar, so one
+     set of link states serves every portal's colour. */
+  .navbar-inner { @apply max-w-[1120px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
   .brand-link { @apply p-0 no-underline inline-flex items-center; }
   .brand-link:hover { @apply no-underline; }
+  /* Declared after .brand-link so its padding wins the tie. The negative margin
+     keeps the wordmark flush with the shell padding, so marking the brand
+     active tints the block without shifting the header sideways. */
+  .navbar-brand { @apply inline-flex items-center gap-2 shrink-0 rounded-sm; padding: 0.15rem 0.4rem; margin-left: -0.4rem; }
+  .navbar-brand-active { background-color: var(--nav-accent-soft, var(--primary-light)); }
   .brand-logo-text { @apply text-[1.15rem] font-bold text-ink; }
   .brand-logo-accent { @apply text-primary tracking-[-0.02em] text-[1.2rem]; }
 
-  .nav-link {
-    @apply border-b-2 border-transparent rounded-sm no-underline transition-all duration-150 ease-in-out;
-    padding: 0.35rem 0.65rem;
-  }
-  .nav-link-active {
-    @apply font-semibold text-primary bg-primary-light;
-    border-bottom-color: var(--color-primary);
+  .navbar-user-email {
+    @apply text-[0.825rem] text-secondary truncate;
+    max-width: 180px;
   }
 
+  /* State scope is context, not a category, so it stays quiet and un-cased:
+     "All States" and "Unassigned" must not shout. */
+  .navbar-state-chip {
+    @apply text-[0.7rem] font-semibold normal-case tracking-normal;
+    padding: 0.15rem 0.45rem;
+    background-color: var(--bg-subtle);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-subtle);
+  }
+
+  /* Identity collapses to avatar + state scope + caret; the rest of the
+     account detail lives in the menu so the nav keeps its width. */
+  .nav-user-trigger {
+    @apply inline-flex items-center gap-2 bg-transparent border border-transparent rounded-sm cursor-pointer transition-colors duration-150;
+    padding: 0.25rem 0.4rem;
+  }
+  .nav-user-trigger:hover { @apply bg-subtle border-line; }
+  .nav-user-trigger-open { @apply bg-subtle border-line; }
+
+  .user-menu-identity { @apply flex flex-col gap-0.5; padding: 0.35rem 0.65rem 0.5rem; }
+  .user-menu-email { @apply text-[0.85rem] font-semibold text-ink break-words; }
+  .user-menu-meta { @apply text-xs text-muted; }
+
+  .nav-link {
+    @apply inline-flex items-center gap-[0.35rem] whitespace-nowrap text-[0.875rem] border-b-2 border-transparent rounded-sm no-underline transition-colors duration-150 ease-in-out;
+    padding: 0.35rem 0.65rem;
+    /* Set here rather than inherited from `header a` so the same class also
+       works on the <button> that opens a section menu. */
+    color: var(--text-secondary);
+  }
+  .nav-link:hover {
+    @apply no-underline;
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+  }
+  .nav-link-active {
+    @apply font-semibold no-underline;
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+    border-bottom-color: var(--nav-accent, var(--primary));
+  }
+  /* After :hover so an active link does not fall back to the brand blue on
+     hover inside a differently accented portal. */
+  .nav-link-active:hover {
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+  }
+
+  /* Pressed state for a section menu trigger, distinct from .nav-link-active
+     which marks the section you are currently inside. */
+  .nav-link-open {
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+  }
+
+  .nav-secondary {
+    @apply inline-flex items-center gap-[0.2rem] text-[0.825rem] font-medium border border-line-strong bg-surface text-secondary rounded-sm no-underline transition-colors duration-150;
+    padding: 0.3rem 0.55rem;
+    margin-left: 0.35rem;
+  }
+  .nav-secondary:hover { @apply no-underline bg-subtle text-ink; }
+  .nav-secondary-row { @apply w-full justify-between mt-1; }
+
   .mobile-nav-link {
-    @apply block border-l-[3px] border-transparent bg-transparent rounded-sm no-underline text-[0.95rem] transition-all duration-150 ease-in-out;
+    @apply flex items-center justify-between gap-[0.35rem] border-l-[3px] border-transparent bg-transparent rounded-sm no-underline text-[0.95rem] transition-colors duration-150 ease-in-out;
     padding: 0.6rem 0.85rem;
   }
+  .mobile-nav-link:hover {
+    @apply no-underline;
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+  }
   .mobile-nav-link-active {
-    @apply font-semibold text-primary bg-primary-light;
-    border-left-color: var(--color-primary);
+    @apply font-semibold;
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+    border-left-color: var(--nav-accent, var(--primary));
+  }
+  .mobile-nav-link-active:hover {
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
   }
 
   .portal-button {
@@ -416,8 +508,10 @@
     @apply bg-surface border border-line rounded-sm text-[1.1rem] leading-none cursor-pointer text-ink;
     padding: 0.4rem 0.65rem;
   }
+  .mobile-menu-btn:hover { @apply bg-subtle border-line-strong; }
   .mobile-menu-btn-open { @apply bg-subtle; }
   .mobile-user-label { @apply text-[0.825rem] font-semibold text-secondary; }
+  .mobile-user-name { @apply text-[0.825rem] font-semibold text-ink truncate; }
   .mobile-section-label { @apply text-[0.725rem] font-bold uppercase tracking-[0.05em] text-muted pl-1; }
   .mobile-grid-link { @apply text-center text-[0.8rem] font-semibold p-2 rounded-sm no-underline; }
   .mobile-grid-link-primary { @apply border border-primary text-primary bg-primary-light; }
@@ -436,21 +530,54 @@
   .dropdown-menu {
     @apply absolute top-[calc(100%+6px)] right-0 bg-surface border border-line rounded-md shadow-md z-50 flex flex-col gap-1;
     min-width: 185px;
+    /* Long labels wrap instead of running off screen, and a group that grows
+       past a handful of items scrolls rather than overflowing the header. */
+    max-width: 17rem;
+    max-height: calc(100dvh - 5rem);
+    overflow-y: auto;
     padding: 0.4rem;
   }
+  /* Nav section menus hang from the left edge of their trigger; the account
+     menu keeps the default right alignment. */
+  .dropdown-menu-start { @apply left-0 right-auto; }
+
   .dropdown-item {
-    @apply flex items-center gap-2 text-[0.825rem] font-semibold rounded-sm no-underline;
+    @apply flex items-center gap-2 text-[0.825rem] font-semibold rounded-sm no-underline min-w-0;
     padding: 0.45rem 0.65rem;
   }
-  .dropdown-item:hover { @apply no-underline; }
+  /* Accent-aware: the inherited `header a:hover` is brand blue, which would
+     flash blue inside a differently accented portal. */
+  .dropdown-item:hover {
+    @apply no-underline;
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+  }
+  .dropdown-item-active {
+    color: var(--nav-accent, var(--primary));
+    background-color: var(--nav-accent-soft, var(--primary-light));
+    box-shadow: inset 2px 0 0 var(--nav-accent, var(--primary));
+  }
+  /* :hover outranks a single class, so restate it or the current page loses its
+     rail the moment the pointer lands on it. */
+  .dropdown-item-active:hover {
+    box-shadow: inset 2px 0 0 var(--nav-accent, var(--primary));
+  }
+  .dropdown-item-label { @apply min-w-0 break-words; }
+  .dropdown-item-count { @apply ml-auto shrink-0; }
+  .dropdown-item-signout {
+    @apply w-full justify-start border-t border-line mt-1 pt-2.5 text-danger;
+    padding: 0.5rem 0.65rem 0.35rem;
+  }
+  .dropdown-item-signout:hover { @apply text-danger bg-danger-light; }
 
   .avatar-circle {
     @apply size-[30px] rounded-full text-white flex items-center justify-center font-bold text-[0.8rem] shrink-0;
   }
 
   .badge-counter {
-    @apply bg-red-500 text-white rounded-full text-[0.7rem] font-semibold ml-[0.35rem] leading-[1.2] inline-flex items-center justify-center;
-    padding: 0.1rem 0.4rem;
+    @apply bg-danger text-white rounded-full text-[0.7rem] font-semibold leading-[1.2] inline-flex items-center justify-center shrink-0;
+    min-width: 1.35rem;
+    padding: 0.1rem 0.35rem;
   }
 
   .btn-signout {
@@ -468,16 +595,24 @@
     @apply size-12 rounded-full bg-primary-light flex items-center justify-center mb-4;
   }
 
-  /* Mobile drawer */
-  .mobile-drawer { @apply border-t border-line bg-surface p-4 flex flex-col gap-[0.85rem] shadow-md; }
+  /* Mobile drawer
+     A portal with nine sections plus the identity card is taller than a short
+     or landscape viewport, so the drawer scrolls rather than pushing Sign Out
+     out of reach. 3.75rem is the sticky header's own height. */
+  .mobile-drawer {
+    @apply border-t border-line bg-surface p-4 flex flex-col gap-[0.85rem] shadow-md;
+    max-height: calc(100dvh - 3.75rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .mobile-user-card {
-    @apply flex items-center justify-between bg-subtle rounded-sm border border-line;
+    @apply flex items-center justify-between gap-3 bg-subtle rounded-sm border border-line;
     padding: 0.65rem 0.85rem;
   }
-  .btn-mobile-signout {
-    @apply w-full text-sm bg-subtle border border-line-strong text-danger rounded-sm cursor-pointer font-semibold flex items-center justify-center gap-[0.4rem];
-    padding: 0.6rem 1rem;
-  }
+  /* A section that is a dropdown on desktop becomes a labelled block in the
+     drawer: one tap, everything visible. */
+  .mobile-nav-section { @apply flex flex-col gap-1; }
+  .mobile-nav-section:not(:first-child) { margin-top: 0.5rem; }
 
   .btn-primary-cta {
     @apply text-[0.825rem] font-semibold bg-primary text-white rounded-sm no-underline shadow-sm inline-flex items-center justify-center transition-colors duration-150;
@@ -563,8 +698,9 @@
   .course-card { @apply flex flex-col justify-between p-5 border border-line-strong rounded-md bg-surface; }
   .course-card-completed { @apply bg-subtle; }
   .stat-card { @apply p-4 border border-line rounded-md bg-surface; }
-  .stat-card-warning { @apply border-yellow-300 bg-yellow-50; }
-  .stat-card-success { @apply border-green-300 bg-green-50; }
+  .stat-card-warning { @apply border-warning-light bg-warning-light; }
+  .stat-card-success { @apply border-success-light bg-success-light; }
+  .stat-card-error { @apply border-danger-light bg-danger-light; }
 
   /* Admin authorizations */
   .container-1120 { @apply max-w-[1120px] mx-auto py-6 px-4; }
@@ -734,4 +870,28 @@
   0% { transform: translateX(-100%); }
   50% { transform: translateX(20%); }
   100% { transform: translateX(200%); }
+}
+
+/* Print support
+   Used by TrainingCertificatePage, DocumentsPage and AuthorizationsPage.
+   Screen-only UI is hidden; certificate/document content prints cleanly.
+   Colors are preserved on paper (tokens already map to readable inks). */
+.print-hidden { display: none; }
+
+@media print {
+  .print-hidden { display: none !important; }
+  .print-full { margin: 0; padding: 0; border: none; box-shadow: none; max-width: none; }
+  .print-surface-flat { background: #fff; border: none; box-shadow: none; }
+  body { background: #fff; }
+  .portal-navbar, header, footer, .mobile-drawer, .drawer-backdrop,
+  .tab-nav, .alert, .btn, .btn-sm, .btn-primary, .btn-success, .btn-outline-primary,
+  .btn-outline-success, .btn-ghost-download, .btn-reset, .form-actions,
+  .page-header, .toolbar-card, .pager, .search-wrap, .filter-select {
+    display: none !important;
+  }
+  .container-narrow, .container-medium, .container-wide,
+  .container-wider, .page-container, .container-1120 {
+    margin: 0; padding: 0; border: none; box-shadow: none; max-width: none;
+  }
+  a::after { content: none; }
 }

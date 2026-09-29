@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, Link, NavLink, useParams, useLocation } from 'react-router-dom';
 import StateSwitcher from '../components/public/StateSwitcher';
 import { useAuth } from '../contexts/AuthContext';
+import { isAdmin } from '../lib/roles';
 
 export default function PublicLayout() {
   const { state = 'florida' } = useParams();
@@ -121,7 +122,7 @@ export default function PublicLayout() {
                   >
                     Client Portal
                   </Link>
-                  {user?.role === 'administrator' && (
+                  {isAdmin(user) && (
                     <Link
                       to="/admin/dashboard"
                       role="menuitem"
@@ -203,7 +204,7 @@ export default function PublicLayout() {
                 </Link>
               </div>
 
-              {user?.role === 'administrator' && (
+              {isAdmin(user) && (
                 <Link
                   to="/admin/dashboard"
                   className="mobile-grid-link mobile-grid-link-muted"

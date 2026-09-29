@@ -1,10 +1,8 @@
 -- ============================================================
--- Migration 08: Caregiver Portal SOW gaps
+-- Caregiver portal gaps
 --  1. E-signature fields on caregiver_applications (drawn canvas signature)
 --  2. notifications.reference_id -> idempotent credential reminders
 --  3. announcements table (admin broadcast, in-app only)
---  4. "Other" catch-all document type (not required)
---  5. Seed document_requirements per state for the required caregiver types
 -- ============================================================
 
 -- 1. E-signature on caregiver applications
@@ -34,25 +32,22 @@ CREATE TABLE IF NOT EXISTS announcements (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX idx_announcements_active_audience ON announcements(is_active, audience);
-CREATE INDEX idx_announcements_state          ON announcements(state_id);
+CREATE INDEX IF NOT EXISTS idx_announcements_active_audience ON announcements(is_active, audience);
+CREATE INDEX IF NOT EXISTS idx_announcements_state          ON announcements(state_id);
 
+DROP TRIGGER IF EXISTS announcements_updated_at ON announcements;
 CREATE TRIGGER announcements_updated_at
   BEFORE UPDATE ON announcements
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 
--- 4. "Other" catch-all document type (optional, no expiry)
-INSERT INTO document_types (name, for_role, requires_expiration)
-VALUES ('Other', 'caregiver', FALSE)
-ON CONFLICT (name) DO NOTHING;
-
--- 5. Seed document_requirements for every state: all caregiver types except "Other"
-INSERT INTO document_requirements (state_id, document_type_id, required)
-SELECT s.id, dt.id, TRUE
-FROM states s
-JOIN document_types dt
-  ON dt.for_role = 'caregiver'
- AND dt.name <> 'Other'
-ON CONFLICT (state_id, document_type_id) DO NOTHING;
+-- ============================================================
+-- SEED DATA
+-- ============================================================
+-- The "Other" catch-all document type and the per-state
+-- document_requirements matrix are rows in tables that only exist
+-- once states and document_types have been seeded, so they are
+-- seed data, not schema:
+--   supabase/seeds/01_core.sql
+--   supabase/seeds/02_document_requirements.sql

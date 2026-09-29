@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { homePathFor } from '../../lib/roles';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -18,9 +19,7 @@ export default function LoginPage() {
 
   // If already logged in, redirect to appropriate role portal
   if (user) {
-    if (user.role === 'administrator') return <Navigate to="/admin/dashboard" replace />;
-    if (user.role === 'caregiver') return <Navigate to="/caregiver/dashboard" replace />;
-    return <Navigate to="/client/dashboard" replace />;
+    return <Navigate to={homePathFor(user)} replace />;
   }
 
   async function handleLoginSubmit(e) {
@@ -31,13 +30,7 @@ export default function LoginPage() {
 
     try {
       const loggedUser = await login(email, password);
-      if (loggedUser.role === 'administrator') {
-        navigate('/admin/dashboard', { replace: true });
-      } else if (loggedUser.role === 'caregiver') {
-        navigate('/caregiver/dashboard', { replace: true });
-      } else {
-        navigate('/client/dashboard', { replace: true });
-      }
+      navigate(homePathFor(loggedUser), { replace: true });
     } catch (err) {
       setErrorMsg(err.detail || 'Sign in failed. Please check your credentials.');
     } finally {

@@ -2,8 +2,8 @@
 
 **Source:** `SCALING_CHECKLIST.md` Tier 1 (paginate unbounded admin lists)
 **Decision context:** `fastapi-pagination` has no PostgREST/supabase-py adapter, so
-we'd write glue either way; native `.range()/.limit()/.count('exact')` satisfies
-the no-new-frameworks rule. See `specs/` note below.
+we'd write glue either way; native `.range()/.limit()/.count('exact')` keeps
+the implementation dependency-free.
 **Status:** Approved — implementation ready to start
 
 ## Scope
@@ -165,7 +165,7 @@ CREATE INDEX IF NOT EXISTS idx_documents_status_uploaded ON documents(status, up
 
 ## Verification
 
-- `.\venv\Scripts\python.exe -m pytest -q` — existing 24 + new pagination tests green.
+- `.\venv\Scripts\python.exe -m pytest -q` — backend suite green.
 - `.\venv\Scripts\python.exe -m compileall -q app tests`
 - Manual smoke: `GET /api/v1/admin/caregivers?page=2&page_size=5` returns bounded
   `items` + correct `total/page/pages`; `?page_size=1000` returns 422.
@@ -176,8 +176,3 @@ CREATE INDEX IF NOT EXISTS idx_documents_status_uploaded ON documents(status, up
 - `backend/app/api/routes/admin.py` (6 list endpoints)
 - `backend/tests/conftest.py` (FakeQuery.range)
 - `backend/tests/test_pagination.py` (new)
-
-## Notes
-
-`specs/README.md` lists `01–05-*.md` files that do not exist in the repo; this
-plan intentionally follows the real convention (`plans/NNN_*.md`, see `018`).

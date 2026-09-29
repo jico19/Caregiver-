@@ -1,7 +1,6 @@
 # Plan 018 — Caregiver Portal SOW Gap Closure (Iteration 1)
 
 **Source spec:** `Scope of work.md` §2 (Caregiver Portal)
-**Audit reference:** `TODO.md` §2
 **Status:** Approved — implementation ready to start
 
 ## Scope
@@ -53,17 +52,18 @@
 3. Frontend: `pages/admin/AnnouncementsPage.jsx` (list/create/edit/activate) + AdminLayout link; `DashboardPage.jsx` latest-3 card.
 
 ## Migration files
-- `database/migrations/08_caregiver_signatures.sql` — signature columns
-- `database/migrations/09_notifications_reference.sql` — `notifications.reference_id`
-- `database/migrations/10_announcements.sql` — announcements table
-- `database/migrations/11_document_requirements_seed.sql` — per-state requirement seed
+All four shipped inside a single migration, `supabase/migrations/20260924101400_caregiver_portal_gaps.sql`:
+- signature columns on `caregiver_applications`
+- `notifications.reference_id`
+- `announcements` table
+- per-state requirement seed → now `supabase/seeds/02_document_requirements.sql`
 
 ## Tests (extend existing pytest baseline, fake Supabase in `conftest.py`)
 - E-sign required/recorded (3 submit paths) + audit log
 - `credential-status` (expired / soon / missing edge cases)
 - Reminder idempotency
 - Announcements CRUD + audience/state/active filtering
-- Regression: all 15 existing tests stay green
+- Regression: backend test suite stays green.
 
 ## Verification
 - `python -m pytest -q` (backend venv)
