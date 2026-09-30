@@ -7,15 +7,16 @@ Numbering restarted at `001` on 2026-09-29. Plans `018` through `021` and their 
 | Plan | Status | Purpose |
 |---|---|---|
 | `001_soft_deletion.md` | Implemented | Soft deletion across record tables. Stop the three hard deletes. |
-| `002_offboarding_user_lifecycle.md` | Planned | Admin user management, suspension, and offboarding. |
-| `003_client_admission_lifecycle.md` | Planned | Client admission status and service start date. |
-| `004_referral_conversion.md` | Planned | Convert a referral into a pending client record. |
-| `005_caregiver_client_assignment.md` | Planned | Link caregivers to clients and expose their roster. |
-| `006_in_app_notifications.md` | Planned | Training reminders, admin referral alerts, client document requirements. |
-| `007_audit_compliance_hardening.md` | Planned | Complete the audit trail and make signatures defensible. |
-| `008_admin_stub_screens.md` | Planned | Build the admin Training and Settings screens. |
-| `009_mobile_and_dashboard_content.md` | Planned | Mobile layout for the application and real dashboard content. |
-| `010_data_retention_and_purge.md` | Planned | Statutory retention schedules, legal hold, and scheduled purge job. |
+| `002_offboarding_user_lifecycle.md` | Completed | Admin user management, suspension, and offboarding. |
+| `003_client_admission_lifecycle.md` | Completed | Client admission status and service start date. |
+| `004_referral_conversion.md` | Completed | Convert a referral into a pending client record. |
+| `005_caregiver_client_assignment.md` | Completed | Link caregivers to clients and expose their roster. |
+| `006_in_app_notifications.md` | Completed | Training reminders, admin referral alerts, client document requirements. |
+| `007_audit_compliance_hardening.md` | Completed | Complete the audit trail and make signatures defensible. |
+| `008_admin_stub_screens.md` | Completed | Build the admin Training and Settings screens. |
+| `009_mobile_and_dashboard_content.md` | Completed | Mobile layout for the application and real dashboard content. |
+| `010_data_retention_and_purge.md` | Completed | Statutory retention schedules, legal hold, and scheduled purge job. |
+| `011_performance_and_query_efficiency.md` | Completed | Stop over-fetching, remove the per-request auth round trips, batch writes, and index the real query shapes. |
 
 ## Delivery order
 
@@ -28,6 +29,8 @@ Numbering restarted at `001` on 2026-09-29. Plans `018` through `021` and their 
 `006` and `007` are independent of that chain and can run in parallel. `007` carries the highest review weight because it touches protected health information.
 
 `008` and `009` are quality passes with no blocking dependencies.
+
+`011` is a defect class rather than a feature, and it is worth landing early: it removes a fixed two-round-trip latency floor from every authenticated request, and it corrects two frontend bugs found alongside it (a dead query cache and a broken client roster filter). Its first two sections are small, low-risk, and independent of every other plan. It depends on `001` for the `deleted_at` columns its partial indexes are built on, and it corrects a route that `002` owns.
 
 ## Deferred, not gaps
 

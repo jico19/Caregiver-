@@ -12,6 +12,7 @@ from app.core.dependencies import (
     require_super_admin,
     scope_query,
     validate_state_id,
+    invalidate_user_cache,
 )
 from app.core.supabase import get_supabase
 from app.core.soft_delete import (
@@ -83,15 +84,11 @@ def list_users(
         s_id = assert_permitted_filter(scope, state_id_filter)
         query = query.eq("state_id", s_id)
 
-    result = paginate(query.order("created_at", desc=True), params)
-
-    users_list = result.pop("items") or []
     if role:
-        users_list = [
-            u for u in users_list
-            if (u.get("roles", {}).get("name") if isinstance(u.get("roles"), dict) else u.get("role")) == role
-        ]
-        result["total"] = len(users_list)
+        query = query.eq("roles.name", role)
+
+    result = paginate(query.order("created_at", desc=True), params)
+    users_list = result.pop("items") or []
 
     return {"users": users_list, **result}
 
@@ -173,6 +170,7 @@ def update_user_status(
     now_iso = datetime.now(timezone.utc).isoformat()
 
     supabase.table("users").update({"status": payload.status, "updated_at": now_iso}).eq("id", user_id).execute()
+    invalidate_user_cache(user_id)
 
     record_audit_log(
         supabase,
@@ -224,6 +222,7 @@ def update_user_role(
     now_iso = datetime.now(timezone.utc).isoformat()
 
     supabase.table("users").update({"role_id": target_role_id, "updated_at": now_iso}).eq("id", user_id).execute()
+    invalidate_user_cache(user_id)
 
     record_audit_log(
         supabase,
@@ -264,6 +263,7 @@ def update_user_state(
     now_iso = datetime.now(timezone.utc).isoformat()
 
     supabase.table("users").update({"state_id": payload.state_id, "updated_at": now_iso}).eq("id", user_id).execute()
+    invalidate_user_cache(user_id)
 
     record_audit_log(
         supabase,
@@ -311,34 +311,34 @@ def offboard_user(
 
     # 1. Update user record to status='inactive' and stamp deleted_at/deleted_by
     supabase.table("users").update({"status": "inactive", **stamp}).eq("id", user_id).execute()
+    invalidate_user_cache(user_id)
 
-    # 2. Soft-delete profile rows and document rows
-    cg_rows = supabase.table("caregivers").select("id").eq("user_id", user_id).execute()
-    cl_rows = supabase.table("clients").select("id").eq("user_id", user_id).execute()
-
+    # 2. Soft-delete profile rows and document rows (supports schema id and user_id)
+    supabase.table("caregivers").update(stamp).eq("id", user_id).execute()
     supabase.table("caregivers").update(stamp).eq("user_id", user_id).execute()
+    supabase.table("clients").update(stamp).eq("id", user_id).execute()
     supabase.table("clients").update(stamp).eq("user_id", user_id).execute()
+    supabase.table("documents").update(stamp).eq("owner_id", user_id).execute()
     supabase.table("documents").update(stamp).eq("user_id", user_id).execute()
 
-    # 3. Soft-delete dependent clinical rows for caregiver/client
-    if cg_rows and cg_rows.data:
-        for cg in cg_rows.data:
-            cg_id = cg["id"]
-            supabase.table("caregiver_applications").update(stamp).eq("caregiver_id", cg_id).execute()
-            supabase.table("care_schedules").update(stamp).eq("caregiver_id", cg_id).execute()
-            supabase.table("training_enrollments").update(stamp).eq("caregiver_id", cg_id).execute()
+    # 3. Soft-delete dependent clinical rows for caregiver & client
+    supabase.table("caregiver_applications").update(stamp).eq("caregiver_id", user_id).execute()
+    supabase.table("training_enrollments").update(stamp).eq("caregiver_id", user_id).execute()
 
+    cl_rows = supabase.table("clients").select("id").eq("user_id", user_id).execute()
+    cl_ids = [user_id]
     if cl_rows and cl_rows.data:
-        for cl in cl_rows.data:
-            cl_id = cl["id"]
-            plans = supabase.table("care_plans").select("id").eq("client_id", cl_id).execute()
-            if plans and plans.data:
-                for plan in plans.data:
-                    supabase.table("care_plan_activities").update(stamp).eq("care_plan_id", plan["id"]).execute()
-            supabase.table("care_plans").update(stamp).eq("client_id", cl_id).execute()
-            supabase.table("care_schedules").update(stamp).eq("client_id", cl_id).execute()
-            supabase.table("authorizations").update(stamp).eq("client_id", cl_id).execute()
-            supabase.table("client_referrals").update(stamp).eq("client_id", cl_id).execute()
+        cl_ids.extend([c["id"] for c in cl_rows.data if c.get("id")])
+
+    plans_res = supabase.table("care_plans").select("id").in_("client_id", cl_ids).execute()
+    if plans_res.data:
+        plan_ids = [p["id"] for p in plans_res.data]
+        supabase.table("care_plan_activities").update(stamp).in_("care_plan_id", plan_ids).execute()
+
+    supabase.table("care_plans").update(stamp).in_("client_id", cl_ids).execute()
+    supabase.table("care_schedules").update(stamp).in_("client_id", cl_ids).execute()
+    supabase.table("authorizations").update(stamp).in_("client_id", cl_ids).execute()
+    supabase.table("client_referrals").update(stamp).in_("converted_client_id", cl_ids).execute()
 
     # 4. Write audit log entry
     record_audit_log(

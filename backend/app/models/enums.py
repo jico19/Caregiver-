@@ -31,6 +31,24 @@ ALLOWED_TRANSITIONS: dict[str, set[str]] = {
 }
 
 
+class ClientStatus(str, Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    ACTIVE = "active"
+    DISCHARGED = "discharged"
+    REJECTED = "rejected"
+
+
+ALLOWED_CLIENT_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"approved", "rejected"},
+    "approved": {"active", "rejected", "discharged"},
+    "active": {"discharged"},
+    "discharged": set(),
+    "rejected": set(),
+}
+
+
+
 class DocumentStatus(str, Enum):
     PENDING_REVIEW = "pending_review"
     APPROVED = "approved"

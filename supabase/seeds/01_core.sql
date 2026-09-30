@@ -40,9 +40,9 @@ INSERT INTO document_types (name, for_role, requires_expiration) VALUES
   ('Plan of Care',          'client',    TRUE),
   ('Client Identification', 'client',    FALSE),
   ('Authorization Document','client',    TRUE),
-  -- Catch-all for uploads the caregiver has no document for. Excluded
+  -- Catch-all for uploads the caregiver or client has no document for. Excluded
   -- from the per-state requirement matrix in 02_document_requirements.sql.
-  ('Other',                 'caregiver', FALSE)
+  ('Other',                 'both',      FALSE)
 ON CONFLICT (name) DO NOTHING;
 
 -- Job Postings / Careers

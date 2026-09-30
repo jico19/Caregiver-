@@ -111,6 +111,7 @@
 
   header {
     @apply bg-surface border-b border-line sticky top-0 z-40;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.02), 0 8px 24px rgba(15, 23, 42, 0.035);
   }
 
   header a {
@@ -208,6 +209,11 @@
   .navbar-actions { @apply shrink-0; }
   .mobile-menu-toggle { @apply hidden; }
 
+  @media (max-width: 900px) {
+    .container-wide, .container-1120, .page-container { @apply px-4; }
+    .form-grid-2, .form-grid-3 { grid-template-columns: 1fr; }
+  }
+
   @media (max-width: 768px) {
     .desktop-nav,
     .desktop-actions { display: none !important; }
@@ -215,6 +221,12 @@
       @apply items-center justify-center;
       display: inline-flex !important;
     }
+  }
+
+  @media (max-width: 640px) {
+    .card { @apply p-4; }
+    .page-header { @apply flex-col items-start gap-2; }
+    button, .btn, input, select, textarea { min-height: 44px; }
   }
 
   /* Cards & badges */
@@ -393,7 +405,7 @@
   /* Navbar, drawer & navigation
      --nav-accent / --nav-accent-soft are set on <header> by the navbar, so one
      set of link states serves every portal's colour. */
-  .navbar-inner { @apply max-w-[1120px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2; }
+  .navbar-inner { @apply max-w-[1120px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-x-4 gap-y-2; min-height: 4rem; }
   .brand-link { @apply p-0 no-underline inline-flex items-center; }
   .brand-link:hover { @apply no-underline; }
   /* Declared after .brand-link so its padding wins the tie. The negative margin
@@ -401,7 +413,13 @@
      active tints the block without shifting the header sideways. */
   .navbar-brand { @apply inline-flex items-center gap-2 shrink-0 rounded-sm; padding: 0.15rem 0.4rem; margin-left: -0.4rem; }
   .navbar-brand-active { background-color: var(--nav-accent-soft, var(--primary-light)); }
-  .brand-logo-text { @apply text-[1.15rem] font-bold text-ink; }
+  .brand-logo-text { @apply text-[1.15rem] font-bold text-ink inline-flex items-center gap-2; }
+  .brand-logo-text::before {
+    content: '';
+    @apply size-2 rounded-full shrink-0;
+    background: var(--nav-accent, var(--primary));
+    box-shadow: 0 0 0 4px var(--nav-accent-soft, var(--primary-light));
+  }
   .brand-logo-accent { @apply text-primary tracking-[-0.02em] text-[1.2rem]; }
 
   .navbar-user-email {
@@ -427,6 +445,11 @@
   }
   .nav-user-trigger:hover { @apply bg-subtle border-line; }
   .nav-user-trigger-open { @apply bg-subtle border-line; }
+  .nav-user-trigger:active,
+  .nav-link:active,
+  .mobile-menu-btn:active {
+    transform: scale(0.98);
+  }
 
   .user-menu-identity { @apply flex flex-col gap-0.5; padding: 0.35rem 0.65rem 0.5rem; }
   .user-menu-email { @apply text-[0.85rem] font-semibold text-ink break-words; }
@@ -449,6 +472,7 @@
     color: var(--nav-accent, var(--primary));
     background-color: var(--nav-accent-soft, var(--primary-light));
     border-bottom-color: var(--nav-accent, var(--primary));
+    box-shadow: inset 0 -1px 0 var(--nav-accent, var(--primary));
   }
   /* After :hover so an active link does not fall back to the brand blue on
      hover inside a differently accented portal. */
@@ -536,10 +560,13 @@
     max-height: calc(100dvh - 5rem);
     overflow-y: auto;
     padding: 0.4rem;
+    transform-origin: top left;
+    animation: portal-popover-in 160ms cubic-bezier(0.23, 1, 0.32, 1);
   }
   /* Nav section menus hang from the left edge of their trigger; the account
      menu keeps the default right alignment. */
   .dropdown-menu-start { @apply left-0 right-auto; }
+  .navbar-actions .dropdown-menu { transform-origin: top right; }
 
   .dropdown-item {
     @apply flex items-center gap-2 text-[0.825rem] font-semibold rounded-sm no-underline min-w-0;
@@ -604,6 +631,7 @@
     max-height: calc(100dvh - 3.75rem);
     overflow-y: auto;
     overscroll-behavior: contain;
+    animation: portal-drawer-in 180ms cubic-bezier(0.32, 0.72, 0, 1);
   }
   .mobile-user-card {
     @apply flex items-center justify-between gap-3 bg-subtle rounded-sm border border-line;
@@ -613,6 +641,29 @@
      drawer: one tap, everything visible. */
   .mobile-nav-section { @apply flex flex-col gap-1; }
   .mobile-nav-section:not(:first-child) { margin-top: 0.5rem; }
+
+  @keyframes portal-popover-in {
+    from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes portal-drawer-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dropdown-menu,
+    .mobile-drawer {
+      animation: none;
+    }
+
+    .nav-user-trigger:active,
+    .nav-link:active,
+    .mobile-menu-btn:active {
+      transform: none;
+    }
+  }
 
   .btn-primary-cta {
     @apply text-[0.825rem] font-semibold bg-primary text-white rounded-sm no-underline shadow-sm inline-flex items-center justify-center transition-colors duration-150;

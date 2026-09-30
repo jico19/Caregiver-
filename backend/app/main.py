@@ -9,6 +9,8 @@ from app.core.config import settings
 from app.core.supabase import get_supabase
 from app.jobs.credential_reminders import scan_due_credentials
 from app.jobs.authorization_reminders import scan_due_authorizations
+from app.jobs.training_reminders import scan_due_training
+from app.jobs.retention_purge import run_retention_purge
 from app.middleware.logging import log_requests
 from app.api.routes import (
     auth, states, services, forms,
@@ -24,36 +26,29 @@ logging.basicConfig(
 logger = logging.getLogger("app")
 
 
-async def _credential_reminder_loop():
+async def _periodic_job_loop(job_func, job_name: str):
     while True:
         try:
-            # scan_due_credentials is synchronous + blocks on I/O — run it off
-            # the event loop so the API never stalls behind the daily scan.
-            await asyncio.to_thread(scan_due_credentials, get_supabase())
-        except Exception as exc:  # pragma: no cover
-            logger.exception("credential reminder scan failed")
-        await asyncio.sleep(24 * 60 * 60)
-
-
-async def _authorization_reminder_loop():
-    while True:
-        try:
-            await asyncio.to_thread(scan_due_authorizations, get_supabase())
-        except Exception as exc:  # pragma: no cover
-            logger.exception("authorization reminder scan failed")
+            await asyncio.to_thread(job_func, get_supabase())
+        except Exception:  # pragma: no cover
+            logger.exception("%s scan failed", job_name)
         await asyncio.sleep(24 * 60 * 60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting %s", settings.APP_NAME)
-    credential_task = asyncio.create_task(_credential_reminder_loop())
-    authorization_task = asyncio.create_task(_authorization_reminder_loop())
+    tasks = [
+        asyncio.create_task(_periodic_job_loop(scan_due_credentials, "credential reminder")),
+        asyncio.create_task(_periodic_job_loop(scan_due_authorizations, "authorization reminder")),
+        asyncio.create_task(_periodic_job_loop(scan_due_training, "training reminder")),
+        asyncio.create_task(_periodic_job_loop(run_retention_purge, "retention purge")),
+    ]
     try:
         yield
     finally:
-        credential_task.cancel()
-        authorization_task.cancel()
+        for t in tasks:
+            t.cancel()
         logger.info("Shutting down")
 
 

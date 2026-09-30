@@ -81,14 +81,22 @@ class FakeQuery:
         self.filters.append(("eq", key, value))
         return self
 
+    def neq(self, key, value):
+        self._require_transformable("neq")
+        self.filters.append(("neq", key, value))
+        return self
+
+    def lt(self, key, value):
+        self._require_transformable("lt")
+        self.filters.append(("lt", key, value))
+        return self
+
     def in_(self, key, values):
         self._require_transformable("in_")
         self.filters.append(("in", key, values))
         return self
 
     def is_(self, key, value):
-        # supabase-py filter for IS / IS NOT. A None value must match rows
-        # where the key is absent, matching SQL `deleted_at IS NULL`.
         self._require_transformable("is_")
         self.filters.append(("is", key, value))
         return self
@@ -137,9 +145,13 @@ class FakeQuery:
         for ftype, key, value in self.filters:
             if ftype == "eq" and row.get(key) != value:
                 return False
+            if ftype == "neq" and row.get(key) == value:
+                return False
             if ftype == "in" and row.get(key) not in value:
                 return False
             if ftype == "is" and row.get(key) != value:
+                return False
+            if ftype == "lt" and not (row.get(key) and row.get(key) < value):
                 return False
         return True
 
@@ -225,7 +237,15 @@ class FakeAuth:
         return type("Res", (), {"user": FakeUser(record["id"], record["email"])})()
 
     def sign_in_with_password(self, data):
-        return type("Res", (), {"session": None})()
+        email = data.get("email", "")
+        password = data.get("password", "")
+        known_emails = [v["email"] for v in self.token_map.values() if isinstance(v, dict) and "email" in v]
+        if email not in known_emails or password == "wrongpassword":
+            raise Exception("Invalid login credentials")
+        uid = "u-" + email.split("@")[0]
+        user = FakeUser(uid, email)
+        session = type("Session", (), {"access_token": "token-" + uid})()
+        return type("Res", (), {"session": session, "user": user})()
 
 
 class FakeAdmin:
@@ -312,11 +332,16 @@ def make_db():
         "care_plans": [],
         "care_plan_activities": [],
         "care_schedules": [],
+        "caregiver_client_assignments": [],
     }
+
+
+from app.core.dependencies import invalidate_user_cache
 
 
 @pytest.fixture
 def client(monkeypatch):
+    invalidate_user_cache()
     db = make_db()
     fake = FakeSupabase(db, USERS)
 

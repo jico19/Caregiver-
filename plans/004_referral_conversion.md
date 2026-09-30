@@ -1,6 +1,6 @@
 # Plan 004 — Referral Conversion
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:108-109` (review online referrals, approve admissions)
 **Depends on:** 001 (soft deletion), 003 (needs `clients.status`)
 
@@ -88,12 +88,13 @@ Revert the admin route and the frontend page. The migration is additive and forw
 
 ## Deliverable tracker
 
-- [ ] A. Migration written and `--dry-run` reviewed
-- [ ] B. Conversion logic, including the 409 on repeat
-- [ ] C. Account reuse on matching email
-- [ ] D. `assigned_to` and `handled_notes` writes
-- [ ] E. Hardcoded state ID array removed from `ReferralsPage.jsx`
-- [ ] F. Confirm dialog on convert
-- [ ] G. `tests/test_referral_conversion.py`
-- [ ] H. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
-- [ ] I. Push to production and confirm one client per referral
+- [x] A. Migration written and `--dry-run` reviewed
+- [x] B. Conversion logic, including the 409 on repeat
+- [x] C. Account reuse on matching email
+- [x] D. `assigned_to` and `handled_notes` writes
+- [x] E. Hardcoded state ID array removed from `ReferralsPage.jsx`
+- [x] F. Confirm dialog on convert
+- [x] G. `tests/test_referral_conversion.py`
+- [x] H. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] I. Push to production and confirm one client per referral
+

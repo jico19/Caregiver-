@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi import UploadFile, File, Form
 from starlette.concurrency import run_in_threadpool
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, timedelta
+import hashlib
 from typing import Optional
 from pydantic import BaseModel, Field
 from app.core.dependencies import require_client, validate_state_id
@@ -68,7 +69,9 @@ def get_my_profile(user: dict = Depends(require_client)):
 
     res = (
         active_only(
-            supabase.table("clients").select("*, states(name, code, slug)"),
+            supabase.table("clients").select(
+                "id, state_id, first_name, last_name, date_of_birth, phone, address, medicaid_number, status, service_start_date, admission_notes, rejection_reason, admitted_by, admitted_at, created_at, updated_at, legal_hold, states(name, code, slug)"
+            ),
             "clients",
         )
         .eq("id", user_id)
@@ -84,6 +87,7 @@ def get_my_profile(user: dict = Depends(require_client)):
 @router.patch("/me/profile")
 def update_my_profile(
     payload: ClientProfileUpdate,
+    request: Request,
     user: dict = Depends(require_client),
 ):
     supabase = get_supabase()
@@ -105,12 +109,24 @@ def update_my_profile(
     if not res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Client profile not found.")
 
+    record_audit_log(
+        supabase,
+        user_id=user_id,
+        action="client_profile_updated",
+        table_name="clients",
+        record_id=str(user_id),
+        new_values=update_data,
+        request=request,
+        entity_state_id=user.get("state_id"),
+    )
+
     return {"message": "Profile updated successfully", "profile": res.data[0]}
 
 
 @router.post("/intake")
 def submit_intake(
     payload: ClientIntakeSubmit,
+    request: Request,
     user: dict = Depends(require_client),
 ):
     supabase = get_supabase()
@@ -147,6 +163,9 @@ def submit_intake(
         "clients",
         user_id,
         new_values={"signed_name": signature["signed_name"], "signed_at": signature["signed_at"]},
+        request=request,
+        required=True,
+        entity_state_id=payload.state_id,
     )
 
     notify(
@@ -185,15 +204,32 @@ def get_my_agreements(user: dict = Depends(require_client)):
             "signed": bool(record and record.get("signed_at")),
             "signed_at": record.get("signed_at") if record else None,
             "signed_name": record.get("signed_name") if record else None,
+            "version": record.get("version") if record else 1,
         })
 
     return {"agreements": items}
+
+
+@router.get("/me/agreements/{agreement_key}/history")
+def get_agreement_history(agreement_key: str, user: dict = Depends(require_client)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+    res = (
+        supabase.table("client_agreements")
+        .select("*")
+        .eq("client_id", user_id)
+        .eq("agreement_key", agreement_key)
+        .order("version", desc=True)
+        .execute()
+    )
+    return {"history": res.data or []}
 
 
 @router.post("/me/agreements/{agreement_key}/sign")
 def sign_agreement(
     agreement_key: str,
     payload: AgreementSignSubmit,
+    request: Request,
     user: dict = Depends(require_client),
 ):
     supabase = get_supabase()
@@ -205,16 +241,31 @@ def sign_agreement(
 
     signature = _validate_signature(payload)
 
+    # Determine version increment and compute content hash
+    existing_res = (
+        supabase.table("client_agreements")
+        .select("version")
+        .eq("client_id", user_id)
+        .eq("agreement_key", agreement_key)
+        .order("version", desc=True)
+        .limit(1)
+        .execute()
+    )
+    next_version = (existing_res.data[0]["version"] + 1) if existing_res.data and existing_res.data[0].get("version") else 1
+    content_hash = hashlib.sha256(tpl["body"].encode("utf-8")).hexdigest()
+
     agreement_data = {
         "client_id": user_id,
         "state_id": user.get("state_id"),
         "agreement_key": agreement_key,
         "title": tpl["title"],
         "body": tpl["body"],
+        "version": next_version,
+        "content_hash": content_hash,
         **signature,
     }
 
-    res = supabase.table("client_agreements").upsert(agreement_data).execute()
+    res = supabase.table("client_agreements").insert(agreement_data).execute()
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -227,7 +278,15 @@ def sign_agreement(
         "client_agreement_signed",
         "client_agreements",
         agreement_key,
-        new_values={"signed_name": signature["signed_name"], "signed_at": signature["signed_at"]},
+        new_values={
+            "signed_name": signature["signed_name"],
+            "signed_at": signature["signed_at"],
+            "version": next_version,
+            "content_hash": content_hash,
+        },
+        request=request,
+        required=True,
+        entity_state_id=user.get("state_id"),
     )
 
     notify(
@@ -243,6 +302,7 @@ def sign_agreement(
 
 @router.post("/me/authorizations")
 async def upload_authorization(
+    request: Request,
     file: UploadFile = File(...),
     start_date: str = Form(...),
     end_date: str = Form(...),
@@ -261,8 +321,8 @@ async def upload_authorization(
     if end_d < start_d:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="End date must be on or after start date.")
 
-    type_res = (
-        supabase.table("document_types")
+    type_res = await run_in_threadpool(
+        lambda: supabase.table("document_types")
         .select("id")
         .eq("name", "Authorization Document")
         .single()
@@ -287,33 +347,48 @@ async def upload_authorization(
         expiration_date=None,
     )
 
+    doc_id = record.get("id", "")
     auth_data = {
         "client_id": user_id,
         "state_id": user.get("state_id"),
-        "authorization_number": f"PENDING-{record.get('id', '')[:8].upper()}",
+        "authorization_number": f"PENDING-{doc_id[:8].upper()}",
         "start_date": start_d.isoformat(),
         "end_date": end_d.isoformat(),
         "status": "pending",
         "source": "client",
-        "document_id": record.get("id"),
+        "document_id": doc_id,
         "notes": notes.strip() if notes else "Submitted for authorization review.",
     }
-    auth_res = supabase.table("authorizations").insert(auth_data).execute()
-    if not auth_res.data:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to record authorization request.",
+
+    def _save_auth():
+        auth_res = supabase.table("authorizations").insert(auth_data).execute()
+        if not auth_res.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to record authorization request.",
+            )
+        auth_id = auth_res.data[0]["id"]
+        record_audit_log(
+            supabase,
+            user_id=user_id,
+            action="authorization_uploaded",
+            table_name="authorizations",
+            record_id=str(auth_id),
+            new_values=auth_data,
+            request=request,
+            entity_state_id=user.get("state_id"),
         )
+        notify(
+            supabase,
+            user_id,
+            "authorization_uploaded",
+            "Authorization Submitted",
+            "Your authorization document has been received and queued for care coordinator review.",
+        )
+        return auth_res.data[0]
 
-    notify(
-        supabase,
-        user_id,
-        "authorization_uploaded",
-        "Authorization Submitted",
-        "Your authorization document has been received and queued for care coordinator review.",
-    )
-
-    return {"message": "Authorization submitted for review", "authorization": auth_res.data[0]}
+    saved_auth = await run_in_threadpool(_save_auth)
+    return {"message": "Authorization submitted for review", "authorization": saved_auth}
 
 
 @router.get("/me/authorizations")
@@ -496,6 +571,7 @@ def get_my_notifications(user: dict = Depends(require_client)):
         active_only(supabase.table("notifications").select("*"), "notifications")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
+        .limit(50)
         .execute()
     )
 
@@ -518,3 +594,106 @@ def mark_notification_read(notification_id: str, user: dict = Depends(require_cl
     )
 
     return {"message": "Notification marked as read"}
+
+
+def _parse_date(value):
+    if isinstance(value, date):
+        return value
+    try:
+        return date.fromisoformat(str(value)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+@router.get("/me/document-status")
+def get_client_document_status(user: dict = Depends(require_client)):
+    """Aggregate document health vs. the client's state's required document types."""
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    prof = (
+        active_only(
+            supabase.table("clients").select("state_id"),
+            "clients",
+        )
+        .eq("id", user_id)
+        .single()
+        .execute()
+    )
+    state_id = (prof.data or {}).get("state_id")
+
+    required = []
+    if state_id:
+        req_res = (
+            supabase.table("document_requirements")
+            .select("document_type_id, required, for_role, document_types(name)")
+            .eq("state_id", state_id)
+            .execute()
+        )
+        required = [
+            r for r in (req_res.data or [])
+            if r.get("for_role") in ("client", "both") or r.get("for_role") is None
+        ]
+
+    docs_res = (
+        active_only(
+            supabase.table("documents").select(
+                "*, document_types(name, requires_expiration)"
+            ),
+            "documents",
+        )
+        .eq("owner_id", user_id)
+        .execute()
+    )
+    docs = docs_res.data or []
+    uploaded_type_ids = {d.get("document_type_id") for d in docs}
+
+    today = date.today()
+    soon_through = today + timedelta(days=30)
+
+    missing = []
+    required_panels = []
+    for r in required:
+        type_id = r.get("document_type_id")
+        name = (r.get("document_types") or {}).get("name", "Required document")
+        required_panels.append({"document_type_id": type_id, "name": name})
+        if r.get("required") and type_id not in uploaded_type_ids:
+            missing.append({"document_type_id": type_id, "name": name})
+
+    expired = []
+    expiring_soon = []
+    valid = []
+    for d in docs:
+        name = (d.get("document_types") or {}).get("name", "Document")
+        base = {
+            "id": d.get("id"),
+            "name": name,
+            "status": d.get("status"),
+            "expiration_date": d.get("expiration_date"),
+        }
+        if d.get("status") == "expired":
+            expired.append(base)
+            continue
+        exp_date = _parse_date(d.get("expiration_date"))
+        if exp_date is None or exp_date > soon_through:
+            valid.append(base)
+        elif exp_date < today:
+            expired.append(base)
+        else:
+            expiring_soon.append(base)
+
+    return {
+        "state_id": state_id,
+        "required_types": required_panels,
+        "missing": missing,
+        "expired": expired,
+        "expiring_soon": expiring_soon,
+        "valid": valid,
+        "summary": {
+            "missing": len(missing),
+            "expired": len(expired),
+            "expiring_soon": len(expiring_soon),
+            "compliant": len(missing) == 0 and len(expired) == 0,
+        },
+    }
+

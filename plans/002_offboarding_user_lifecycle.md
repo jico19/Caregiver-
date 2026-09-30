@@ -1,6 +1,6 @@
 # Plan 002 — Offboarding and User Lifecycle
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:135` (role-based user access), and the audit finding that a terminated caregiver retains a live login.
 **Depends on:** 001 (soft deletion — this plan must not hard-delete)
 

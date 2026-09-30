@@ -1,27 +1,46 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from app.schemas.auth import LoginRequest, LoginResponse, RegisterRequest
 from app.core.supabase import get_supabase_anon, get_supabase
 from app.core.dependencies import get_current_user, validate_state_id
 from app.core.soft_delete import active_only
+from app.api.routes.admin import record_audit_log
 
 router = APIRouter()
 
 
 @router.post("/login", response_model=LoginResponse)
-def login(data: LoginRequest):
+def login(data: LoginRequest, request: Request):
     supabase = get_supabase_anon()
+    admin_client = get_supabase()
     try:
         res = supabase.auth.sign_in_with_password({"email": data.email, "password": data.password})
     except Exception as e:
+        record_audit_log(
+            admin_client,
+            user_id=None,
+            action="user_login_failed",
+            table_name="users",
+            record_id=data.email,
+            new_values={"email": data.email},
+            request=request,
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     if not res.user:
+        record_audit_log(
+            admin_client,
+            user_id=None,
+            action="user_login_failed",
+            table_name="users",
+            record_id=data.email,
+            new_values={"email": data.email},
+            request=request,
+        )
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
     # Fetch the user's role and state from our users table. A soft-deleted
     # account has no row here, so it resolves to the public role and cannot
     # reach any role-gated surface.
-    admin_client = get_supabase()
     user_row = (
         active_only(
             admin_client.table("users").select("role_id, state_id, roles(name)"),
@@ -37,6 +56,17 @@ def login(data: LoginRequest):
     if user_row.data:
         role = user_row.data.get("roles", {}).get("name", "public")
         state_id = user_row.data.get("state_id")
+
+    record_audit_log(
+        admin_client,
+        user_id=str(res.user.id),
+        action="user_login_success",
+        table_name="users",
+        record_id=str(res.user.id),
+        new_values={"role": role, "state_id": state_id},
+        request=request,
+        entity_state_id=state_id,
+    )
 
     return LoginResponse(
         access_token=res.session.access_token,
@@ -110,7 +140,22 @@ def register(data: RegisterRequest):
 
 
 @router.post("/logout")
-def logout(user: dict = Depends(get_current_user)):
+def logout(request: Request, user: dict = Depends(get_current_user)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+    record_audit_log(
+        supabase,
+        user_id=user_id,
+        action="user_logout",
+        table_name="users",
+        record_id=str(user_id),
+        request=request,
+        entity_state_id=user.get("state_id"),
+    )
+    try:
+        supabase.auth.admin.sign_out(user_id)
+    except Exception:
+        pass
     return {"message": "Logged out"}
 
 

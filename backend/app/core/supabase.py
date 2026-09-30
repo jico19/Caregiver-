@@ -1,3 +1,4 @@
+import threading
 import postgrest
 from httpx import Client as SyncClient
 from supabase import create_client, Client
@@ -39,22 +40,47 @@ except Exception:
     pass
 
 _client: Client | None = None
+_client_anon: Client | None = None
+_client_lock = threading.Lock()
+
+
+def _close_client(c: Client | None):
+    if c is None:
+        return
+    try:
+        if hasattr(c, "postgrest") and hasattr(c.postgrest, "session"):
+            c.postgrest.session.close()
+    except Exception:
+        pass
 
 
 def reset_supabase():
-    """Reset the cached singleton instance."""
-    global _client
-    _client = None
+    """Reset and close the cached singleton instances."""
+    global _client, _client_anon
+    with _client_lock:
+        if _client is not None:
+            _close_client(_client)
+            _client = None
+        if _client_anon is not None:
+            _close_client(_client_anon)
+            _client_anon = None
 
 
 def get_supabase() -> Client:
-    """Return the shared Supabase client (lazy singleton)."""
+    """Return the shared Supabase service client (thread-safe lazy singleton)."""
     global _client
     if _client is None:
-        _client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+        with _client_lock:
+            if _client is None:
+                _client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
     return _client
 
 
 def get_supabase_anon() -> Client:
-    """Return an anon-key client for operations that run as the calling user."""
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    """Return an anon-key client for operations that run as the calling user (thread-safe lazy singleton)."""
+    global _client_anon
+    if _client_anon is None:
+        with _client_lock:
+            if _client_anon is None:
+                _client_anon = create_client(settings.SUPABASE_URL, settings.SUPABASE_ANON_KEY)
+    return _client_anon

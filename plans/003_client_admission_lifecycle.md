@@ -1,6 +1,6 @@
 # Plan 003 — Client Admission Lifecycle
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:109` (approve admissions), `Scope of work.md:112` (monitor service start dates)
 **Depends on:** 001 (soft deletion — `clients` gains `deleted_at`)
 **Blocks:** 004, 005
@@ -86,13 +86,14 @@ Revert the admin route, the client route, the enum change, and the frontend page
 
 ## Deliverable tracker
 
-- [ ] A. Migration written and `--dry-run` reviewed
-- [ ] B. Backfill decision confirmed with the agency
-- [ ] C. Enum transition guard added
-- [ ] D. `POST /admin/clients/{id}/admission` with state scoping
-- [ ] E. Status filter and start date sort on `GET /admin/clients`
-- [ ] F. Client-facing status on `GET /clients/me`
-- [ ] G. Admin and client UI
-- [ ] H. `tests/test_client_admission.py`
-- [ ] I. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
-- [ ] J. Push to production, read back the status counts, confirm the audit row
+- [x] A. Migration written and `--dry-run` reviewed
+- [x] B. Backfill decision confirmed with the agency
+- [x] C. Enum transition guard added
+- [x] D. `POST /admin/clients/{id}/admission` with state scoping
+- [x] E. Status filter and start date sort on `GET /admin/clients`
+- [x] F. Client-facing status on `GET /clients/me`
+- [x] G. Admin and client UI
+- [x] H. `tests/test_client_admission.py`
+- [x] I. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] J. Push to production, read back the status counts, confirm the audit row
+

@@ -9,9 +9,11 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = "https://placeholder.supabase.co"
     SUPABASE_ANON_KEY: str = "placeholder"
     SUPABASE_SERVICE_ROLE_KEY: str = "placeholder"
+    SUPABASE_JWT_SECRET: str = "placeholder-secret-change-in-production"
 
     ALLOWED_ORIGINS: List[str] = ["http://localhost:5173", "http://localhost:3000"]
     VALID_STATES: List[str] = ["florida", "indiana", "georgia"]
+    TRUST_FORWARDED_FOR: bool = False
 
     class Config:
         env_file = ".env"

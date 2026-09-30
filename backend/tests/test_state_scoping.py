@@ -543,3 +543,30 @@ def test_state_admin_dashboard_rejects_unknown_state_slug_without_widening(clien
     r = get(c, FL, "/api/v1/admin/dashboard?state=not-a-state")
     assert r.status_code == 200, r.text
     assert r.json()["metrics"]["total_caregivers"] == 1
+
+
+def test_referral_submission_notifies_state_admin_and_super_admin(client):
+    """A referral in Florida notifies Florida admin and super_admin, never Indiana or Georgia admin."""
+    c, db, _ = client
+    payload = {
+        "first_name": "Jane",
+        "last_name": "Doe",
+        "phone": "555-0199",
+        "email": "jane@example.com",
+        "referral_source": "Hospital Case Manager",
+        "notes": "Needs care support in Miami",
+    }
+    res = c.post("/api/v1/states/florida/contact", json=payload)
+    assert res.status_code == 200, res.text
+
+    notified_user_ids = [n["user_id"] for n in db["notifications"] if n.get("type") == "new_referral"]
+    assert "u-admin-fl" in notified_user_ids
+    assert "u-admin" in notified_user_ids
+    assert "u-admin-in" not in notified_user_ids
+    assert "u-admin-ga" not in notified_user_ids
+
+    # Audit log entry exists
+    audit_logs = [log for log in db["audit_logs"] if log.get("table_name") == "client_referrals"]
+    assert len(audit_logs) == 1
+    assert audit_logs[0]["new_values"]["first_name"] == "Jane"
+

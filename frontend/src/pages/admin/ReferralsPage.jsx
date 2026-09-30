@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
+import useFetch from '../../hooks/useFetch';
 import usePaginatedFetch from '../../hooks/usePaginatedFetch';
 import Pagination from '../../components/common/Pagination';
 
@@ -18,23 +20,27 @@ const STATUS_BADGE = {
   closed: 'badge badge-gray',
 };
 
-const STATE_CODE_MAP = {
-  1: 'FL',
-  2: 'IN',
-  3: 'GA',
-};
-
 export default function ReferralsPage() {
   const { token } = useAuth();
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterState, setFilterState] = useState('all');
+  const [filterUnassigned, setFilterUnassigned] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [convertedClientId, setConvertedClientId] = useState(null);
+
+  // Confirmation Modal State for Conversion
+  const [confirmTarget, setConfirmTarget] = useState(null);
+
+  // Fetch states list dynamically (no hardcoded state IDs)
+  const { data: statesData } = useFetch('/states', { defaultData: [] });
+  const states = Array.isArray(statesData) ? statesData : statesData?.states || [];
 
   const params = {
-    status: filterStatus,
+    status: filterStatus === 'all' ? '' : filterStatus,
     state_id: filterState === 'all' ? '' : filterState,
+    ...(filterUnassigned ? { unassigned: 'true' } : {}),
   };
 
   const {
@@ -45,9 +51,9 @@ export default function ReferralsPage() {
     pageSize,
     loading,
     error,
+    reload,
     setPage,
     setPageSize,
-    reload,
   } = usePaginatedFetch({
     url: '/admin/referrals',
     token,
@@ -58,26 +64,52 @@ export default function ReferralsPage() {
   function handleResetFilters() {
     setFilterStatus('all');
     setFilterState('all');
+    setFilterUnassigned(false);
     setErrorMsg('');
     setSuccessMsg('');
+    setConvertedClientId(null);
   }
 
-  async function handleStatusChange(referralId, status) {
-    setUpdatingId(referralId);
+  async function executeStatusChange(referral, targetStatus) {
+    setUpdatingId(referral.id);
     setErrorMsg('');
     setSuccessMsg('');
+    setConvertedClientId(null);
     try {
-      await api.patch(`/admin/referrals/${referralId}`, { status }, token);
-      setSuccessMsg(`Referral marked as "${STATUS_LABELS[status]}".`);
+      const res = await api.patch(`/admin/referrals/${referral.id}`, { status: targetStatus }, token);
+      if (targetStatus === 'converted' && res?.client_id) {
+        setConvertedClientId(res.client_id);
+        setSuccessMsg(`Referral for ${referral.first_name} ${referral.last_name} converted to client profile.`);
+      } else {
+        setSuccessMsg(`Referral marked as "${STATUS_LABELS[targetStatus]}".`);
+      }
       reload();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to update referral status.');
     } finally {
       setUpdatingId(null);
+      setConfirmTarget(null);
     }
   }
 
-  const hasActiveFilters = filterStatus !== 'all' || filterState !== 'all';
+  function handleStatusSelect(referral, targetStatus) {
+    if (targetStatus === 'converted') {
+      setConfirmTarget(referral);
+    } else {
+      executeStatusChange(referral, targetStatus);
+    }
+  }
+
+  async function handleUpdateNotes(referralId, notes) {
+    try {
+      await api.patch(`/admin/referrals/${referralId}`, { handled_notes: notes }, token);
+      reload();
+    } catch (err) {
+      setErrorMsg(err.detail || 'Failed to save notes.');
+    }
+  }
+
+  const hasActiveFilters = filterStatus !== 'all' || filterState !== 'all' || filterUnassigned;
 
   return (
     <div className="page-container">
@@ -106,8 +138,42 @@ export default function ReferralsPage() {
         </div>
       )}
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-success flex items-center justify-between">
+          <span>{successMsg}</span>
+          {convertedClientId && (
+            <Link to={`/admin/clients/${convertedClientId}`} className="underline font-semibold ml-3">
+              View Client Profile & Admit →
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Confirmation Modal for Conversion */}
+      {confirmTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <div className="card p-6 max-w-md w-full shadow-lg bg-white">
+            <h3 className="section-title m-0 mb-2">Confirm Client Conversion</h3>
+            <p className="text-sm text-secondary mb-4">
+              Converting <strong>{confirmTarget.first_name} {confirmTarget.last_name}</strong> will automatically create a pending <strong>Client Profile</strong> and user portal account using their email (<code>{confirmTarget.email || 'N/A'}</code>).
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmTarget(null)}
+                className="btn-outline-secondary btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={updatingId === confirmTarget.id}
+                onClick={() => executeStatusChange(confirmTarget, 'converted')}
+                className="btn-success btn-sm"
+              >
+                {updatingId === confirmTarget.id ? 'Converting...' : 'Convert to Client'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -133,10 +199,21 @@ export default function ReferralsPage() {
               className="filter-select"
             >
               <option value="all">All States</option>
-              <option value="1">Florida (FL)</option>
-              <option value="2">Indiana (IN)</option>
-              <option value="3">Georgia (GA)</option>
+              {states.map((st) => (
+                <option key={st.id} value={st.id}>
+                  {st.name} ({st.code})
+                </option>
+              ))}
             </select>
+
+            <label className="inline-flex items-center gap-1.5 text-xs text-secondary cursor-pointer border border-gray-300 rounded px-2 py-1 bg-white">
+              <input
+                type="checkbox"
+                checked={filterUnassigned}
+                onChange={(e) => setFilterUnassigned(e.target.checked)}
+              />
+              Unassigned Only
+            </label>
 
             {hasActiveFilters && (
               <button
@@ -170,7 +247,8 @@ export default function ReferralsPage() {
                   <th>Lead</th>
                   <th>State</th>
                   <th>Source</th>
-                  <th>Notes</th>
+                  <th>Inquiry Notes</th>
+                  <th>Handling Remarks</th>
                   <th>Received</th>
                   <th>Status</th>
                   <th className="text-right">Actions</th>
@@ -187,7 +265,7 @@ export default function ReferralsPage() {
                       </div>
                     </td>
                     <td className="cell-muted">
-                      {r.states?.code || STATE_CODE_MAP[r.state_id] || '—'}
+                      {r.states?.code || '—'}
                     </td>
                     <td>
                       <span className="chip-neutral">
@@ -196,11 +274,28 @@ export default function ReferralsPage() {
                     </td>
                     <td className="cell-notes">
                       {r.notes ? (
-                        <div className="truncate" title={r.notes}>{r.notes}</div>
+                        <div className="truncate max-w-xs" title={r.notes}>{r.notes}</div>
                       ) : (
                         <span className="text-italic-muted">No notes</span>
                       )}
                     </td>
+                    <td className="cell-notes">
+                      <div
+                        onClick={() => {
+                          const val = window.prompt('Enter handling remarks / office notes:', r.handled_notes || '');
+                          if (val !== null && val !== r.handled_notes) handleUpdateNotes(r.id, val);
+                        }}
+                        className="cursor-pointer hover:bg-gray-50 rounded p-1"
+                        title="Click to edit handling remarks"
+                      >
+                        {r.handled_notes ? (
+                          <div className="text-xs text-secondary">{r.handled_notes}</div>
+                        ) : (
+                          <span className="text-italic-muted text-xs">+ Add remarks</span>
+                        )}
+                      </div>
+                    </td>
+
                     <td className="cell-muted whitespace-nowrap">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
                     </td>
@@ -208,17 +303,26 @@ export default function ReferralsPage() {
                       <span className={STATUS_BADGE[r.status] || 'badge badge-gray'}>
                         {STATUS_LABELS[r.status] || r.status}
                       </span>
+                      {r.converted_client_id && (
+                        <div className="mt-1">
+                          <Link to={`/admin/clients/${r.converted_client_id}`} className="text-xs text-primary underline font-semibold">
+                            View Client →
+                          </Link>
+                        </div>
+                      )}
                     </td>
                     <td className="text-right">
                       <select
                         aria-label={`Update status for ${r.first_name} ${r.last_name}`}
                         value={r.status}
-                        disabled={updatingId === r.id}
-                        onChange={(e) => handleStatusChange(r.id, e.target.value)}
-                        className="filter-select"
+                        disabled={updatingId === r.id || r.status === 'converted'}
+                        onChange={(e) => handleStatusSelect(r, e.target.value)}
+                        className="filter-select text-xs"
                       >
                         {Object.entries(STATUS_LABELS).map(([val, label]) => (
-                          <option key={val} value={val}>{label}</option>
+                          <option key={val} value={val} disabled={val === 'converted' && r.converted_client_id}>
+                            {label}
+                          </option>
                         ))}
                       </select>
                     </td>

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from datetime import datetime, timezone, date, timedelta
+import json
+import hashlib
 from app.core.dependencies import require_caregiver, validate_state_id
 from app.core.supabase import get_supabase, get_supabase_anon
 from app.core.soft_delete import active_only
@@ -43,7 +45,9 @@ def get_my_profile(user: dict = Depends(require_caregiver)):
 
     res = (
         active_only(
-            supabase.table("caregivers").select("*, states(name, code, slug)"),
+            supabase.table("caregivers").select(
+                "id, state_id, first_name, last_name, phone, address, date_of_birth, ssn_last4, created_at, updated_at, legal_hold, states(name, code, slug)"
+            ),
             "caregivers",
         )
         .eq("id", user_id)
@@ -64,7 +68,7 @@ def get_my_application(user: dict = Depends(require_caregiver)):
     res = (
         active_only(
             supabase.table("caregiver_applications").select(
-                "*, states(name, code, slug)"
+                "id, caregiver_id, state_id, status, submitted_at, reviewed_at, reviewed_by, notes, rejection_reason, created_at, updated_at, states(name, code, slug)"
             ),
             "caregiver_applications",
         )
@@ -81,7 +85,7 @@ def get_my_application(user: dict = Depends(require_caregiver)):
 
 
 @router.post("/apply-public")
-def apply_public(payload: PublicCaregiverApplicationSubmit):
+def apply_public(payload: PublicCaregiverApplicationSubmit, request: Request):
     supabase = get_supabase()
     anon_client = get_supabase_anon()
 
@@ -141,14 +145,17 @@ def apply_public(payload: PublicCaregiverApplicationSubmit):
     }
     supabase.table("caregivers").insert(profile_data).execute()
 
-    # 4. Insert application record
+    # 4. Insert application record with frozen content_hash and version
     now_iso = datetime.now(timezone.utc).isoformat()
+    content_hash = hashlib.sha256(json.dumps(payload.model_dump(), sort_keys=True, default=str).encode("utf-8")).hexdigest()
     app_data = {
         "caregiver_id": user_id,
         "state_id": state_id,
         "status": "submitted",
         "submitted_at": now_iso,
         "notes": payload.notes,
+        "version": 1,
+        "content_hash": content_hash,
         **signature,
     }
     app_res = supabase.table("caregiver_applications").insert(app_data).execute()
@@ -160,7 +167,15 @@ def apply_public(payload: PublicCaregiverApplicationSubmit):
             "caregiver_application_signed",
             "caregiver_applications",
             app_res.data[0].get("id"),
-            new_values={"signed_name": signature["signed_name"], "signed_at": signature["signed_at"]},
+            new_values={
+                "signed_name": signature["signed_name"],
+                "signed_at": signature["signed_at"],
+                "content_hash": content_hash,
+                "version": 1,
+            },
+            request=request,
+            required=True,
+            entity_state_id=state_id,
         )
 
     # 5. Create in-app notification
@@ -483,6 +498,7 @@ def get_my_documents(user: dict = Depends(require_caregiver)):
 @router.patch("/me/profile")
 def update_my_profile(
     payload: CaregiverProfileUpdate,
+    request: Request,
     user: dict = Depends(require_caregiver),
 ):
     supabase = get_supabase()
@@ -528,6 +544,17 @@ def update_my_profile(
         .execute()
     )
 
+    record_audit_log(
+        supabase,
+        user_id=user_id,
+        action="caregiver_profile_updated",
+        table_name="caregivers",
+        record_id=str(user_id),
+        new_values=profile_data,
+        request=request,
+        entity_state_id=current_state_id,
+    )
+
     return {"message": "Profile updated successfully", "profile": res.data[0]}
 
 
@@ -540,6 +567,7 @@ def get_my_notifications(user: dict = Depends(require_caregiver)):
         active_only(supabase.table("notifications").select("*"), "notifications")
         .eq("user_id", user_id)
         .order("created_at", desc=True)
+        .limit(50)
         .execute()
     )
 
@@ -717,4 +745,147 @@ def get_my_announcements(user: dict = Depends(require_caregiver)):
         items.append(a)
 
     return {"announcements": items[:5]}
+
+
+def _assert_caregiver_assigned_to_client(supabase, caregiver_id: str, client_id: str):
+    res = (
+        supabase.table("caregiver_client_assignments")
+        .select("id")
+        .eq("caregiver_id", caregiver_id)
+        .eq("client_id", client_id)
+        .is_("ended_at", None)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not authorized to access records for this client.",
+        )
+
+
+@router.get("/me/clients")
+def get_my_clients(user: dict = Depends(require_caregiver)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    assign_res = (
+        supabase.table("caregiver_client_assignments")
+        .select("id, client_id, role, assigned_at, clients(id, first_name, last_name, phone, address, status, states(name, code, slug))")
+        .eq("caregiver_id", user_id)
+        .is_("ended_at", None)
+        .execute()
+    )
+
+    clients = []
+    for row in (assign_res.data or []):
+        client = row.get("clients")
+        if isinstance(client, dict):
+            if client.get("deleted_at") is None:
+                client["assignment_role"] = row.get("role")
+                client["assigned_at"] = row.get("assigned_at")
+                clients.append(client)
+        elif row.get("client_id"):
+            c_res = (
+                active_only(
+                    supabase.table("clients").select("id, first_name, last_name, phone, address, status, states(name, code, slug)"),
+                    "clients",
+                )
+                .eq("id", row["client_id"])
+                .execute()
+            )
+            if c_res.data:
+                c_item = c_res.data[0]
+                c_item["assignment_role"] = row.get("role")
+                c_item["assigned_at"] = row.get("assigned_at")
+                clients.append(c_item)
+
+    return {"clients": clients}
+
+
+@router.get("/me/clients/{client_id}/care-plan")
+def get_assigned_client_care_plan(client_id: str, user: dict = Depends(require_caregiver)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    _assert_caregiver_assigned_to_client(supabase, user_id, client_id)
+
+    client_res = (
+        active_only(
+            supabase.table("clients").select("id, first_name, last_name, state_id, states(name, code)"),
+            "clients",
+        )
+        .eq("id", client_id)
+        .execute()
+    )
+    client = client_res.data[0] if client_res.data else None
+
+    plan_res = (
+        active_only(supabase.table("care_plans").select("*"), "care_plans")
+        .eq("client_id", client_id)
+        .execute()
+    )
+    plan = plan_res.data[0] if plan_res.data else None
+    if not plan:
+        return {"care_plan": None, "client": client}
+
+    act_res = (
+        active_only(supabase.table("care_plan_activities").select("*"), "care_plan_activities")
+        .eq("care_plan_id", plan["id"])
+        .order("sort_order")
+        .execute()
+    )
+    activities = act_res.data or []
+
+    care_plan = {
+        "id": plan.get("id"),
+        "client_id": client_id,
+        "client_name": f"{client['first_name']} {client['last_name']}" if client else "Client",
+        "plan_status": plan.get("status", "active"),
+        "primary_nurse": plan.get("primary_nurse"),
+        "effective_date": plan.get("effective_date"),
+        "daily_activities": [
+            {"task": a["task"], "frequency": a.get("frequency"), "notes": a.get("notes")}
+            for a in activities
+        ],
+        "emergency_protocol": plan.get("emergency_protocol"),
+    }
+
+    return {"care_plan": care_plan, "client": client}
+
+
+@router.get("/me/clients/{client_id}/schedule")
+def get_assigned_client_schedule(client_id: str, user: dict = Depends(require_caregiver)):
+    supabase = get_supabase()
+    user_id = user.get("sub")
+
+    _assert_caregiver_assigned_to_client(supabase, user_id, client_id)
+
+    client_res = (
+        active_only(
+            supabase.table("clients").select("id, first_name, last_name, state_id, states(name, code)"),
+            "clients",
+        )
+        .eq("id", client_id)
+        .execute()
+    )
+    client = client_res.data[0] if client_res.data else None
+
+    res = (
+        active_only(supabase.table("care_schedules").select("*"), "care_schedules")
+        .eq("client_id", client_id)
+        .execute()
+    )
+    records = res.data or []
+
+    DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    def day_index(r):
+        try:
+            return DAY_ORDER.index(r.get("day_of_week"))
+        except ValueError:
+            return len(DAY_ORDER)
+
+    records.sort(key=lambda r: (day_index(r), r.get("sort_order") or 0))
+
+    return {"schedule": records, "client": client}
+
 

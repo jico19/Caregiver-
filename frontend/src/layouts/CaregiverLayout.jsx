@@ -24,6 +24,7 @@ export default function CaregiverLayout({ children }) {
 
   // The brand links to the dashboard, which is why it is not repeated here.
   const navLinks = [
+    { label: 'My Clients', to: '/caregiver/clients' },
     { label: 'Application', to: '/caregiver/application' },
     {
       label: 'Compliance',

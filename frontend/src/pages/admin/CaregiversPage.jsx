@@ -26,7 +26,7 @@ export default function CaregiversPage() {
   } = usePaginatedFetch({
     url: '/admin/caregivers',
     token,
-    params: { status: statusFilter },
+    params: statusFilter === 'all' ? {} : { status: statusFilter },
     listKey: 'applications',
   });
 

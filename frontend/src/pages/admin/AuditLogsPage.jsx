@@ -55,6 +55,7 @@ export default function AuditLogsPage() {
                 <tr>
                   <th>Timestamp</th>
                   <th>Actor (Admin)</th>
+                  <th>IP Address</th>
                   <th>Action</th>
                   <th>Target Table</th>
                   <th>Record ID</th>
@@ -68,6 +69,9 @@ export default function AuditLogsPage() {
                     </td>
                     <td className="cell-strong">
                       {log.users?.email || 'System / Admin'}
+                    </td>
+                    <td className="cell-muted whitespace-nowrap font-mono text-xs">
+                      {log.ip_address || 'N/A'}
                     </td>
                     <td>
                       <span className="chip-neutral">

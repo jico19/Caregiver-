@@ -21,9 +21,9 @@ const NEXT_ACTIONS = {
 const ACTION_LABELS = {
   submitted: 'Start Review',
   under_review: 'Mark Under Review',
-  approved: 'Approve & Move to Onboarding',
-  rejected: 'Reject',
-  onboarding: 'Complete Onboarding',
+  approved: 'Approve Application',
+  rejected: 'Reject Application',
+  onboarding: 'Confirm Complete Onboarding',
 };
 
 export default function CaregiverDetailPage() {
@@ -33,6 +33,7 @@ export default function CaregiverDetailPage() {
   const [application, setApplication] = useState(null);
   const [documents, setDocuments] = useState([]);
   const [enrollments, setEnrollments] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -45,13 +46,15 @@ export default function CaregiverDetailPage() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [detailRes, docRes] = await Promise.all([
+      const [detailRes, docRes, asgnRes] = await Promise.all([
         api.get(`/admin/caregivers/${id}`, token),
         api.get(`/admin/caregivers/${id}/documents`, token),
+        api.get(`/admin/caregivers/${id}/assignments`, token),
       ]);
       setApplication(detailRes?.application || null);
       setEnrollments(detailRes?.enrollments || []);
       setDocuments(docRes?.documents || []);
+      setAssignments(asgnRes?.assignments || []);
       if (!detailRes?.application) setErrorMsg('Application not found.');
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to load application details.');
@@ -310,7 +313,7 @@ export default function CaregiverDetailPage() {
       </div>
 
       {/* Training Enrollments */}
-      <div className="card p-5">
+      <div className="card p-5 mb-5">
         <h2 className="section-title m-0 mb-4">
           Assigned Training ({enrollments.length})
         </h2>
@@ -343,6 +346,55 @@ export default function CaregiverDetailPage() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Assigned Clients */}
+      <div className="card p-5">
+        <h2 className="section-title m-0 mb-4">
+          Assigned Clients ({assignments.length})
+        </h2>
+
+        {assignments.length === 0 ? (
+          <div className="table-empty-sm">No clients assigned to this caregiver yet.</div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table-admin">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Role</th>
+                  <th>Contact</th>
+                  <th>Assigned Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignments.map((asg) => {
+                  const client = asg.clients;
+                  return (
+                    <tr key={asg.id}>
+                      <td className="cell-strong">
+                        {client ? (
+                          <Link to={`/admin/clients/${client.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                            {client.first_name} {client.last_name}
+                          </Link>
+                        ) : 'Client'}
+                      </td>
+                      <td>
+                        <span className="badge badge-blue" style={{ textTransform: 'capitalize' }}>
+                          {asg.role || 'primary'}
+                        </span>
+                      </td>
+                      <td className="cell-muted">{client?.phone || '—'}</td>
+                      <td className="cell-muted">
+                        {asg.assigned_at ? new Date(asg.assigned_at).toLocaleDateString() : '—'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

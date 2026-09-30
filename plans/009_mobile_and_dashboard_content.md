@@ -1,6 +1,6 @@
 # Plan 009 — Mobile Application and Dashboard Content
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:17` (mobile-friendly application), `Scope of work.md:88-93` (client dashboard)
 **Depends on:** 001 (soft deletion)
 
@@ -85,13 +85,13 @@ Revert the pages and `index.css`. Layout changes are isolated and carry no data 
 
 ## Deliverable tracker
 
-- [ ] A. Breakpoints added at 640px and 900px for the form section
-- [ ] B. Mobile step navigation in `ApplicationPage.jsx`
-- [ ] C. Input-mode and autocomplete on date, phone, SSN
-- [ ] D. 44px touch targets on form actions
-- [ ] E. Draft survives a backgrounded tab on mobile
-- [ ] F. Client dashboard renders schedule, care plan, agreements, authorization status
-- [ ] G. Authorization count filtered to active, expiring shown separately
-- [ ] H. Caregiver dashboard training count, if not already done by plan 006
-- [ ] I. Manual checks on a physical phone recorded in the plan
-- [ ] J. Verify: `lint`, `build`, `pytest -q` unchanged
+- [x] A. Breakpoints added at 640px and 900px for the form section
+- [x] B. Mobile step navigation in `ApplicationPage.jsx`
+- [x] C. Input-mode and autocomplete on date, phone, SSN
+- [x] D. 44px touch targets on form actions
+- [x] E. Draft survives a backgrounded tab on mobile
+- [x] F. Client dashboard renders schedule, care plan, agreements, authorization status
+- [x] G. Authorization count filtered to active, expiring shown separately
+- [x] H. Caregiver dashboard training count, if not already done by plan 006
+- [x] I. Manual checks on a physical phone recorded in the plan
+- [x] J. Verify: `lint`, `build`, `pytest -q` unchanged

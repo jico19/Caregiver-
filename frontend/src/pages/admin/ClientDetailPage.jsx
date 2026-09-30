@@ -3,6 +3,30 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { api } from '../../services/api';
 
+const CLIENT_STATUS_LABELS = {
+  pending: 'Pending Review',
+  approved: 'Approved',
+  active: 'Active',
+  discharged: 'Discharged',
+  rejected: 'Rejected',
+};
+
+const CLIENT_STATUS_BADGE = {
+  pending: 'badge badge-yellow',
+  approved: 'badge badge-blue',
+  active: 'badge badge-green',
+  discharged: 'badge badge-gray',
+  rejected: 'badge badge-red',
+};
+
+const ALLOWED_CLIENT_TRANSITIONS = {
+  pending: ['approved', 'rejected'],
+  approved: ['active', 'rejected', 'discharged'],
+  active: ['discharged'],
+  discharged: [],
+  rejected: [],
+};
+
 const DAY_OPTIONS = [
   'Monday',
   'Tuesday',
@@ -88,6 +112,12 @@ export default function ClientDetailPage() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Admission decision state
+  const [serviceStartDate, setServiceStartDate] = useState('');
+  const [admissionNotes, setAdmissionNotes] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [submittingAdmission, setSubmittingAdmission] = useState(false);
+
   // Care plan editor state
   const [cpStatus, setCpStatus] = useState('active');
   const [cpEffectiveDate, setCpEffectiveDate] = useState('');
@@ -106,17 +136,35 @@ export default function ClientDetailPage() {
   const [schedNotes, setSchedNotes] = useState('');
   const [addingSched, setAddingSched] = useState(false);
 
+  // Caregiver assignment state
+  const [assignments, setAssignments] = useState([]);
+  const [availableCaregivers, setAvailableCaregivers] = useState([]);
+  const [selectedCaregiverId, setSelectedCaregiverId] = useState('');
+  const [selectedRole, setSelectedRole] = useState('primary');
+  const [assigning, setAssigning] = useState(false);
+
   async function loadDetail() {
     setLoading(true);
     setErrorMsg('');
     try {
-      const [res, planRes, schedRes] = await Promise.all([
+      const [res, planRes, schedRes, asgnRes, cgRes] = await Promise.all([
         api.get(`/admin/clients/${id}`, token),
         api.get(`/admin/clients/${id}/care-plan`, token),
         api.get(`/admin/clients/${id}/schedule`, token),
+        api.get(`/admin/clients/${id}/assignments`, token),
+        api.get(`/admin/caregivers`, token),
       ]);
-      setClient(res?.client || null);
+      const c = res?.client || null;
+      setClient(c);
+      if (c) {
+        setServiceStartDate(c.service_start_date || '');
+        setAdmissionNotes(c.admission_notes || '');
+        setRejectionReason(c.rejection_reason || '');
+      }
       setSchedule(schedRes?.schedule || []);
+      setAssignments(asgnRes?.assignments || []);
+      const cgs = cgRes?.caregivers || (Array.isArray(cgRes) ? cgRes : []);
+      setAvailableCaregivers(cgs);
       const plan = planRes?.care_plan || null;
       setCarePlan(plan);
       if (plan) {
@@ -140,6 +188,70 @@ export default function ClientDetailPage() {
       setLoading(false);
     }
   }
+
+  async function handleAssignCaregiver(e) {
+    e.preventDefault();
+    if (!selectedCaregiverId) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    setAssigning(true);
+    try {
+      await api.post(
+        `/admin/clients/${id}/assignments`,
+        { caregiver_id: selectedCaregiverId, role: selectedRole },
+        token
+      );
+      setSuccessMsg('Caregiver assigned successfully.');
+      setSelectedCaregiverId('');
+      await loadDetail();
+    } catch (err) {
+      setErrorMsg(err.detail || 'Failed to assign caregiver.');
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  async function handleEndAssignment(caregiverId) {
+    if (!window.confirm('End this caregiver assignment?')) return;
+    setErrorMsg('');
+    setSuccessMsg('');
+    try {
+      await api.delete(`/admin/clients/${id}/assignments/${caregiverId}`, token);
+      setSuccessMsg('Caregiver assignment ended.');
+      await loadDetail();
+    } catch (err) {
+      setErrorMsg(err.detail || 'Failed to end caregiver assignment.');
+    }
+  }
+
+  async function handleUpdateAdmission(targetStatus) {
+    setErrorMsg('');
+    setSuccessMsg('');
+    if (targetStatus === 'rejected' && !rejectionReason.trim() && !admissionNotes.trim()) {
+      setErrorMsg('A rejection reason is required when rejecting a client admission.');
+      return;
+    }
+    setSubmittingAdmission(true);
+    try {
+      await api.post(
+        `/admin/clients/${id}/admission`,
+        {
+          status: targetStatus,
+          service_start_date: serviceStartDate || null,
+          notes: admissionNotes.trim() || null,
+          rejection_reason: targetStatus === 'rejected' ? (rejectionReason.trim() || admissionNotes.trim()) : null,
+        },
+        token
+      );
+      setSuccessMsg(`Client admission status updated to ${CLIENT_STATUS_LABELS[targetStatus] || targetStatus}.`);
+      await loadDetail();
+    } catch (err) {
+      setErrorMsg(err.detail || 'Failed to update client admission status.');
+    } finally {
+      setSubmittingAdmission(false);
+    }
+  }
+
 
   useEffect(() => {
     if (token && id) loadDetail();
@@ -333,6 +445,106 @@ export default function ClientDetailPage() {
           </Link>
         </div>
       </div>
+
+      {/* Admission & Lifecycle Panel */}
+      <div className="card mb-6 p-5">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <h2 className="section-title m-0">Admission & Lifecycle Decision</h2>
+          <span className={`badge ${CLIENT_STATUS_BADGE[client.status] || 'badge badge-gray'} badge-lg`}>
+            {CLIENT_STATUS_LABELS[client.status] || client.status || 'Pending'}
+          </span>
+        </div>
+
+        <dl className="grid grid-cols-3 max-md:grid-cols-1 gap-4 mb-4 text-xs">
+          <div>
+            <dt className="text-muted mb-1">Confirmed Service Start Date</dt>
+            <dd className="font-semibold text-sm">
+              {client.service_start_date ? new Date(client.service_start_date).toLocaleDateString() : 'Not Set'}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-muted mb-1">Admitted / Reviewed By</dt>
+            <dd className="font-semibold text-sm">{client.admitted_by || '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-muted mb-1">Admitted / Reviewed At</dt>
+            <dd className="font-semibold text-sm">
+              {client.admitted_at ? new Date(client.admitted_at).toLocaleString() : '—'}
+            </dd>
+          </div>
+        </dl>
+
+        {client.rejection_reason && (
+          <div role="alert" className="alert alert-error mb-4">
+            <strong>Rejection Reason:</strong> {client.rejection_reason}
+          </div>
+        )}
+
+        <div className="form-grid-2 gap-4 mt-2">
+          <div>
+            <label htmlFor="service-start-date">Confirmed Service Start Date</label>
+            <input
+              id="service-start-date"
+              type="date"
+              value={serviceStartDate}
+              onChange={(e) => setServiceStartDate(e.target.value)}
+            />
+          </div>
+          <div>
+            <label htmlFor="admission-notes">Admission Review Notes</label>
+            <input
+              id="admission-notes"
+              type="text"
+              value={admissionNotes}
+              onChange={(e) => setAdmissionNotes(e.target.value)}
+              placeholder="Internal review notes or coordinator remarks"
+            />
+          </div>
+        </div>
+
+        {(ALLOWED_CLIENT_TRANSITIONS[client.status || 'pending'] || []).includes('rejected') && (
+          <div className="mt-3">
+            <label htmlFor="rejection-reason-input">Rejection Reason (Required if rejecting)</label>
+            <input
+              id="rejection-reason-input"
+              type="text"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="State reason for rejecting admission (e.g. Ineligible coverage, out of jurisdiction)"
+              className="w-full"
+            />
+          </div>
+        )}
+
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          {(ALLOWED_CLIENT_TRANSITIONS[client.status || 'pending'] || []).map((targetStatus) => {
+            const labelMap = {
+              approved: 'Approve Admission',
+              active: 'Mark Service Active',
+              discharged: 'Discharge Client',
+              rejected: 'Reject Admission',
+            };
+            const btnClassMap = {
+              approved: 'btn-success',
+              active: 'btn-primary',
+              discharged: 'btn-outline-secondary',
+              rejected: 'btn-danger border border-red-300 text-red-600 bg-white hover:bg-red-50',
+            };
+            return (
+              <button
+                key={targetStatus}
+                type="button"
+                disabled={submittingAdmission}
+                onClick={() => handleUpdateAdmission(targetStatus)}
+                className={`btn-sm ${btnClassMap[targetStatus] || 'btn-primary'}`}
+              >
+                {submittingAdmission ? 'Updating...' : labelMap[targetStatus] || targetStatus}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
 
       {/* Plan of Care */}
       <div className="admin-card mb-6">
@@ -620,6 +832,106 @@ export default function ClientDetailPage() {
                     </td>
                   </tr>
                 ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Caregiver Assignments */}
+      <div className="card p-5 mt-6">
+        <h2 className="section-title m-0 mb-4">
+          Assigned Caregivers ({assignments.length})
+        </h2>
+
+        <form onSubmit={handleAssignCaregiver} className="bg-gray-50 border p-4 rounded mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+            <div>
+              <label htmlFor="assign-cg" className="block text-sm font-medium mb-1">Select Caregiver</label>
+              <select
+                id="assign-cg"
+                required
+                value={selectedCaregiverId}
+                onChange={(e) => setSelectedCaregiverId(e.target.value)}
+                className="w-full border rounded p-2"
+              >
+                <option value="">-- Choose Caregiver --</option>
+                {availableCaregivers.map((cg) => (
+                  <option key={cg.id} value={cg.id}>
+                    {cg.first_name} {cg.last_name} ({cg.ssn_last4 ? `SSN: ***-${cg.ssn_last4}` : cg.id})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="assign-role" className="block text-sm font-medium mb-1">Assignment Role</label>
+              <select
+                id="assign-role"
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-full border rounded p-2"
+              >
+                <option value="primary">Primary Caregiver</option>
+                <option value="backup">Backup Caregiver</option>
+                <option value="relief">Relief Caregiver</option>
+              </select>
+            </div>
+            <div className="flex items-end">
+              <button type="submit" disabled={assigning || !selectedCaregiverId} className="btn-primary w-full">
+                {assigning ? 'Assigning...' : '+ Assign Caregiver'}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        {assignments.length === 0 ? (
+          <div className="table-empty-sm">No caregivers assigned yet. Assign a caregiver above.</div>
+        ) : (
+          <div className="table-responsive">
+            <table className="table-admin">
+              <thead>
+                <tr>
+                  <th>Caregiver</th>
+                  <th>Role</th>
+                  <th>Contact</th>
+                  <th>Assigned Date</th>
+                  <th className="text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {assignments.map((asg) => {
+                  const cg = asg.caregivers;
+                  const cgId = asg.caregiver_id || cg?.id;
+                  return (
+                    <tr key={asg.id}>
+                      <td className="cell-strong">
+                        {cg ? (
+                          <Link to={`/admin/caregivers/${cg.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                            {cg.first_name} {cg.last_name}
+                          </Link>
+                        ) : (cgId || 'Caregiver')}
+                      </td>
+                      <td>
+                        <span className="badge badge-blue" style={{ textTransform: 'capitalize' }}>
+                          {asg.role || 'primary'}
+                        </span>
+                      </td>
+                      <td className="cell-muted">{cg?.phone || '—'}</td>
+                      <td className="cell-muted">
+                        {asg.assigned_at ? new Date(asg.assigned_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => handleEndAssignment(cgId)}
+                          className="btn-sm border border-red-300 text-red-600 bg-white hover:bg-red-50"
+                        >
+                          End Assignment
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

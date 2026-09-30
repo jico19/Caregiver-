@@ -197,3 +197,69 @@ def test_training_certificate_returns_details(client):
     assert cert["course_name"]
     assert cert["caregiver_name"] == "Sarah Jenkins"
     assert len(cert["certificate_number"]) == 10
+
+
+def test_client_document_status_classifies_documents(client):
+    c, db, _ = client
+    db["clients"].append({
+        "id": "u-client",
+        "state_id": 1,
+        "first_name": "John",
+        "last_name": "Smith",
+    })
+    db["document_requirements"].extend([
+        {
+            "document_type_id": 37,
+            "required": True,
+            "for_role": "client",
+            "state_id": 1,
+            "document_types": {"name": "Insurance Card"},
+        },
+        {
+            "document_type_id": 40,
+            "required": True,
+            "for_role": "client",
+            "state_id": 1,
+            "document_types": {"name": "Plan of Care"},
+        },
+    ])
+    db["documents"].extend([
+        {
+            "id": "doc-ins",
+            "owner_id": "u-client",
+            "document_type_id": 37,
+            "status": "approved",
+            "expiration_date": "2027-01-01",
+            "document_types": {"name": "Insurance Card", "requires_expiration": True},
+        },
+        {
+            "id": "doc-med",
+            "owner_id": "u-client",
+            "document_type_id": 38,
+            "status": "expired",
+            "expiration_date": "2025-08-01",
+            "document_types": {"name": "Medicaid Document", "requires_expiration": True},
+        },
+        {
+            "id": "doc-phy",
+            "owner_id": "u-client",
+            "document_type_id": 39,
+            "status": "approved",
+            "expiration_date": "2026-10-15",
+            "document_types": {"name": "Physician Orders", "requires_expiration": True},
+        },
+    ])
+
+    r = c.get("/api/v1/clients/me/document-status", headers=auth_headers("u-client"))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["state_id"] == 1
+    missing_names = [m["name"] for m in body["missing"]]
+    assert "Plan of Care" in missing_names
+    assert "Insurance Card" not in missing_names
+    assert len(body["expired"]) == 1
+    assert body["expired"][0]["name"] == "Medicaid Document"
+    assert len(body["expiring_soon"]) == 1
+    assert body["expiring_soon"][0]["name"] == "Physician Orders"
+    assert body["summary"]["expired"] == 1
+    assert body["summary"]["compliant"] is False

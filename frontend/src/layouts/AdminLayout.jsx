@@ -1,10 +1,14 @@
 import { Outlet, Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import useFetch from '../hooks/useFetch';
 import PortalNavbar from '../components/common/PortalNavbar';
 import { isAdmin } from '../lib/roles';
 
 export default function AdminLayout() {
-  const { user, loading, logout } = useAuth();
+  const { user, token, loading, logout } = useAuth();
+  const { data: notifications } = useFetch('/admin/notifications', { enabled: !!token, defaultData: [] });
+  const list = notifications?.notifications || (Array.isArray(notifications) ? notifications : []);
+  const unreadCount = list.filter((n) => !n.read).length;
 
   if (loading) {
     return (
@@ -44,6 +48,7 @@ export default function AdminLayout() {
         { label: 'Reports', to: '/admin/reports' },
         { label: 'Announcements', to: '/admin/announcements' },
         { label: 'Audit Logs', to: '/admin/audit-logs' },
+        { label: 'Notifications', to: '/admin/notifications', hasBadge: true, badgeCount: unreadCount },
       ],
     },
   ];

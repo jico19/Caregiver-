@@ -41,6 +41,7 @@ export default function usePaginatedFetch({
       const qs = queryString.toString();
       return api.get(`${url}${qs ? `?${qs}` : ''}`, token);
     },
+    enabled: !!token,
     placeholderData: (prev) => prev,
   });
 
@@ -95,6 +96,7 @@ export default function usePaginatedFetch({
     error: query.error ? (query.error.detail || query.error.message || 'Failed to load records.') : '',
     setItems,
     reload,
+    refetch: query.refetch,
     setPage: changePage,
     setPageSize: changePageSize,
     setError: () => {},

@@ -20,6 +20,9 @@ import CaregiverTrainingPage from '../pages/caregiver/TrainingPage';
 import CaregiverTrainingCertificatePage from '../pages/caregiver/TrainingCertificatePage';
 import CaregiverProfilePage from '../pages/caregiver/ProfilePage';
 import CaregiverNotificationsPage from '../pages/caregiver/NotificationsPage';
+import CaregiverClientsPage from '../pages/caregiver/ClientsPage';
+import CaregiverClientCarePlanPage from '../pages/caregiver/ClientCarePlanPage';
+import CaregiverClientSchedulePage from '../pages/caregiver/ClientSchedulePage';
 
 import ClientLoginPage from '../pages/client/LoginPage';
 import ClientDashboardPage from '../pages/client/DashboardPage';
@@ -46,6 +49,7 @@ import AdminUsersPage from '../pages/admin/UsersPage';
 import AdminSettingsPage from '../pages/admin/SettingsPage';
 import AdminAuditLogsPage from '../pages/admin/AuditLogsPage';
 import AdminAnnouncementsPage from '../pages/admin/AnnouncementsPage';
+import AdminNotificationsPage from '../pages/admin/NotificationsPage';
 
 function CaregiverApplicationRoute() {
   const { user, loading } = useAuth();
@@ -84,6 +88,9 @@ export default function AppRoutes() {
       <Route path="/caregiver/application" element={<CaregiverApplicationRoute />} />
       <Route path="/caregiver" element={<CaregiverLayout />}>
         <Route path="dashboard" element={<CaregiverDashboardPage />} />
+        <Route path="clients" element={<CaregiverClientsPage />} />
+        <Route path="clients/:clientId/care-plan" element={<CaregiverClientCarePlanPage />} />
+        <Route path="clients/:clientId/schedule" element={<CaregiverClientSchedulePage />} />
         <Route path="documents" element={<CaregiverDocumentsPage />} />
         <Route path="training" element={<CaregiverTrainingPage />} />
         <Route path="training-certificate/:courseId" element={<CaregiverTrainingCertificatePage />} />
@@ -121,6 +128,7 @@ export default function AppRoutes() {
         <Route path="settings" element={<AdminSettingsPage />} />
         <Route path="audit-logs" element={<AdminAuditLogsPage />} />
         <Route path="announcements" element={<AdminAnnouncementsPage />} />
+        <Route path="notifications" element={<AdminNotificationsPage />} />
       </Route>
     </Routes>
   );

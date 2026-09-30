@@ -506,6 +506,21 @@ export default function ApplicationPage() {
       ) : (
         /* Editable form */
         <form onSubmit={handleSubmit(onValid)} className="card flex flex-col gap-6">
+          {/* Mobile step navigation quick links */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-2 mb-2 border-b border-line md:hidden text-xs">
+            <a href="#step-1" className="px-3 py-1.5 rounded bg-subtle text-primary font-medium whitespace-nowrap min-h-[36px] flex items-center">
+              1. Personal Info
+            </a>
+            {!user && (
+              <a href="#step-2" className="px-3 py-1.5 rounded bg-subtle text-primary font-medium whitespace-nowrap min-h-[36px] flex items-center">
+                2. Password
+              </a>
+            )}
+            <a href="#step-3" className="px-3 py-1.5 rounded bg-subtle text-primary font-medium whitespace-nowrap min-h-[36px] flex items-center">
+              3. Signature
+            </a>
+          </div>
+
           {isRejected && (
             <div className="alert alert-error">
               Your previous application was not approved. Update the details below and resubmit to begin a new review.
@@ -513,7 +528,7 @@ export default function ApplicationPage() {
           )}
 
           {/* SECTION 1: CANDIDATE & CONTACT DETAILS */}
-          <div>
+          <div id="step-1">
             <div className="section-header-bordered">
               <h2 className="section-title m-0">
                 Step 1: Personal & Contact Information
@@ -532,6 +547,7 @@ export default function ApplicationPage() {
                   id="first_name"
                   type="text"
                   required
+                  autoComplete="given-name"
                   {...register('first_name')}
                   placeholder="Jane"
                 />
@@ -546,6 +562,7 @@ export default function ApplicationPage() {
                   id="last_name"
                   type="text"
                   required
+                  autoComplete="family-name"
                   {...register('last_name')}
                   placeholder="Doe"
                 />
@@ -562,6 +579,8 @@ export default function ApplicationPage() {
                 <input
                   id="email"
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
                   disabled={Boolean(user)}
                   {...register('email')}
                   placeholder="jane.doe@example.com"
@@ -581,6 +600,8 @@ export default function ApplicationPage() {
                 <input
                   id="phone"
                   type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
                   required
                   {...register('phone')}
                   placeholder="(555) 000-0000"
@@ -612,6 +633,7 @@ export default function ApplicationPage() {
                 <input
                   id="address"
                   type="text"
+                  autoComplete="street-address"
                   {...register('address')}
                   placeholder="123 Main St, City, State, ZIP"
                 />
@@ -626,6 +648,7 @@ export default function ApplicationPage() {
                 <input
                   id="dob"
                   type="date"
+                  inputMode="numeric"
                   {...register('date_of_birth')}
                 />
               </div>
@@ -637,6 +660,8 @@ export default function ApplicationPage() {
                 <input
                   id="ssn"
                   type="password"
+                  inputMode="numeric"
+                  autoComplete="off"
                   maxLength={4}
                   {...register('ssn_last4', {
                     onChange: (e) => {
@@ -667,7 +692,7 @@ export default function ApplicationPage() {
 
           {/* SECTION 2: CREATE PORTAL PASSWORD (Only for unauthenticated candidates) */}
           {!user && (
-            <div className="card-muted">
+            <div id="step-2" className="card-muted">
               <div className="mb-4">
                 <div className="flex items-center gap-2 mb-1">
                   <h2 className="font-semibold text-sm m-0">
@@ -717,7 +742,7 @@ export default function ApplicationPage() {
           {/* Draft status + SUBMIT */}
           <div>
             {/* SECTION 3: ELECTRONIC SIGNATURE */}
-            <div className="card-muted mb-6">
+            <div id="step-3" className="card-muted mb-6">
               <div className="flex items-center gap-2 mb-1">
                 <h2 className="font-semibold text-sm m-0">
                   Step 3: Electronic Signature

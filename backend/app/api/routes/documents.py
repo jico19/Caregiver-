@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, Form, Query, HTTPException, Request
 from starlette.concurrency import run_in_threadpool
 from typing import Optional
 from app.core.dependencies import admin_scope_for, get_current_user
+from app.core.supabase import get_supabase
 from app.services.document_service import document_service, MAX_FILE_SIZE
+from app.api.routes.admin import record_audit_log
 
 router = APIRouter()
 
@@ -24,6 +26,7 @@ def get_my_documents(user: dict = Depends(get_current_user)):
 
 @router.post("/upload")
 async def upload_document(
+    request: Request,
     file: UploadFile = File(...),
     document_type_id: int = Form(...),
     expiration_date: Optional[str] = Form(None),
@@ -58,6 +61,18 @@ async def upload_document(
         content_type=content_type,
         expiration_date=expiration_date,
     )
+
+    if record and record.get("id"):
+        record_audit_log(
+            get_supabase(),
+            user_id=user["sub"],
+            action="document_uploaded",
+            table_name="documents",
+            record_id=str(record["id"]),
+            new_values={"document_type_id": document_type_id, "expiration_date": expiration_date},
+            request=request,
+            entity_state_id=user.get("state_id"),
+        )
 
     return {
         "message": "Document uploaded successfully",

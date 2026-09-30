@@ -19,14 +19,18 @@ export default function DocumentsPage() {
 
   const fileInputRef = useRef(null);
 
+  const [docStatus, setDocStatus] = useState(null);
+  const selectedTypeObj = docTypes.find((t) => String(t.id) === String(selectedTypeId));
+
   useEffect(() => {
     let isMounted = true;
 
     async function loadClientDocs() {
       try {
-        const [typesRes, docsRes] = await Promise.all([
+        const [typesRes, docsRes, statusRes] = await Promise.all([
           api.get('/documents/types?role=client', token),
           api.get('/documents/me', token),
+          api.get('/clients/me/document-status', token),
         ]);
 
         if (!isMounted) return;
@@ -34,6 +38,7 @@ export default function DocumentsPage() {
         setDocTypes(types);
         if (types.length > 0) setSelectedTypeId(String(types[0].id));
         setDocuments(docsRes?.documents || []);
+        setDocStatus(statusRes || null);
       } catch (err) {
         if (!isMounted) return;
         setErrorMsg('Failed to load document records.');
@@ -55,6 +60,11 @@ export default function DocumentsPage() {
 
     if (!selectedFile) {
       setErrorMsg('Please select a file to submit.');
+      return;
+    }
+
+    if (selectedTypeObj?.requires_expiration && !expirationDate) {
+      setErrorMsg(`An expiration date is required for ${selectedTypeObj.name}.`);
       return;
     }
 
@@ -80,8 +90,12 @@ export default function DocumentsPage() {
     }
 
     try {
-      const docsRes = await api.get('/documents/me', token);
+      const [docsRes, statusRes] = await Promise.all([
+        api.get('/documents/me', token),
+        api.get('/clients/me/document-status', token),
+      ]);
       setDocuments(docsRes?.documents || []);
+      setDocStatus(statusRes || null);
     } catch (err) {
       setErrorMsg('Upload succeeded, but the document list could not be refreshed. Please reload the page.');
     } finally {
@@ -135,9 +149,53 @@ export default function DocumentsPage() {
         </div>
       )}
 
-      {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+      {/* Requirements Panel */}
+      {docStatus && (
+        <div className="card mb-8">
+          <h2 className="section-title-bordered">
+            State Document Requirements
+          </h2>
+          <div className="grid grid-cols-4 max-md:grid-cols-1 gap-3 mb-4">
+            <div className="p-3 bg-subtle rounded border">
+              <span className="text-xs text-secondary block">Missing Documents</span>
+              <strong className={`text-lg ${docStatus.summary?.missing > 0 ? 'text-red' : 'text-green'}`}>
+                {docStatus.summary?.missing || 0}
+              </strong>
+            </div>
+            <div className="p-3 bg-subtle rounded border">
+              <span className="text-xs text-secondary block">Expired</span>
+              <strong className={`text-lg ${docStatus.summary?.expired > 0 ? 'text-red' : 'text-green'}`}>
+                {docStatus.summary?.expired || 0}
+              </strong>
+            </div>
+            <div className="p-3 bg-subtle rounded border">
+              <span className="text-xs text-secondary block">Expiring Soon</span>
+              <strong className="text-lg text-yellow">
+                {docStatus.summary?.expiring_soon || 0}
+              </strong>
+            </div>
+            <div className="p-3 bg-subtle rounded border">
+              <span className="text-xs text-secondary block">Compliance Status</span>
+              <strong className={`text-sm ${docStatus.summary?.compliant ? 'text-green' : 'text-red'}`}>
+                {docStatus.summary?.compliant ? 'Compliant' : 'Action Required'}
+              </strong>
+            </div>
+          </div>
+          {docStatus.required_types?.length > 0 && (
+            <div>
+              <span className="text-xs font-semibold text-secondary block mb-2">Required for your state:</span>
+              <div className="flex flex-wrap gap-2">
+                {docStatus.required_types.map((rt) => {
+                  const isMissing = docStatus.missing?.some((m) => m.document_type_id === rt.document_type_id);
+                  return (
+                    <span key={rt.document_type_id} className={`badge ${isMissing ? 'badge-red' : 'badge-green'}`}>
+                      {rt.name} {isMissing ? '(Missing)' : '(Uploaded)'}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -167,7 +225,7 @@ export default function DocumentsPage() {
 
           <div>
             <label htmlFor="client-expiration-date">
-              Expiration Date (if applicable)
+              Expiration Date {selectedTypeObj?.requires_expiration ? '*' : '(if applicable)'}
             </label>
             <input
               id="client-expiration-date"

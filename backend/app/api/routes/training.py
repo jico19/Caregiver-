@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from datetime import datetime, timezone
 import hashlib
 from app.core.dependencies import require_caregiver, get_current_user
 from app.core.supabase import get_supabase
 from app.core.soft_delete import active_only
 from app.utils.notifications import notify
+from app.api.routes.admin import record_audit_log
 
 router = APIRouter()
 
@@ -71,7 +72,7 @@ def get_my_enrollments(user: dict = Depends(require_caregiver)):
 
 
 @router.post("/courses/{course_id}/enroll")
-def enroll_in_course(course_id: str, user: dict = Depends(require_caregiver)):
+def enroll_in_course(course_id: str, request: Request, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -105,11 +106,23 @@ def enroll_in_course(course_id: str, user: dict = Depends(require_caregiver)):
     if not ins.data:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to enroll in course.")
 
+    enr_id = ins.data[0]["id"]
+    record_audit_log(
+        supabase,
+        user_id=user_id,
+        action="training_enrollment_created",
+        table_name="training_enrollments",
+        record_id=str(enr_id),
+        new_values={"course_id": course_id, "status": "in_progress"},
+        request=request,
+        entity_state_id=user.get("state_id"),
+    )
+
     return {"message": "Enrolled successfully", "enrollment": ins.data[0]}
 
 
 @router.post("/courses/{course_id}/complete")
-def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
+def complete_course(course_id: str, request: Request, user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
 
@@ -151,6 +164,17 @@ def complete_course(course_id: str, user: dict = Depends(require_caregiver)):
             "completed_at": now_iso,
         }).execute()
         record = ins.data[0] if ins.data else {}
+
+    record_audit_log(
+        supabase,
+        user_id=user_id,
+        action="training_course_completed",
+        table_name="training_enrollments",
+        record_id=str(record.get("id", course_id)),
+        new_values={"course_id": course_id, "status": "completed", "completed_at": now_iso},
+        request=request,
+        entity_state_id=user.get("state_id"),
+    )
 
     # Create notification
     notify(

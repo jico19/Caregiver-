@@ -1,6 +1,6 @@
 # Plan 007 — Audit and Compliance Hardening
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:136-137` (audit logs, electronic signatures)
 **Depends on:** 001 (soft deletion — an audit entry must never reference a hard-deleted row)
 **Review weight:** highest in the set — this plan touches protected health information
@@ -128,7 +128,7 @@ New `backend/tests/test_audit_hardening.py`.
 - Re-signing an agreement creates a second version and preserves the first `body`, `version`, and hash.
 - A caregiver application signature freezes its content hash and the hash does not change on a later profile edit.
 - Every action in defect four produces an audit row.
-- Login, logout, and failed login each produce an audit row.
+- Login, logout, failed login each produce an audit row.
 - A state administrator sees only their own state's audit rows, including via the list endpoint.
 - A `super_admin` sees all states.
 - Rows with a null `entity_state_id` behave as the documented decision requires, tested both ways so the choice is explicit rather than incidental.
@@ -142,16 +142,16 @@ Raise these with the agency as programme work. Do not let a passing test suite i
 
 ## Deliverable tracker
 
-- [ ] A. Migration written and `--dry-run` reviewed
-- [ ] B. `record_audit_log` captures IP, user agent, request id
-- [ ] C. Trusted-proxy handling for `X-Forwarded-For`
-- [ ] D. `required=True` fail-closed mode for signature paths only
-- [ ] E. Agreement versioning with preserved history and content hash
-- [ ] F. Caregiver application content frozen at signing
-- [ ] G. Audit calls for all nine missing write paths
-- [ ] H. Login, logout, and failed-login auditing; logout revokes
-- [ ] I. `GET /admin/audit-logs` state-scoped; email join restricted
-- [ ] J. Middleware request id and lazy logging
-- [ ] K. `tests/test_audit_hardening.py`
-- [ ] L. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
-- [ ] M. Programme gaps written to the agency: BAA, risk assessment, retention, breach procedure, role separation
+- [x] A. Migration written and `--dry-run` reviewed
+- [x] B. `record_audit_log` captures IP, user agent, request id
+- [x] C. Trusted-proxy handling for `X-Forwarded-For`
+- [x] D. `required=True` fail-closed mode for signature paths only
+- [x] E. Agreement versioning with preserved history and content hash
+- [x] F. Caregiver application content frozen at signing
+- [x] G. Audit calls for all nine missing write paths
+- [x] H. Login, logout, and failed-login auditing; logout revokes
+- [x] I. `GET /admin/audit-logs` state-scoped; email join restricted
+- [x] J. Middleware request id and lazy logging
+- [x] K. `tests/test_audit_hardening.py`
+- [x] L. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] M. Programme gaps written to the agency: BAA, risk assessment, retention, breach procedure, role separation

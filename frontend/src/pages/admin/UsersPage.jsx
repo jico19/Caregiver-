@@ -87,6 +87,8 @@ export default function UsersPage() {
     }
   }
 
+  const displayUsers = users.filter((u) => (u.roles?.name || u.role) !== 'super_admin');
+
   return (
     <div className="page-container">
       <div className="page-header flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -112,7 +114,6 @@ export default function UsersPage() {
               <option value="caregiver">Caregiver</option>
               <option value="client">Client</option>
               <option value="administrator">Administrator</option>
-              <option value="super_admin">Super Admin</option>
             </select>
           </div>
 
@@ -175,7 +176,7 @@ export default function UsersPage() {
       <div className="admin-card">
         {loading ? (
           <div className="table-loading-sm">Loading user accounts...</div>
-        ) : users.length === 0 ? (
+        ) : displayUsers.length === 0 ? (
           <div className="table-empty-sm">
             No users found matching the selected criteria.
           </div>
@@ -192,7 +193,7 @@ export default function UsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {displayUsers.map((u) => {
                   const roleName = u.roles?.name || u.role || 'user';
                   const stateName = u.states?.name || (u.state_id ? `State #${u.state_id}` : 'All States');
                   const isSelf = u.id === user?.sub || u.id === user?.id;

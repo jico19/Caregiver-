@@ -72,6 +72,10 @@ def get_state_careers(state: str = Depends(validate_state)):
 from pydantic import BaseModel, Field
 from typing import Optional
 
+from app.utils.notifications import notify
+from app.core.soft_delete import active_only
+from app.api.routes.admin import record_audit_log
+
 
 class ContactInquiryRequest(BaseModel):
     first_name: str = Field(..., min_length=1, max_length=100)
@@ -107,8 +111,47 @@ def submit_contact_inquiry(
     if not res.data:
         raise HTTPException(status_code=500, detail="Failed to record contact inquiry.")
 
+    referral_id = res.data[0]["id"]
+
+    # Notify state administrators and super_admins
+    admin_users = (
+        active_only(
+            supabase.table("users").select("id, state_id, roles(name)"),
+            "users",
+        )
+        .execute()
+    )
+    for u in admin_users.data or []:
+        role_name = (u.get("roles") or {}).get("name")
+        u_state = u.get("state_id")
+        if role_name == "super_admin" or (role_name == "administrator" and u_state == state_row.data["id"]):
+            notify(
+                supabase,
+                u["id"],
+                "new_referral",
+                "New Client Referral",
+                f"New referral submitted: {payload.first_name.strip()} {payload.last_name.strip()}",
+                reference_id=str(referral_id),
+            )
+
+    record_audit_log(
+        supabase,
+        user_id=None,
+        action="create",
+        table_name="client_referrals",
+        record_id=str(referral_id),
+        new_values={
+            "state_id": referral_data["state_id"],
+            "first_name": referral_data["first_name"],
+            "last_name": referral_data["last_name"],
+            "phone": referral_data["phone"],
+            "email": referral_data["email"],
+            "referral_source": referral_data["referral_source"],
+        },
+    )
+
     return {
         "message": f"Thank you! Your inquiry has been routed to our {state_row.data['name']} care coordinator.",
-        "referral_id": res.data[0]["id"],
+        "referral_id": referral_id,
     }
 

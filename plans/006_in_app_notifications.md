@@ -1,6 +1,6 @@
 # Plan 006 — In-App Notifications and Client Document Requirements
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:47` (training reminders), `Scope of work.md:111` (track missing client documents), `Scope of work.md:128` (new referral notifications)
 **Depends on:** 001 (soft deletion — new jobs and lists must filter `deleted_at`)
 
@@ -105,15 +105,15 @@ The three jobs run as in-process asyncio tasks started at `main.py:49-50`, each 
 
 ## Deliverable tracker
 
-- [ ] A. Migration written and `--dry-run` reviewed
-- [ ] B. Client required-document set confirmed with the agency
-- [ ] C. `training_reminders.py` job, modelled on the existing two
-- [ ] D. Three loop bodies consolidated in `main.py`
-- [ ] E. Referral notification and submission audit entry
-- [ ] F. Admin notifications endpoint, page, and badge
-- [ ] G. Client document status endpoint and requirements panel
-- [ ] H. `requires_expiration` honoured on the client upload form
-- [ ] I. Client "Other" document type seeded
-- [ ] J. Real training count on the caregiver dashboard
-- [ ] K. Tests: training reminder idempotency, referral notification scoping, client document status
-- [ ] L. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] A. Migration written and `--dry-run` reviewed
+- [x] B. Client required-document set confirmed with the agency
+- [x] C. `training_reminders.py` job, modelled on the existing two
+- [x] D. Three loop bodies consolidated in `main.py`
+- [x] E. Referral notification and submission audit entry
+- [x] F. Admin notifications endpoint, page, and badge
+- [x] G. Client document status endpoint and requirements panel
+- [x] H. `requires_expiration` honoured on the client upload form
+- [x] I. Client "Other" document type seeded
+- [x] J. Real training count on the caregiver dashboard
+- [x] K. Tests: training reminder idempotency, referral notification scoping, client document status
+- [x] L. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`

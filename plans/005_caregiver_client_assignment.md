@@ -1,6 +1,6 @@
 # Plan 005 — Caregiver to Client Assignment
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** the audit finding that an approved caregiver cannot see the clients they serve. This is the largest structural gap in the platform.
 **Depends on:** 001 (soft deletion), 003, 004
 **Blocks:** nothing, but the platform is not operational without it
@@ -124,13 +124,13 @@ This is the largest plan in the set. It touches four tables, a new authorization
 
 ## Deliverable tracker
 
-- [ ] A. Migration written and `--dry-run` reviewed
-- [ ] B. Caregiver ownership dependency added beside `AdminScope`
-- [ ] C. Read-only caregiver endpoints, with write access denied
-- [ ] D. Admin assignment endpoints
-- [ ] E. RLS policies updated, verified with a positive and a negative case
-- [ ] F. `tests/test_caregiver_assignments.py`
-- [ ] G. Caregiver roster, care plan, and schedule pages
-- [ ] H. Admin assignment panel on both detail pages
-- [ ] I. Demo assignments in `supabase/seeds/03_care_plan_demo.sql`
-- [ ] J. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] A. Migration written and `--dry-run` reviewed
+- [x] B. Caregiver ownership dependency added beside `AdminScope`
+- [x] C. Read-only caregiver endpoints, with write access denied
+- [x] D. Admin assignment endpoints
+- [x] E. RLS policies updated, verified with a positive and a negative case
+- [x] F. `tests/test_caregiver_assignments.py`
+- [x] G. Caregiver roster, care plan, and schedule pages
+- [x] H. Admin assignment panel on both detail pages
+- [x] I. Demo assignments in `supabase/seeds/03_care_plan_demo.sql`
+- [x] J. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`

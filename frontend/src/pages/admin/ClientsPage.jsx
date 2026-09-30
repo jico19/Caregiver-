@@ -1,10 +1,36 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import usePaginatedFetch from '../../hooks/usePaginatedFetch';
 import Pagination from '../../components/common/Pagination';
 
+const CLIENT_STATUS_LABELS = {
+  pending: 'Pending Review',
+  approved: 'Approved',
+  active: 'Active',
+  discharged: 'Discharged',
+  rejected: 'Rejected',
+};
+
+const CLIENT_STATUS_BADGE = {
+  pending: 'badge badge-yellow',
+  approved: 'badge badge-blue',
+  active: 'badge badge-green',
+  discharged: 'badge badge-gray',
+  rejected: 'badge badge-red',
+};
+
 export default function ClientsPage() {
   const { token } = useAuth();
+  const [statusFilter, setStatusFilter] = useState('');
+  const [sortBy, setSortBy] = useState('');
+
+  const params = new URLSearchParams();
+  if (statusFilter) params.set('status', statusFilter);
+  if (sortBy) params.set('sort_by', sortBy);
+  const queryString = params.toString();
+  const fetchUrl = `/admin/clients${queryString ? `?${queryString}` : ''}`;
+
   const {
     items: clients,
     total,
@@ -16,7 +42,7 @@ export default function ClientsPage() {
     setPage,
     setPageSize,
   } = usePaginatedFetch({
-    url: '/admin/clients',
+    url: fetchUrl,
     token,
     listKey: 'clients',
   });
@@ -47,12 +73,55 @@ export default function ClientsPage() {
         </div>
       )}
 
+      {/* Filter and Sort Controls */}
+      <div className="card p-4 mb-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <div>
+            <label htmlFor="client-status-filter" className="sr-only">Filter by Admission Status</label>
+            <select
+              id="client-status-filter"
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value);
+                setPage(1);
+              }}
+              className="text-sm border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="">All Admission Statuses</option>
+              {Object.entries(CLIENT_STATUS_LABELS).map(([val, label]) => (
+                <option key={val} value={val}>{label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="client-sort-by" className="sr-only">Sort Order</label>
+            <select
+              id="client-sort-by"
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setPage(1);
+              }}
+              className="text-sm border border-gray-300 rounded px-2 py-1"
+            >
+              <option value="">Sort: Registration Date (Newest)</option>
+              <option value="service_start_date">Sort: Upcoming Start Date</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="text-xs text-muted">
+          Showing {clients.length} of {total} client records
+        </div>
+      </div>
+
       <div className="admin-card">
         {loading ? (
           <div className="table-loading-sm">Loading client directory...</div>
         ) : clients.length === 0 ? (
           <div className="table-empty-sm">
-            No clients registered yet.
+            No clients found for the selected filter.
           </div>
         ) : (
           <div className="table-responsive">
@@ -61,10 +130,10 @@ export default function ClientsPage() {
                 <tr>
                   <th>Client Name</th>
                   <th>State</th>
+                  <th>Admission Status</th>
+                  <th>Service Start Date</th>
                   <th>Medicaid #</th>
                   <th>Phone</th>
-                  <th>Address</th>
-                  <th>Registered</th>
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
@@ -77,17 +146,19 @@ export default function ClientsPage() {
                     <td className="cell-muted">
                       {c.states?.code || 'FL'}
                     </td>
+                    <td>
+                      <span className={CLIENT_STATUS_BADGE[c.status] || 'badge badge-gray'}>
+                        {CLIENT_STATUS_LABELS[c.status] || c.status || 'Pending'}
+                      </span>
+                    </td>
+                    <td className="cell-muted font-medium">
+                      {c.service_start_date ? new Date(c.service_start_date).toLocaleDateString() : '—'}
+                    </td>
                     <td className="text-primary font-medium">
                       {c.medicaid_number || 'Pending'}
                     </td>
                     <td className="cell-muted">
                       {c.phone || 'N/A'}
-                    </td>
-                    <td className="cell-muted text-xs">
-                      {c.address || 'N/A'}
-                    </td>
-                    <td className="cell-muted">
-                      {new Date(c.created_at).toLocaleDateString()}
                     </td>
                     <td className="text-right">
                       <div className="inline-flex items-center gap-2">
@@ -95,7 +166,7 @@ export default function ClientsPage() {
                           to={`/admin/clients/${c.id}`}
                           className="btn-ghost-download btn-xs"
                         >
-                          View
+                          View / Admit
                         </Link>
                         <Link
                           to={`/admin/authorizations?client_id=${c.id}&client_name=${encodeURIComponent(`${c.first_name} ${c.last_name}`)}&state_id=${c.state_id}`}

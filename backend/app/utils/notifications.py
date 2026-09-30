@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger(__name__)
+
+
 def notify(supabase, user_id: str, type_: str, title: str, body: str, reference_id: str = None) -> None:
     """Insert an in-app notification for a user.
 
@@ -12,4 +17,7 @@ def notify(supabase, user_id: str, type_: str, title: str, body: str, reference_
     }
     if reference_id:
         payload["reference_id"] = reference_id
-    supabase.table("notifications").insert(payload).execute()
+    try:
+        supabase.table("notifications").insert(payload).execute()
+    except Exception as exc:
+        logger.warning("notifications insert failed (type=%s, user=%s): %s", type_, user_id, exc)

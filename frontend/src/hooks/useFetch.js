@@ -14,7 +14,7 @@ import { api } from '../services/api';
  * @returns {{ data, isLoading, isFetching, isSuccess, error, refetch }}
  */
 export default function useFetch(url, options = {}) {
-  const { token } = useAuth();
+  const { user, token } = useAuth();
   const { params = {}, enabled = true, staleTime, defaultData = null } = options;
 
   const qs = new URLSearchParams();
@@ -25,13 +25,16 @@ export default function useFetch(url, options = {}) {
   const search = qs.toString();
   const fullUrl = `${url}${search ? `?${search}` : ''}`;
 
-  const query = useQuery({
-    queryKey: [url, JSON.stringify(params)],
-    queryFn: () => api.get(fullUrl, token || undefined),
+  const queryOptions = {
+    queryKey: [url, params, user?.id],
+    queryFn: ({ signal }) => api.get(fullUrl, token || undefined, signal),
     enabled,
-    staleTime,
     placeholderData: defaultData,
-  });
+  };
+
+  if (staleTime !== undefined) queryOptions.staleTime = staleTime;
+
+  const query = useQuery(queryOptions);
 
   return {
     data: query.data ?? defaultData,

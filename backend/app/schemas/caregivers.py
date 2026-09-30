@@ -16,7 +16,7 @@ class CaregiverProfileUpdate(BaseModel):
 
 class CaregiverApplicationSubmit(CaregiverProfileUpdate):
     notes: Optional[str] = None
-    signature_data: Optional[str] = None
+    signature_data: Optional[str] = Field(None, max_length=250000)
     signed_name: Optional[str] = None
 
 
@@ -31,7 +31,7 @@ class PublicCaregiverApplicationSubmit(BaseModel):
     date_of_birth: Optional[date] = None
     ssn_last4: Optional[str] = Field(None, min_length=4, max_length=4)
     notes: Optional[str] = None
-    signature_data: Optional[str] = None
+    signature_data: Optional[str] = Field(None, max_length=250000)
     signed_name: Optional[str] = None
 
 

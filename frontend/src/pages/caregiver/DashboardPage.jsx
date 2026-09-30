@@ -13,13 +13,16 @@ export default function DashboardPage() {
   const { data: docRes, isLoading: docsLoading } = useFetch('/caregivers/me/documents', { enabled: !!token, defaultData: [] });
   const { data: credentialStatus, isLoading: credLoading } = useFetch('/caregivers/me/credential-status', { enabled: !!token });
   const { data: annRes, isLoading: annLoading } = useFetch('/caregivers/me/announcements', { enabled: !!token, defaultData: [] });
+  const { data: trainingRes, isLoading: trainingLoading } = useFetch('/training/courses', { enabled: !!token });
 
   const profile = profileRes?.profile || null;
   const application = appRes?.application || null;
   const documents = docRes?.documents || [];
   const announcements = annRes?.announcements || [];
+  const courses = trainingRes?.courses || [];
+  const completedTrainingCount = courses.filter((c) => c.enrollment_status === 'completed').length;
 
-  const loading = profileLoading || appLoading || docsLoading || credLoading || annLoading;
+  const loading = profileLoading || appLoading || docsLoading || credLoading || annLoading || trainingLoading;
 
   if (loading) {
     return (
@@ -113,7 +116,7 @@ export default function DashboardPage() {
             <div className="flex justify-between items-center mb-2">
               <span className="font-semibold text-xs">Step 3: Training</span>
               <span className="badge badge-gray">
-                In-Service
+                {completedTrainingCount} / {courses.length} Completed
               </span>
             </div>
             <p className="text-secondary text-xs mb-3">

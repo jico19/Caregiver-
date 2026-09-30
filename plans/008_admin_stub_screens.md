@@ -1,6 +1,6 @@
 # Plan 008 — Admin Training and Settings Screens
 
-**Status:** Planned
+**Status:** Completed
 **Closes:** `Scope of work.md:104` (monitor training completion)
 **Depends on:** 001 (soft deletion); 006 for the `for_role` column used by Settings
 
@@ -74,13 +74,13 @@ New `backend/tests/test_admin_settings.py`.
 
 ## Deliverable tracker
 
-- [ ] A. Training and Settings routes removed from `AppRoutes.jsx` until built
-- [ ] B. Required document set confirmed with the agency
-- [ ] C. `GET /admin/training` and detail, state-scoped
-- [ ] D. Admin training assignment endpoint with an audit entry
-- [ ] E. `admin/TrainingPage.jsx` built, overdue-first
-- [ ] F. Document requirements read and update endpoints
-- [ ] G. `admin/SettingsPage.jsx` built as a per-state checklist
-- [ ] H. Routes re-added to `AppRoutes.jsx` and the nav in `AdminLayout.jsx`
-- [ ] I. `tests/test_admin_settings.py`
-- [ ] J. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
+- [x] A. Training and Settings routes verified in `AppRoutes.jsx`
+- [x] B. Required document set confirmed with the agency
+- [x] C. `GET /admin/training` and detail, state-scoped
+- [x] D. Admin training assignment endpoint with an audit entry
+- [x] E. `admin/TrainingPage.jsx` built, overdue-first
+- [x] F. Document requirements read and update endpoints
+- [x] G. `admin/SettingsPage.jsx` built as a per-state checklist
+- [x] H. Routes mounted in `AppRoutes.jsx` and nav in `AdminLayout.jsx`
+- [x] I. `tests/test_admin_settings.py`
+- [x] J. Verify: `pytest -q`, `compileall`, `npm.cmd run lint`, `npm.cmd run build`
