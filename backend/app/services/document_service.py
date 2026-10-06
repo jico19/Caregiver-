@@ -22,7 +22,9 @@ class DocumentService:
         return get_supabase()
 
     def get_document_types(self, role: str | None = None):
-        query = self.supabase.table("document_types").select("*")
+        query = self.supabase.table("document_types").select(
+            "id, name, description, for_role, requires_expiration"
+        )
         if role:
             query = query.in_("for_role", [role, "both"])
         res = query.order("name").execute()
@@ -41,7 +43,7 @@ class DocumentService:
         res = (
             active_only(
                 self.supabase.table("documents").select(
-                    "*, document_types(name, for_role, requires_expiration)"
+                    "id, owner_id, state_id, document_type_id, status, storage_path, expiration_date, uploaded_at, document_types(name, requires_expiration)"
                 ),
                 "documents",
             )

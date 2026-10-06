@@ -72,7 +72,7 @@ def get_credential_status(user: dict = Depends(require_caregiver)):
     docs_res = (
         active_only(
             supabase.table("documents").select(
-                "*, document_types(name, requires_expiration)"
+                "id, owner_id, state_id, document_type_id, status, expiration_date, uploaded_at, document_types(name, requires_expiration)"
             ),
             "documents",
         )

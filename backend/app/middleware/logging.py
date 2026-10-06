@@ -3,6 +3,8 @@ import time
 import logging
 from fastapi import Request
 
+from app.core.supabase import db_metrics
+
 logger = logging.getLogger(__name__)
 
 
@@ -10,16 +12,25 @@ async def log_requests(request: Request, call_next):
     start = time.time()
     req_id = str(uuid.uuid4())
     request.state.request_id = req_id
-    request.state.db_queries = 0
-    request.state.db_duration = 0.0
 
-    response = await call_next(request)
+    # Initialize contextvar for this request
+    metrics = {"queries": 0, "duration": 0.0}
+    token = db_metrics.set(metrics)
+
+    try:
+        response = await call_next(request)
+    finally:
+        db_metrics.reset(token)
+
+    request.state.db_queries = metrics["queries"]
+    request.state.db_duration = metrics["duration"]
+
     duration = time.time() - start
     response.headers["X-Request-ID"] = req_id
 
     db_info = ""
-    if getattr(request.state, "db_queries", 0) > 0:
-        db_info = f" db_queries={request.state.db_queries} db_time={request.state.db_duration:.3f}s"
+    if metrics["queries"] > 0:
+        db_info = f" db_queries={metrics['queries']} db_time={metrics['duration']:.3f}s"
 
     logger.info(
         "%s %s %s %.3fs%s req_id=%s",

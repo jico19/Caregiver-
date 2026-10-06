@@ -9,9 +9,33 @@ from app.core.soft_delete import (
     SOFT_DELETE_TABLES,
     active_only,
 )
+from typing import Any
 from fastapi import APIRouter, Depends
+import time
+from app.schemas.reports import AdminReportsResponse
 
 router = APIRouter()
+
+# Memoize static reference data (states, document_types) with a short 60s TTL
+_REF_CACHE: dict[str, tuple[float, Any]] = {}
+_REF_TTL = 60.0
+
+
+def invalidate_reports_cache():
+    """Clear memoized static reference data (for tests and cache flushes)."""
+    global _REF_CACHE
+    _REF_CACHE.clear()
+
+
+def _get_cached_ref(key: str, fetcher):
+    now = time.time()
+    if key in _REF_CACHE:
+        ts, data = _REF_CACHE[key]
+        if now - ts < _REF_TTL:
+            return data
+    data = fetcher()
+    _REF_CACHE[key] = (now, data)
+    return data
 
 
 def _parse_iso_date(value):
@@ -25,9 +49,9 @@ def _parse_iso_date(value):
         return None
 
 
-@router.get("/reports")
+@router.get("/reports", response_model=AdminReportsResponse)
 def generate_reports(scope: AdminScope = Depends(require_admin_scoped)):
-    """Aggregate snapshot across all SOW reports with explicit column projections (fixes P2)."""
+    """Aggregate snapshot across all SOW reports with explicit column projections and reference cache."""
     supabase = get_supabase()
     today = date.today()
     soon_through = today + timedelta(days=30)
@@ -40,9 +64,15 @@ def generate_reports(scope: AdminScope = Depends(require_admin_scoped)):
             query = scope_query(query, scope)
         return (query.execute().data) or []
 
-    states = {s["id"]: s for s in _fetch_all("states", "id, code, name", state_scoped=False)}
+    states = _get_cached_ref(
+        "states",
+        lambda: {s["id"]: s for s in _fetch_all("states", "id, code, name", state_scoped=False)}
+    )
+    doc_types = _get_cached_ref(
+        "doc_types",
+        lambda: {d["id"]: d for d in _fetch_all("document_types", "id, name", state_scoped=False)}
+    )
     users = {u["id"]: u for u in _fetch_all("users", "id, email, status", state_scoped=False)}
-    doc_types = {d["id"]: d for d in _fetch_all("document_types", "id, name", state_scoped=False)}
     caregivers = _fetch_all("caregivers", "id, state_id, first_name, last_name")
     clients = {c["id"]: c for c in _fetch_all("clients", "id, state_id, first_name, last_name")}
     requirements = _fetch_all("document_requirements", "state_id, document_type_id, required")

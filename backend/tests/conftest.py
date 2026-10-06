@@ -434,11 +434,13 @@ def make_db():
 
 
 from app.core.dependencies import invalidate_user_cache
+from app.api.routes.admin.reports import invalidate_reports_cache
 
 
 @pytest.fixture
 def client(monkeypatch):
     invalidate_user_cache()
+    invalidate_reports_cache()
     db = make_db()
     fake = FakeSupabase(db, USERS)
 

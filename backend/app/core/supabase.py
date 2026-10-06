@@ -4,11 +4,29 @@ from httpx import Client as SyncClient
 from supabase import create_client, Client
 from app.core.config import settings
 
+import time
+from contextvars import ContextVar
+
+# Tracks (query_count: int, total_duration_seconds: float) per request thread/task
+db_metrics: ContextVar[dict | None] = ContextVar("db_metrics", default=None)
+
 # Force http2=False on postgrest and auth to prevent RemoteProtocolError ("Server disconnected")
-# caused by stale HTTP/2 connection reuse when idle.
+# caused by stale HTTP/2 connection reuse when idle, and instrument latency/query counts.
 _orig_postgrest_session = postgrest.SyncPostgrestClient.create_session
 
 def _safe_postgrest_session(self, base_url, headers, timeout, verify=True, proxy=None):
+    def on_request(request):
+        request.extensions["start_time"] = time.time()
+
+    def on_response(response):
+        start = response.request.extensions.get("start_time")
+        if start is not None:
+            elapsed = time.time() - start
+            metrics = db_metrics.get()
+            if metrics is not None:
+                metrics["queries"] += 1
+                metrics["duration"] += elapsed
+
     return SyncClient(
         base_url=base_url,
         headers=headers,
@@ -17,6 +35,7 @@ def _safe_postgrest_session(self, base_url, headers, timeout, verify=True, proxy
         proxy=proxy,
         follow_redirects=True,
         http2=False,
+        event_hooks={"request": [on_request], "response": [on_response]},
     )
 
 postgrest.SyncPostgrestClient.create_session = _safe_postgrest_session

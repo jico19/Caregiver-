@@ -6,10 +6,12 @@ from app.core.supabase import get_supabase
 from app.services.document_service import document_service, MAX_FILE_SIZE
 from app.services.audit import record_audit_log
 
+from app.schemas.documents import DocumentTypeListResponse, DocumentListResponse
+
 router = APIRouter()
 
 
-@router.get("/types")
+@router.get("/types", response_model=DocumentTypeListResponse)
 def get_document_types(
     role: Optional[str] = Query(None, description="caregiver or client"),
     user: dict = Depends(get_current_user),
@@ -18,7 +20,7 @@ def get_document_types(
     return {"document_types": types}
 
 
-@router.get("/me")
+@router.get("/me", response_model=DocumentListResponse)
 def get_my_documents(user: dict = Depends(get_current_user)):
     docs = document_service.get_user_documents(user_id=user["sub"])
     return {"documents": docs}
