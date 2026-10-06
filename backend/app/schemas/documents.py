@@ -4,12 +4,22 @@ from datetime import datetime, date
 from app.models.enums import DocumentStatus
 
 
+class DocumentTypeInfo(BaseModel):
+    name: Optional[str] = None
+    requires_expiration: Optional[bool] = None
+
+
 class DocumentResponse(BaseModel):
     id: str
     owner_id: str
     document_type_id: int
     state_id: Optional[int] = None
-    storage_path: str
+    storage_path: Optional[str] = None
     status: DocumentStatus
     expiration_date: Optional[date] = None
     uploaded_at: datetime
+    document_types: Optional[DocumentTypeInfo] = None
+
+
+class DocumentListResponse(BaseModel):
+    documents: list[DocumentResponse]

@@ -10,6 +10,9 @@ from app.core.supabase import get_supabase
 router = APIRouter()
 
 
+from app.schemas.documents import DocumentListResponse
+
+
 def _parse_date(value) -> Optional[date]:
     if isinstance(value, date):
         return value
@@ -19,7 +22,7 @@ def _parse_date(value) -> Optional[date]:
         return None
 
 
-@router.get("/me/documents")
+@router.get("/me/documents", response_model=DocumentListResponse)
 def get_my_documents(user: dict = Depends(require_caregiver)):
     supabase = get_supabase()
     user_id = user.get("sub")
@@ -27,7 +30,7 @@ def get_my_documents(user: dict = Depends(require_caregiver)):
     res = (
         active_only(
             supabase.table("documents").select(
-                "*, document_types(name, requires_expiration)"
+                "id, owner_id, document_type_id, state_id, storage_path, status, expiration_date, uploaded_at, document_types(name, requires_expiration)"
             ),
             "documents",
         )

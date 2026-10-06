@@ -291,6 +291,11 @@ class FakeAdmin:
         self.db.setdefault("auth_users", []).append({"id": uid, "email": email})
         return type("Res", (), {"user": FakeUser(uid, email)})()
 
+    def delete_user(self, uid):
+        auth_users = self.db.get("auth_users", [])
+        self.db["auth_users"] = [u for u in auth_users if u["id"] != uid]
+        return None
+
 
 class FakeBucket:
     def __init__(self):

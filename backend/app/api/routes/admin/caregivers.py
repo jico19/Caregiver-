@@ -22,6 +22,8 @@ from app.utils.pagination import PaginationParams, paginate
 
 logger = logging.getLogger(__name__)
 
+from app.schemas.caregivers import CaregiverApplicationListResponse
+
 router = APIRouter()
 
 
@@ -30,7 +32,7 @@ class ApplicationReviewRequest(BaseModel):
     notes: Optional[str] = None
 
 
-@router.get("/caregivers")
+@router.get("/caregivers", response_model=CaregiverApplicationListResponse)
 def list_caregivers(
     status_filter: Optional[str] = Query(None, alias="status"),
     params: PaginationParams = Depends(),
