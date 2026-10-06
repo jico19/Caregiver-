@@ -15,6 +15,14 @@ def test_suspended_user_is_denied_access(client):
     assert res.status_code == 403
     assert res.json()["detail"] == "Account suspended"
 
+    # Attempt to log in with suspended user credentials
+    res_login = c.post("/api/v1/auth/login", json={"email": "caregiver@test.com", "password": "password"})
+    assert res_login.status_code == 403
+    assert res_login.json()["detail"] == "Account suspended"
+
+    failed_logs = [log for log in db["audit_logs"] if log.get("action") == "user_login_failed" and log.get("new_values", {}).get("reason") == "suspended"]
+    assert len(failed_logs) == 1
+
 
 def test_reactivation_restores_access(client):
     c, db, fake = client
@@ -39,6 +47,9 @@ def test_reactivation_restores_access(client):
     # Access restored
     res_active = c.get("/api/v1/caregivers/me", headers=auth_headers("u-caregiver"))
     assert res_active.status_code != 403
+
+    res_login_active = c.post("/api/v1/auth/login", json={"email": "caregiver@test.com", "password": "password"})
+    assert res_login_active.status_code == 200
 
 
 def test_unscoped_administrator_denied(client):

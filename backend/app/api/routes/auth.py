@@ -43,13 +43,30 @@ def login(data: LoginRequest, request: Request):
     # reach any role-gated surface.
     user_row = (
         active_only(
-            admin_client.table("users").select("role_id, state_id, roles(name)"),
+            admin_client.table("users").select("role_id, state_id, status, roles(name)"),
             "users",
         )
         .eq("id", str(res.user.id))
         .single()
         .execute()
     )
+
+    if user_row.data and user_row.data.get("status") == "suspended":
+        record_audit_log(
+            admin_client,
+            user_id=str(res.user.id),
+            action="user_login_failed",
+            table_name="users",
+            record_id=str(res.user.id),
+            new_values={"email": data.email, "reason": "suspended"},
+            request=request,
+            entity_state_id=user_row.data.get("state_id"),
+        )
+        try:
+            admin_client.auth.admin.sign_out(str(res.user.id))
+        except Exception:
+            pass
+        raise HTTPException(status_code=403, detail="Account suspended")
 
     role = "public"
     state_id = None
