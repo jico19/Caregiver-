@@ -330,6 +330,65 @@ class FakeSupabase:
     def table(self, name):
         return FakeQuery(name, self.db)
 
+    def rpc(self, name, params=None):
+        params = params or {}
+        db = self.db
+
+        class FakeRpcQuery:
+            def execute(_self):
+                if name == "create_caregiver_application_atomic":
+                    user_id = params.get("p_user_id")
+                    state_id = params.get("p_state_id")
+                    email = params.get("p_email")
+                    profile = params.get("p_profile", {})
+                    app_data = params.get("p_application", {})
+
+                    # 1. users
+                    users = db.setdefault("users", [])
+                    u_idx = next((i for i, u in enumerate(users) if u.get("id") == user_id), None)
+                    user_row = {
+                        "id": user_id,
+                        "email": email,
+                        "role_id": 2,
+                        "state_id": state_id,
+                        "status": "active",
+                    }
+                    if u_idx is not None:
+                        users[u_idx].update(user_row)
+                    else:
+                        users.append(user_row)
+
+                    # 2. caregivers
+                    caregivers = db.setdefault("caregivers", [])
+                    c_idx = next((i for i, c in enumerate(caregivers) if c.get("id") == user_id), None)
+                    c_row = {
+                        "id": user_id,
+                        "state_id": state_id,
+                        **profile,
+                    }
+                    if c_idx is not None:
+                        caregivers[c_idx].update(c_row)
+                    else:
+                        caregivers.append(c_row)
+
+                    # 3. caregiver_applications
+                    apps = db.setdefault("caregiver_applications", [])
+                    seq = db.setdefault("__counters", {}).get("caregiver_applications", 0) + 1
+                    db["__counters"]["caregiver_applications"] = seq
+                    created_app = {
+                        "id": f"caregiver_applications-{seq}",
+                        "caregiver_id": user_id,
+                        "state_id": state_id,
+                        "status": "submitted",
+                        **app_data,
+                    }
+                    apps.append(created_app)
+                    return FakeResponse(created_app)
+
+                raise NotImplementedError(f"RPC {name} not implemented in FakeSupabase")
+
+        return FakeRpcQuery()
+
 
 def make_db():
     return {

@@ -122,38 +122,29 @@ def test_apply_public_rejects_bad_email(client):
     assert len(db["caregiver_applications"]) == 0
 
 
-def test_apply_public_compensates_on_insert_failure(client, monkeypatch):
+def test_apply_public_atomic_rpc_failure_cleans_auth(client, monkeypatch):
     c, db, _ = client
 
-    # Simulate failure on caregiver_applications insert
-    original_table = None
-
-    from app.api.routes.caregivers import applications as app_module
-
-    def buggy_get_supabase():
-        client_obj = app_module.get_supabase.__wrapped__() if hasattr(app_module.get_supabase, "__wrapped__") else app_module.get_supabase()
-        return client_obj
-
-    # We patch table("caregiver_applications").insert to raise an exception
     from conftest import FakeSupabase
-    orig_table = FakeSupabase.table
+    orig_rpc = FakeSupabase.rpc
 
-    def mock_table(self, name):
-        builder = orig_table(self, name)
-        if name == "caregiver_applications":
-            orig_insert = builder.insert
-            def faulty_insert(data):
-                raise RuntimeError("Database connection lost during insert")
-            builder.insert = faulty_insert
-        return builder
+    def mock_rpc(self, name, params=None):
+        if name == "create_caregiver_application_atomic":
+            class FaultyRpc:
+                def execute(_self):
+                    raise RuntimeError("Postgres constraint violation inside atomic RPC")
+            return FaultyRpc()
+        return orig_rpc(self, name, params)
 
-    monkeypatch.setattr(FakeSupabase, "table", mock_table)
+    monkeypatch.setattr(FakeSupabase, "rpc", mock_rpc)
 
     r = c.post("/api/v1/caregivers/apply-public", json=PUBLIC_PAYLOAD)
     assert r.status_code == 500
     assert "Application submission failed" in r.json()["detail"]
 
-    # Verify compensation rolled back users, caregivers, and auth user
-    assert not any(u["email"] == PUBLIC_PAYLOAD["email"] for u in db.get("users", []))
-    assert not any(c["id"] == "u-jane" for c in db.get("caregivers", []))
-    assert not any(a["id"] == "u-jane" for a in db.get("auth_users", []))
+    # In atomic RPC failure, no rows were written to users/caregivers/applications
+    assert not any(u.get("email") == PUBLIC_PAYLOAD["email"] for u in db.get("users", []))
+    assert not any(cg.get("id") == "u-jane" for cg in db.get("caregivers", []))
+    assert len(db.get("caregiver_applications", [])) == 0
+    # Auth user was cleaned up
+    assert not any(a.get("id") == "u-jane" for a in db.get("auth_users", []))

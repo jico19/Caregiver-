@@ -55,72 +55,58 @@ def apply_public(payload: PublicCaregiverApplicationSubmit, request: Request):
 
     user_id = str(auth_res.user.id)
 
-    # 2-4: Insert users, caregivers profile, and caregiver_applications with rollback compensation
+    # 2-4: Atomic creation of user, caregiver profile, and caregiver application via Postgres RPC
+    profile_data = {
+        "first_name": payload.first_name,
+        "last_name": payload.last_name,
+        "phone": payload.phone,
+        "address": payload.address,
+        "date_of_birth": str(payload.date_of_birth) if payload.date_of_birth else None,
+        "ssn_last4": payload.ssn_last4,
+    }
+    content_hash = hashlib.sha256(json.dumps(payload.model_dump(), sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    app_payload = {
+        "notes": payload.notes,
+        "version": 1,
+        "content_hash": content_hash,
+        **signature,
+    }
+
     try:
-        role_row = supabase.table("roles").select("id").eq("name", "caregiver").single().execute()
-        role_id = role_row.data["id"] if role_row.data else 2
+        rpc_res = supabase.rpc(
+            "create_caregiver_application_atomic",
+            {
+                "p_user_id": user_id,
+                "p_state_id": state_id,
+                "p_email": payload.email,
+                "p_profile": profile_data,
+                "p_application": app_payload,
+            },
+        ).execute()
 
-        supabase.table("users").insert({
-            "id": user_id,
-            "email": payload.email,
-            "role_id": role_id,
-            "state_id": state_id,
-            "status": "active",
-        }).execute()
+        app_record = rpc_res.data
+        if not app_record:
+            raise RuntimeError("RPC returned empty record")
 
-        profile_data = {
-            "id": user_id,
-            "state_id": state_id,
-            "first_name": payload.first_name,
-            "last_name": payload.last_name,
-            "phone": payload.phone,
-            "address": payload.address,
-            "date_of_birth": str(payload.date_of_birth) if payload.date_of_birth else None,
-            "ssn_last4": payload.ssn_last4,
-        }
-        supabase.table("caregivers").insert(profile_data).execute()
-
-        now_iso = datetime.now(timezone.utc).isoformat()
-        content_hash = hashlib.sha256(json.dumps(payload.model_dump(), sort_keys=True, default=str).encode("utf-8")).hexdigest()
-        app_data = {
-            "caregiver_id": user_id,
-            "state_id": state_id,
-            "status": "submitted",
-            "submitted_at": now_iso,
-            "notes": payload.notes,
-            "version": 1,
-            "content_hash": content_hash,
-            **signature,
-        }
-        app_res = supabase.table("caregiver_applications").insert(app_data).execute()
-
-        if app_res.data:
-            record_audit_log(
-                supabase,
-                user_id,
-                "caregiver_application_signed",
-                "caregiver_applications",
-                app_res.data[0].get("id"),
-                new_values={
-                    "signed_name": signature["signed_name"],
-                    "signed_at": signature["signed_at"],
-                    "content_hash": content_hash,
-                    "version": 1,
-                },
-                request=request,
-                required=True,
-                entity_state_id=state_id,
-            )
+        record_audit_log(
+            supabase,
+            user_id,
+            "caregiver_application_signed",
+            "caregiver_applications",
+            app_record.get("id"),
+            new_values={
+                "signed_name": signature["signed_name"],
+                "signed_at": signature["signed_at"],
+                "content_hash": content_hash,
+                "version": 1,
+            },
+            request=request,
+            required=True,
+            entity_state_id=state_id,
+        )
     except Exception as exc:
-        # Compensation rollback: clean up partial writes and delete auth user to avoid orphan accounts
-        try:
-            supabase.table("caregivers").delete().eq("id", user_id).execute()
-        except Exception:
-            pass
-        try:
-            supabase.table("users").delete().eq("id", user_id).execute()
-        except Exception:
-            pass
+        # Atomic rollback: Postgres automatically rolls back all tables in the RPC transaction.
+        # Only clean up the auth user account:
         try:
             supabase.auth.admin.delete_user(user_id)
         except Exception:
@@ -159,7 +145,7 @@ def apply_public(payload: PublicCaregiverApplicationSubmit, request: Request):
 
     return {
         "message": "Application submitted successfully",
-        "application": app_res.data[0] if app_res.data else None,
+        "application": app_record,
         "session": session_data,
     }
 
