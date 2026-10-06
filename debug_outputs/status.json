@@ -1,0 +1,14 @@
+{
+  "incident_id": "4fea9784-1b22-44cb-ad27-b379bd012cd3",
+  "status": "resolved",
+  "error_type": "APIError",
+  "postgres_code": "42703",
+  "error_message": "column caregivers.user_id does not exist",
+  "file": "backend/app/api/routes/admin_users.py",
+  "lines_fixed": [111, 119, 299, 301, 303, 309],
+  "verification": {
+    "targeted_tests": "25 passed",
+    "full_suite": "251 passed",
+    "compile_check": "exit 0"
+  }
+}

@@ -1,5 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 export default function CaregiverClientCarePlanPage() {
   const { clientId } = useParams();
@@ -7,22 +12,24 @@ export default function CaregiverClientCarePlanPage() {
 
   if (loading) {
     return (
-      <div className="portal-container">
-        <div className="portal-card">Loading care plan...</div>
-      </div>
+      <PageContainer>
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading care plan...
+        </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="portal-container">
-        <div className="portal-card error-card">
-          <p>Unable to load care plan: {error.message || 'You may not be assigned to this client.'}</p>
-          <Link to="/caregiver/clients" className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>
-            Back to My Clients
-          </Link>
+      <PageContainer>
+        <div role="alert" className="alert alert-error mb-4">
+          <span>Unable to load care plan: {error.message || 'You may not be assigned to this client.'}</span>
         </div>
-      </div>
+        <Link to="/caregiver/clients" className="btn btn-outline btn-sm">
+          Back to My Clients
+        </Link>
+      </PageContainer>
     );
   }
 
@@ -30,84 +37,88 @@ export default function CaregiverClientCarePlanPage() {
   const client = data?.client;
 
   return (
-    <div className="portal-container">
-      <div className="portal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <Link to="/caregiver/clients" style={{ fontSize: '0.875rem', color: 'var(--color-primary)', textDecoration: 'none' }}>
-            ← Back to My Clients
-          </Link>
-          <h1 className="portal-title" style={{ marginTop: '0.25rem' }}>
-            Care Plan: {carePlan?.client_name || client?.first_name || 'Client'}
-          </h1>
-          <p className="portal-subtitle">Read-only plan of care instructions</p>
-        </div>
-        <span className="badge badge-success" style={{ textTransform: 'capitalize' }}>
-          {carePlan?.plan_status || 'Active'}
-        </span>
+    <PageContainer>
+      <div className="mb-2">
+        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+          ← Back to My Clients
+        </Link>
       </div>
 
+      <PageHeader
+        title={`Care Plan: ${carePlan?.client_name || client?.first_name || 'Client'}`}
+        subtitle="Read-only plan of care instructions"
+        actions={
+          carePlan?.plan_status ? (
+            <StatusBadge status={carePlan.plan_status} label={carePlan.plan_status} />
+          ) : null
+        }
+      />
+
       {!carePlan ? (
-        <div className="portal-card" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 0 }}>
-            No care plan has been filed for this client yet.
-          </p>
-        </div>
+        <EmptyState
+          title="No care plan filed"
+          description="No care plan has been filed for this client yet."
+        />
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="portal-card">
-            <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--color-text-muted)' }}>
-              PLAN DETAILS
-            </h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+        <div className="space-y-6">
+          <Card className="p-5">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+              Plan Details
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Primary Nurse:</strong>
-                <div>{carePlan.primary_nurse || 'Unassigned'}</div>
+                <span className="text-xs text-slate-500 block mb-0.5">Primary Nurse</span>
+                <span className="text-sm font-semibold text-slate-900">{carePlan.primary_nurse || 'Unassigned'}</span>
               </div>
               <div>
-                <strong style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Effective Date:</strong>
-                <div>{carePlan.effective_date || 'N/A'}</div>
+                <span className="text-xs text-slate-500 block mb-0.5">Effective Date</span>
+                <span className="text-sm font-semibold text-slate-900">{carePlan.effective_date || 'N/A'}</span>
               </div>
             </div>
-          </div>
+          </Card>
 
-          <div className="portal-card">
-            <h3 style={{ marginTop: 0, marginBottom: '0.75rem', fontSize: '1rem', color: 'var(--color-text-muted)' }}>
-              DAILY ACTIVITIES & DUTIES
-            </h3>
+          <Card className="p-5">
+            <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">
+              Daily Activities & Duties
+            </h2>
             {!carePlan.daily_activities || carePlan.daily_activities.length === 0 ? (
-              <p style={{ color: 'var(--color-text-secondary)' }}>No scheduled activities listed.</p>
+              <p className="text-xs text-slate-500 m-0">No scheduled activities listed.</p>
             ) : (
-              <table className="table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th>Task</th>
-                    <th>Frequency</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {carePlan.daily_activities.map((act, idx) => (
-                    <tr key={idx}>
-                      <td><strong>{act.task}</strong></td>
-                      <td>{act.frequency || 'As scheduled'}</td>
-                      <td>{act.notes || '—'}</td>
+              <div className="overflow-x-auto">
+                <table className="table table-sm w-full">
+                  <thead>
+                    <tr className="border-b border-base-300 text-slate-500 text-xs">
+                      <th>Task</th>
+                      <th>Frequency</th>
+                      <th>Notes</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {carePlan.daily_activities.map((act, idx) => (
+                      <tr key={idx} className="border-b border-base-300/60 hover:bg-base-200/50">
+                        <td className="font-semibold text-slate-900 text-xs">{act.task}</td>
+                        <td className="text-slate-600 text-xs">{act.frequency || 'As scheduled'}</td>
+                        <td className="text-slate-500 text-xs">{act.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </div>
+          </Card>
 
           {carePlan.emergency_protocol && (
-            <div className="portal-card" style={{ borderLeft: '4px solid var(--color-warning, #f59e0b)' }}>
-              <h3 style={{ marginTop: 0, marginBottom: '0.5rem', fontSize: '1rem', color: 'var(--color-warning-dark, #b45309)' }}>
-                EMERGENCY PROTOCOL
-              </h3>
-              <p style={{ whiteSpace: 'pre-wrap', margin: 0 }}>{carePlan.emergency_protocol}</p>
-            </div>
+            <Card className="p-5 border-l-4 border-l-amber-500">
+              <h2 className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">
+                Emergency Protocol
+              </h2>
+              <p className="text-xs text-slate-700 leading-normal whitespace-pre-wrap m-0">
+                {carePlan.emergency_protocol}
+              </p>
+            </Card>
           )}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

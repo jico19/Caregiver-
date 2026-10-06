@@ -57,7 +57,7 @@ def fetch_care_plan_with_activities(supabase, client_id: str):
     activities_res = (
         active_only(
             supabase.table("care_plan_activities").select(
-                "id, care_plan_id, task, frequency, notes, sort_order, created_at, updated_at"
+                "id, care_plan_id, task, frequency, notes, sort_order, created_at"
             ),
             "care_plan_activities",
         )

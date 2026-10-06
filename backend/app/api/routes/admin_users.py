@@ -108,7 +108,7 @@ def get_user(
     if role_name == "caregiver":
         cg_res = (
             active_only(supabase.table("caregivers").select("*"), "caregivers")
-            .eq("user_id", user_id)
+            .eq("id", user_id)
             .execute()
         )
         if cg_res.data:
@@ -116,7 +116,7 @@ def get_user(
     elif role_name == "client":
         cl_res = (
             active_only(supabase.table("clients").select("*"), "clients")
-            .eq("user_id", user_id)
+            .eq("id", user_id)
             .execute()
         )
         if cl_res.data:
@@ -294,22 +294,16 @@ def offboard_user(
     supabase.table("users").update({"status": "inactive", **stamp}).eq("id", user_id).execute()
     invalidate_user_cache(user_id)
 
-    # 2. Soft-delete profile rows and document rows (supports schema id and user_id)
+    # 2. Soft-delete profile rows and document rows (caregivers/clients keyed by id = user_id; documents by owner_id)
     supabase.table("caregivers").update(stamp).eq("id", user_id).execute()
-    supabase.table("caregivers").update(stamp).eq("user_id", user_id).execute()
     supabase.table("clients").update(stamp).eq("id", user_id).execute()
-    supabase.table("clients").update(stamp).eq("user_id", user_id).execute()
     supabase.table("documents").update(stamp).eq("owner_id", user_id).execute()
-    supabase.table("documents").update(stamp).eq("user_id", user_id).execute()
 
     # 3. Soft-delete dependent clinical rows for caregiver & client
     supabase.table("caregiver_applications").update(stamp).eq("caregiver_id", user_id).execute()
     supabase.table("training_enrollments").update(stamp).eq("caregiver_id", user_id).execute()
 
-    cl_rows = supabase.table("clients").select("id").eq("user_id", user_id).execute()
     cl_ids = [user_id]
-    if cl_rows and cl_rows.data:
-        cl_ids.extend([c["id"] for c in cl_rows.data if c.get("id")])
 
     plans_res = supabase.table("care_plans").select("id").in_("client_id", cl_ids).execute()
     if plans_res.data:

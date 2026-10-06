@@ -1,5 +1,11 @@
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import LoadingState from '../../../shared/components/common/LoadingState';
 
 export default function SchedulePage() {
   const { token } = useAuth();
@@ -10,68 +16,59 @@ export default function SchedulePage() {
   const schedule = data?.schedule || (Array.isArray(data) ? data : []);
 
   if (loading) {
-    return <div className="loading-text">Loading visit schedule...</div>;
+    return (
+      <LoadingState
+        title="Loading Visit Schedule..."
+        subtitle="Retrieving confirmed weekly appointments..."
+        variant="page"
+      />
+    );
   }
 
   return (
-    <div className="container-880">
-      <div className="page-head">
-        <h1 className="page-title">
-          Upcoming Caregiver Visit Schedule
-        </h1>
-        <p className="page-subtitle">
-          Weekly shift appointments confirmed by your agency care coordinator.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Upcoming Caregiver Visit Schedule"
+        subtitle="Weekly shift appointments confirmed by your agency care coordinator."
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg}</span>
         </div>
       )}
 
       {schedule.length === 0 && !errorMsg && (
-
-        <div className="card p-8 text-center">
-          <h2 className="card-title mb-1">No Visits Scheduled Yet</h2>
-          <p className="empty-text">
-            Your care coordinator has not confirmed any caregiver visits yet.
-            Once a weekly schedule is set, your visit days and times will appear here.
-          </p>
-        </div>
+        <EmptyState
+          title="No Visits Scheduled Yet"
+          description="Your care coordinator has not confirmed any caregiver visits yet. Once a weekly schedule is set, your visit days and times will appear here."
+        />
       )}
 
       {schedule.length > 0 && (
-      <div className="grid grid-cols-3 max-md:grid-cols-1 gap-4">
-        {schedule.map((item, idx) => (
-          <div
-            key={idx}
-            className="schedule-card"
-          >
-            <div>
-              <div className="schedule-card-head">
-                <strong className="schedule-day">{item.day}</strong>
-                <span className={`badge ${item.status === 'Confirmed' ? 'badge-green' : 'badge-blue'}`}>
-                  {item.status}
-                </span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          {schedule.map((item, idx) => (
+            <Card key={idx} compact>
+              <div className="flex justify-between items-center mb-2 pb-2 border-b border-base-300">
+                <strong className="text-sm font-semibold text-slate-900">{item.day}</strong>
+                <StatusBadge status={item.status || 'confirmed'} size="xs" />
               </div>
 
-              <div className="schedule-time">
+              <div className="text-base font-bold text-green-700 mb-1">
                 {item.time}
               </div>
 
-              <p className="text-secondary text-sm mb-4">
-                {item.service}
+              <p className="text-xs text-slate-600 mb-4 leading-normal">
+                {item.service || 'Personal Care & Assistance'}
               </p>
-            </div>
 
-            <div className="schedule-footer">
-              Assigned Branch: <strong>{item.branch} Office</strong>
-            </div>
-          </div>
-        ))}
-      </div>
+              <div className="text-xs text-slate-400 pt-2 border-t border-base-300 mt-auto">
+                Assigned Branch: <strong className="text-slate-700">{item.branch} Office</strong>
+              </div>
+            </Card>
+          ))}
+        </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -2,11 +2,15 @@ import asyncio
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.config import settings
 from app.core.supabase import get_supabase
+from app.core.logging_config import error_fingerprint, setup_logging
 from app.jobs.credential_reminders import scan_due_credentials
 from app.jobs.authorization_reminders import scan_due_authorizations
 from app.jobs.training_reminders import scan_due_training
@@ -19,11 +23,7 @@ from app.api.routes import (
     admin_users
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
-logger = logging.getLogger("app")
+logger = setup_logging()
 
 
 async def _periodic_job_loop(job_func, job_name: str):
@@ -67,6 +67,87 @@ app.add_middleware(
 )
 
 app.middleware("http")(log_requests)
+ 
+ 
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    req_id = getattr(request.state, "request_id", "unknown")
+    exc_type = type(exc).__name__
+    logger.exception(
+        "Unhandled exception on %s %s [req_id=%s]: %s",
+        request.method,
+        request.url.path,
+        req_id,
+        exc,
+        extra={
+            "request_id": req_id,
+            "method": request.method,
+            "path": request.url.path,
+            "exception_type": exc_type,
+            "fingerprint": error_fingerprint(exc_type, request.method, request.url.path),
+        },
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "Internal server error",
+            "request_id": req_id,
+        },
+        headers={"X-Request-ID": req_id},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    req_id = getattr(request.state, "request_id", "unknown")
+    logger.warning(
+        "Validation error on %s %s [req_id=%s]: %s",
+        request.method,
+        request.url.path,
+        req_id,
+        exc.errors(),
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors()},
+        headers={"X-Request-ID": req_id},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    req_id = getattr(request.state, "request_id", "unknown")
+    if exc.status_code >= 500:
+        exc_type = type(exc).__name__
+        logger.error(
+            "HTTP %s on %s %s [req_id=%s]: %s",
+            exc.status_code,
+            request.method,
+            request.url.path,
+            req_id,
+            exc.detail,
+            extra={
+                "request_id": req_id,
+                "method": request.method,
+                "path": request.url.path,
+                "exception_type": exc_type,
+                "fingerprint": error_fingerprint(exc_type, request.method, request.url.path),
+            },
+        )
+    elif exc.status_code >= 400:
+        logger.warning(
+            "HTTP %s on %s %s [req_id=%s]: %s",
+            exc.status_code,
+            request.method,
+            request.url.path,
+            req_id,
+            exc.detail,
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers={"X-Request-ID": req_id},
+    )
 
 API_PREFIX = "/api/v1"
 

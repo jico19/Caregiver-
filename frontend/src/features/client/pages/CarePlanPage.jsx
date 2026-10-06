@@ -1,5 +1,12 @@
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import DataTable from '../../../shared/components/common/DataTable';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import LoadingState from '../../../shared/components/common/LoadingState';
 
 export default function CarePlanPage() {
   const { token } = useAuth();
@@ -10,114 +17,82 @@ export default function CarePlanPage() {
   const carePlan = data?.care_plan || null;
 
   if (loading) {
-    return <div className="loading-text">Loading plan of care...</div>;
+    return (
+      <LoadingState
+        title="Loading Plan of Care..."
+        subtitle="Retrieving physician directives and daily care routines..."
+        variant="page"
+      />
+    );
   }
 
+  const columns = [
+    { key: 'task', label: 'Activity', render: (val) => <span className="font-semibold text-slate-900">{val}</span> },
+    { key: 'frequency', label: 'Frequency', render: (val) => <span className="text-green-700 font-medium">{val}</span> },
+    { key: 'notes', label: 'Caregiver Directive', render: (val) => <span className="text-slate-600">{val}</span> },
+  ];
+
   return (
-    <div className="container-880">
-      <div className="page-head">
-        <h1 className="page-title">
-          Personalized Plan of Care (POC)
-        </h1>
-        <p className="page-subtitle">
-          Clinical supervisor directives, daily assistance routines, and safety instructions.
-        </p>
-      </div>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Personalized Plan of Care (POC)"
+        subtitle="Clinical supervisor directives, daily assistance routines, and safety instructions."
+        badge={carePlan ? <StatusBadge status={carePlan.plan_status || 'active'} /> : null}
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg}</span>
         </div>
       )}
 
       {!carePlan && !errorMsg && (
-
-        <div className="card p-8 text-center">
-          <h2 className="card-title mb-1">No Plan of Care on File Yet</h2>
-          <p className="empty-text">
-            Your care coordinator is still preparing your personalized plan of care.
-            Once published, your daily care activities and emergency protocol will appear here.
-          </p>
-        </div>
+        <EmptyState
+          title="No Plan of Care on File Yet"
+          description="Your care coordinator is preparing your personalized plan of care. Once published, your daily care activities and emergency protocol will appear here."
+        />
       )}
 
       {carePlan && (
-        <>
-      {/* Plan Header */}
-      <div className="card mb-6">
-        <div className="grid grid-cols-4 max-md:grid-cols-1 gap-4">
-          <div>
-            <div className="meta-block">Care Recipient</div>
-            <div className="meta-value-strong">
-              {carePlan?.client_name || 'Client'}
+        <div className="flex flex-col gap-6">
+          <Card>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+              <div>
+                <span className="text-slate-500 block mb-0.5">Care Recipient</span>
+                <strong className="text-slate-900 text-sm">{carePlan?.client_name || 'Client'}</strong>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Clinical Supervisor</span>
+                <span className="text-slate-800 font-medium">{carePlan?.primary_nurse || 'Assigned Nurse'}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Plan Status</span>
+                <StatusBadge status={carePlan?.plan_status || 'active'} size="xs" />
+              </div>
+              <div>
+                <span className="text-slate-500 block mb-0.5">Effective Date</span>
+                <span className="text-slate-800">{carePlan?.effective_date || 'Current'}</span>
+              </div>
             </div>
-          </div>
-          <div>
-            <div className="meta-block">Clinical Supervisor</div>
-            <div className="meta-value">
-              {carePlan?.primary_nurse}
+          </Card>
+
+          <Card title="Authorized Daily Living Activities (ADLs)">
+            <DataTable
+              columns={columns}
+              data={carePlan.daily_activities || []}
+              keyField="task"
+              emptyMessage="No daily living activities recorded."
+            />
+          </Card>
+
+          {carePlan.emergency_protocol && (
+            <div className="p-4 rounded-box border border-red-200 bg-red-50 text-xs text-red-900">
+              <h3 className="font-bold text-red-950 text-sm m-0 mb-1">Emergency Protocol</h3>
+              <p className="m-0 leading-normal">{carePlan.emergency_protocol}</p>
             </div>
-          </div>
-          <div>
-            <div className="meta-block">Plan Status</div>
-            <div className="meta-value-status">
-              {carePlan?.plan_status?.replace('_', ' ')}
-            </div>
-          </div>
-          <div>
-            <div className="meta-block">Effective Date</div>
-            <div className="meta-value">
-              {carePlan?.effective_date}
-            </div>
-          </div>
+          )}
         </div>
-      </div>
-
-      {/* Activities Table */}
-      <div className="card mb-6">
-        <h2 className="section-title">
-          Authorized Daily Living Activities (ADLs)
-        </h2>
-
-        <div className="table-responsive">
-          <table>
-            <thead>
-              <tr>
-                <th>Activity</th>
-                <th>Frequency</th>
-                <th>Caregiver Directive</th>
-              </tr>
-            </thead>
-            <tbody>
-              {carePlan?.daily_activities?.map((item, idx) => (
-                <tr key={idx}>
-                  <td className="font-medium">
-                    {item.task}
-                  </td>
-                  <td className="text-primary font-medium">
-                    {item.frequency}
-                  </td>
-                  <td className="text-secondary">
-                    {item.notes}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Emergency Card */}
-      <div className="emergency-callout">
-        <h3 className="emergency-callout-title">
-          Emergency Protocol
-        </h3>
-        <p className="emergency-callout-text">
-          {carePlan?.emergency_protocol}
-        </p>
-      </div>
-        </>
       )}
-    </div>
+    </PageContainer>
   );
 }

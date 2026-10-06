@@ -34,7 +34,7 @@ def list_document_requirements(
         target_state = scope.states[0]
 
     query = supabase.table("document_requirements").select(
-        "id, state_id, document_type_id, required, created_at, updated_at, document_types(id, code, name, description, for_role, requires_expiration), states(id, code, name)"
+        "id, state_id, document_type_id, required, created_at, updated_at, document_types(id, name, for_role, requires_expiration), states(id, code, name)"
     ).order("state_id")
 
     if target_state:

@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
 
 export default function ProfilePage() {
   const { token, user } = useAuth();
@@ -11,7 +15,13 @@ export default function ProfilePage() {
   });
 
   if (loading) {
-    return <div className="loading-screen">Loading profile information...</div>;
+    return (
+      <PageContainer size="narrow">
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading profile information...
+        </div>
+      </PageContainer>
+    );
   }
 
   return (
@@ -69,139 +79,123 @@ function CaregiverProfileForm({ initialProfile, token, user, fetchError }) {
     }
   }
 
-
   return (
-    <div className="container-narrow">
-      <div className="mb-6">
-        <h1 className="page-title">
-          Caregiver Profile & Settings
-        </h1>
-        <p className="page-subtitle">
-          Keep your contact information, residential address, and licensing jurisdiction accurate for state compliance.
-        </p>
-      </div>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Caregiver Profile & Settings"
+        subtitle="Keep your contact information, residential address, and licensing jurisdiction accurate for state compliance."
+      />
 
       {(errorMsg || fetchError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || fetchError}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{errorMsg || fetchError}</span>
         </div>
       )}
-
 
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{successMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="card flex flex-col gap-4">
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="first-name">
-              First Name *
-            </label>
-            <input
-              id="first-name"
-              type="text"
-              required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
+      <Card className="p-6">
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="First Name" id="first-name" required>
+              <input
+                id="first-name"
+                type="text"
+                required
+                className="input input-bordered w-full text-sm"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+            </FormField>
+
+            <FormField label="Last Name" id="last-name" required>
+              <input
+                id="last-name"
+                type="text"
+                required
+                className="input input-bordered w-full text-sm"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+            </FormField>
           </div>
 
-          <div>
-            <label htmlFor="last-name">
-              Last Name *
-            </label>
-            <input
-              id="last-name"
-              type="text"
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
-          </div>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Licensing State Branch" id="state" required>
+              <select
+                id="state"
+                className="select select-bordered w-full text-sm"
+                value={stateId}
+                onChange={(e) => setStateId(e.target.value)}
+              >
+                <option value="1">Florida (FL)</option>
+                <option value="2">Indiana (IN)</option>
+                <option value="3">Georgia (GA)</option>
+              </select>
+            </FormField>
 
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="state">
-              Licensing State Branch *
-            </label>
-            <select
-              id="state"
-              value={stateId}
-              onChange={(e) => setStateId(e.target.value)}
+            <FormField label="Contact Telephone" id="phone">
+              <input
+                id="phone"
+                type="tel"
+                className="input input-bordered w-full text-sm"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 000-0000"
+              />
+            </FormField>
+          </div>
+
+          <FormField label="Residential Address" id="address">
+            <input
+              id="address"
+              type="text"
+              className="input input-bordered w-full text-sm"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Street address, City, State, ZIP"
+            />
+          </FormField>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField label="Date of Birth" id="dob">
+              <input
+                id="dob"
+                type="date"
+                className="input input-bordered w-full text-sm"
+                value={dateOfBirth}
+                onChange={(e) => setDateOfBirth(e.target.value)}
+              />
+            </FormField>
+
+            <FormField label="SSN (Last 4 Digits)" id="ssn-last4">
+              <input
+                id="ssn-last4"
+                type="password"
+                maxLength={4}
+                className="input input-bordered w-full text-sm"
+                value={ssnLast4}
+                onChange={(e) => setSsnLast4(e.target.value.replace(/\D/g, ''))}
+                placeholder="••••"
+              />
+            </FormField>
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="btn btn-primary"
             >
-              <option value="1">Florida (FL)</option>
-              <option value="2">Indiana (IN)</option>
-              <option value="3">Georgia (GA)</option>
-            </select>
+              {saving ? 'Saving Changes...' : 'Save Profile Details'}
+            </button>
           </div>
-
-          <div>
-            <label htmlFor="phone">
-              Contact Telephone
-            </label>
-            <input
-              id="phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(555) 000-0000"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="address">
-            Residential Address
-          </label>
-          <input
-            id="address"
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Street address, City, State, ZIP"
-          />
-        </div>
-
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="dob">
-              Date of Birth
-            </label>
-            <input
-              id="dob"
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="ssn-last4">
-              SSN (Last 4 Digits)
-            </label>
-            <input
-              id="ssn-last4"
-              type="password"
-              maxLength={4}
-              value={ssnLast4}
-              onChange={(e) => setSsnLast4(e.target.value.replace(/\D/g, ''))}
-              placeholder="••••"
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="btn-primary mt-2"
-        >
-          {saving ? 'Saving Changes...' : 'Save Profile Details'}
-        </button>
-      </form>
-    </div>
+        </form>
+      </Card>
+    </PageContainer>
   );
 }

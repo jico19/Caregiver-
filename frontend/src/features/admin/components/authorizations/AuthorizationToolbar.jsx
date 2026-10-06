@@ -1,3 +1,5 @@
+import Card from '../../../../shared/components/common/Card';
+
 export default function AuthorizationToolbar({
   searchTerm,
   onSearchChange,
@@ -14,25 +16,22 @@ export default function AuthorizationToolbar({
   totalCount,
 }) {
   return (
-    <div className="toolbar-card">
+    <Card className="p-4 mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         {/* Search box */}
-        <div className="search-wrap">
-          <svg className="search-icon" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-          </svg>
+        <div className="relative min-w-[280px] flex-1 max-w-md">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Search by Auth #, Client name, Medicaid #..."
-            className="search-input"
+            className="input input-bordered input-sm w-full pr-8 text-sm"
           />
           {searchTerm && (
             <button
               type="button"
               onClick={onClearSearch}
-              className="search-clear"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
             >
               ✕
             </button>
@@ -46,7 +45,7 @@ export default function AuthorizationToolbar({
             aria-label="Filter by state"
             value={filterState}
             onChange={(e) => onFilterStateChange(e.target.value)}
-            className="filter-select"
+            className="select select-bordered select-sm text-sm"
           >
             <option value="all">All States</option>
             <option value="FL">Florida (FL)</option>
@@ -59,7 +58,7 @@ export default function AuthorizationToolbar({
             aria-label="Filter by status"
             value={filterStatus}
             onChange={(e) => onFilterStatusChange(e.target.value)}
-            className="filter-select"
+            className="select select-bordered select-sm text-sm"
           >
             <option value="all">All Statuses</option>
             <option value="active">Active Only</option>
@@ -72,7 +71,7 @@ export default function AuthorizationToolbar({
             aria-label="Sort authorizations"
             value={sortBy}
             onChange={(e) => onSortByChange(e.target.value)}
-            className="filter-select"
+            className="select select-bordered select-sm text-sm"
           >
             <option value="end_date_asc">Expiration: Soonest First</option>
             <option value="end_date_desc">Expiration: Latest First</option>
@@ -84,7 +83,7 @@ export default function AuthorizationToolbar({
             <button
               type="button"
               onClick={onResetFilters}
-              className="btn-reset"
+              className="btn btn-ghost btn-sm text-slate-600 hover:text-slate-900"
             >
               Reset Filters
             </button>
@@ -93,16 +92,16 @@ export default function AuthorizationToolbar({
       </div>
 
       {/* Results counter */}
-      <div className="results-bar">
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-base-200 text-xs text-slate-500">
         <span>
-          Showing <strong>{filteredCount}</strong> of <strong>{totalCount}</strong> authorization{totalCount === 1 ? '' : 's'}
+          Showing <strong className="text-slate-900">{filteredCount}</strong> of <strong className="text-slate-900">{totalCount}</strong> authorization{totalCount === 1 ? '' : 's'}
         </span>
         {hasActiveFilters && (
-          <span className="filter-active-label">
+          <span className="badge badge-sm badge-ghost font-medium">
             Filtered view active
           </span>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

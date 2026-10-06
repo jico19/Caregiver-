@@ -1,5 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 export default function CaregiverClientSchedulePage() {
   const { clientId } = useParams();
@@ -7,22 +12,24 @@ export default function CaregiverClientSchedulePage() {
 
   if (loading) {
     return (
-      <div className="portal-container">
-        <div className="portal-card">Loading visit schedule...</div>
-      </div>
+      <PageContainer>
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading visit schedule...
+        </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="portal-container">
-        <div className="portal-card error-card">
-          <p>Unable to load schedule: {error.message || 'You may not be assigned to this client.'}</p>
-          <Link to="/caregiver/clients" className="btn btn-secondary btn-sm" style={{ marginTop: '0.5rem' }}>
-            Back to My Clients
-          </Link>
+      <PageContainer>
+        <div role="alert" className="alert alert-error mb-4">
+          <span>Unable to load schedule: {error.message || 'You may not be assigned to this client.'}</span>
         </div>
-      </div>
+        <Link to="/caregiver/clients" className="btn btn-outline btn-sm">
+          Back to My Clients
+        </Link>
+      </PageContainer>
     );
   }
 
@@ -30,55 +37,60 @@ export default function CaregiverClientSchedulePage() {
   const client = data?.client;
 
   return (
-    <div className="portal-container">
-      <div className="portal-header">
-        <div>
-          <Link to="/caregiver/clients" style={{ fontSize: '0.875rem', color: 'var(--color-primary)', textDecoration: 'none' }}>
-            ← Back to My Clients
-          </Link>
-          <h1 className="portal-title" style={{ marginTop: '0.25rem' }}>
-            Visit Schedule: {client?.first_name ? `${client.first_name} ${client.last_name}` : 'Client'}
-          </h1>
-          <p className="portal-subtitle">Scheduled care visits and assignments</p>
-        </div>
+    <PageContainer>
+      <div className="mb-2">
+        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+          ← Back to My Clients
+        </Link>
       </div>
 
+      <PageHeader
+        title={`Visit Schedule: ${client?.first_name ? `${client.first_name} ${client.last_name}` : 'Client'}`}
+        subtitle="Scheduled care visits and assignments"
+      />
+
       {schedule.length === 0 ? (
-        <div className="portal-card" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 0 }}>
-            No visit schedules are currently posted for this client.
-          </p>
-        </div>
+        <EmptyState
+          title="No scheduled visits"
+          description="No visit schedules are currently posted for this client."
+        />
       ) : (
-        <div className="portal-card">
-          <table className="table" style={{ width: '100%' }}>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Time</th>
-                <th>Service</th>
-                <th>Status</th>
-                <th>Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {schedule.map((item, idx) => (
-                <tr key={idx}>
-                  <td><strong>{item.day_of_week || item.day}</strong></td>
-                  <td>{item.start_time ? `${item.start_time} - ${item.end_time}` : item.time || 'TBD'}</td>
-                  <td>{item.service || 'Personal Care'}</td>
-                  <td>
-                    <span className="badge badge-info" style={{ textTransform: 'capitalize' }}>
-                      {item.status || 'Scheduled'}
-                    </span>
-                  </td>
-                  <td>{item.notes || '—'}</td>
+        <Card className="p-0 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
+              <thead>
+                <tr className="border-b border-base-300 text-slate-500 text-xs bg-base-200/50">
+                  <th>Day</th>
+                  <th>Time</th>
+                  <th>Service</th>
+                  <th>Status</th>
+                  <th>Notes</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {schedule.map((item, idx) => (
+                  <tr key={idx} className="border-b border-base-300/60 hover:bg-base-200/50">
+                    <td className="font-semibold text-slate-900 text-xs">
+                      {item.day_of_week || item.day}
+                    </td>
+                    <td className="text-slate-600 text-xs">
+                      {item.start_time ? `${item.start_time} - ${item.end_time}` : item.time || 'TBD'}
+                    </td>
+                    <td className="text-slate-600 text-xs">{item.service || 'Personal Care'}</td>
+                    <td>
+                      <StatusBadge
+                        status={item.status || 'scheduled'}
+                        label={item.status || 'Scheduled'}
+                      />
+                    </td>
+                    <td className="text-slate-500 text-xs">{item.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
-    </div>
+    </PageContainer>
   );
 }

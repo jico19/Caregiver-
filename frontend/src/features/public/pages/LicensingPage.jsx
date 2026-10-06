@@ -1,6 +1,11 @@
 import { useParams, Link } from 'react-router-dom';
 import useFetch from '../../../shared/hooks/useFetch';
 import LoadingState from '../../../shared/components/common/LoadingState';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
 
 export default function LicensingPage() {
   const { state = 'florida' } = useParams();
@@ -10,22 +15,20 @@ export default function LicensingPage() {
   const stateName = state.charAt(0).toUpperCase() + state.slice(1);
 
   return (
-    <div className="page-container">
-      <div className="page-head">
-        <Link to={`/${state}`} className="text-secondary text-sm">
-          ← Back to {stateName} Office
-        </Link>
-        <h1 className="page-title mt-2 mb-1">
-          State Licensing & Accreditation: {stateName}
-        </h1>
-        <p className="page-subtitle">
-          Full disclosure of agency operating certificates, Medicaid provider authorizations, and clinical compliance standards.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={
+          <Link to={`/${state}`} className="text-slate-600 hover:text-slate-900 hover:underline">
+            ← Back to {stateName} Office
+          </Link>
+        }
+        title={`State Licensing & Accreditation: ${stateName}`}
+        subtitle="Full disclosure of agency operating certificates, Medicaid provider authorizations, and clinical compliance standards."
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg}</span>
         </div>
       )}
 
@@ -37,41 +40,33 @@ export default function LicensingPage() {
           count={2}
         />
       ) : licensing.length === 0 ? (
-        <div className="card-dashed">
-          Licensing records are being updated for {stateName}.
-        </div>
+        <EmptyState
+          title={`Licensing records are being updated for ${stateName}`}
+          description="Official provider licenses and regulatory disclosure documents are available upon request from the regional office."
+        />
       ) : (
         <div className="flex flex-col gap-4">
           {licensing.map((item) => (
-            <div
-              key={item.id}
-              className="card"
-            >
+            <Card key={item.id}>
               <div className="flex items-center gap-2 mb-2">
-                <span className="badge badge-green">
-                  ACTIVE CERTIFICATION
-                </span>
-                <h2 className="heading-card">
+                <StatusBadge status="active" label="Active Certification" size="xs" />
+                <h2 className="text-sm font-semibold text-slate-900 m-0">
                   {item.title}
                 </h2>
               </div>
-              <p className="text-secondary text-sm leading-normal">
+              <p className="text-xs text-slate-600 leading-normal m-0">
                 {item.body}
               </p>
-            </div>
+            </Card>
           ))}
         </div>
       )}
 
-      {/* Compliance Quality Standard */}
-      <div className="banner-info mt-8">
-        <h3 className="banner-title">
-          Continuous Clinical Compliance
-        </h3>
-        <p className="banner-text">
-          All agency caregivers in {stateName} undergo statewide Level 2 fingerprint background screening, annual TB testing, drug testing, and ongoing mandatory in-service education under registered nurse supervision.
-        </p>
-      </div>
-    </div>
+      <Card
+        className="mt-8 bg-slate-50"
+        title="Continuous Clinical Compliance"
+        subtitle={`All agency caregivers in ${stateName} undergo statewide Level 2 fingerprint background screening, annual TB testing, drug screening, and ongoing mandatory in-service education under registered nurse supervision.`}
+      />
+    </PageContainer>
   );
 }

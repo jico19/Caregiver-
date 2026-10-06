@@ -1,7 +1,7 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useFetch from '../hooks/useFetch';
-import PortalNavbar from '../components/common/PortalNavbar';
+import PortalShell from '../components/sidebar/PortalShell';
 import { isAdmin } from '../lib/roles';
 
 export default function CaregiverLayout({ children }) {
@@ -12,7 +12,7 @@ export default function CaregiverLayout({ children }) {
 
   if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="min-h-screen flex items-center justify-center text-slate-500 text-sm">
         Loading Caregiver Portal...
       </div>
     );
@@ -22,37 +22,52 @@ export default function CaregiverLayout({ children }) {
   if (isAdmin(user)) return <Navigate to="/admin/dashboard" replace />;
   if (user.role === 'client') return <Navigate to="/client/dashboard" replace />;
 
-  // The brand links to the dashboard, which is why it is not repeated here.
   const navLinks = [
-    { label: 'My Clients', to: '/caregiver/clients' },
-    { label: 'Application', to: '/caregiver/application' },
+    {
+      label: 'Overview',
+      items: [
+        { label: 'Dashboard', to: '/caregiver/dashboard', icon: 'dashboard' },
+      ],
+    },
+    {
+      label: 'Care Delivery',
+      items: [
+        { label: 'My Clients', to: '/caregiver/clients', icon: 'clients' },
+      ],
+    },
+    {
+      label: 'Onboarding',
+      items: [
+        { label: 'Application', to: '/caregiver/application', icon: 'application' },
+      ],
+    },
     {
       label: 'Compliance',
       items: [
-        { label: 'Credentials', to: '/caregiver/documents' },
-        { label: 'Training', to: '/caregiver/training' },
+        { label: 'Credentials', to: '/caregiver/documents', icon: 'credentials' },
+        { label: 'Training', to: '/caregiver/training', icon: 'training' },
       ],
     },
-    { label: 'Profile', to: '/caregiver/profile' },
-    { label: 'Notifications', to: '/caregiver/notifications', hasBadge: true, badgeCount: unreadCount },
+    {
+      label: 'Account',
+      items: [
+        { label: 'Profile', to: '/caregiver/profile', icon: 'profile' },
+        { label: 'Notifications', to: '/caregiver/notifications', icon: 'notifications', hasBadge: true, badgeCount: unreadCount },
+      ],
+    },
   ];
 
   return (
-    <div className="portal-shell">
-      <PortalNavbar
-        roleBadge="Caregiver"
-        roleBadgeColor={{
-          bg: 'var(--primary-light)',
-          text: 'var(--primary)',
-          border: 'var(--color-primary-border)',
-        }}
-        homePath="/caregiver/dashboard"
-        navLinks={navLinks}
-        user={user}
-        logout={logout}
-        accentColor="blue"
-      />
-      <main>{children ?? <Outlet />}</main>
-    </div>
+    <PortalShell
+      roleBadge="Caregiver"
+      homePath="/caregiver/dashboard"
+      navLinks={navLinks}
+      user={user}
+      logout={logout}
+      unreadCount={unreadCount}
+      notificationsPath="/caregiver/notifications"
+    >
+      {children}
+    </PortalShell>
   );
 }

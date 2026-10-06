@@ -8,12 +8,10 @@ import NavbarUserMenu from '../navbar/NavbarUserMenu';
 
 export default function PortalNavbar({
   roleBadge,
-  roleBadgeColor,
   homePath,
   navLinks = [],
   user,
   logout,
-  accentColor = 'blue',
   secondaryAction = null,
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -73,32 +71,16 @@ export default function PortalNavbar({
     };
   }, [mobileMenuOpen]);
 
-  const isEmerald = accentColor === 'emerald';
-  const themeColor = isEmerald ? 'var(--success)' : 'var(--primary)';
-  const themeBgLight = isEmerald ? 'var(--success-light)' : 'var(--primary-light)';
   const isAdminPortal = isAdmin(user) || roleBadge === 'Administrator';
-  const avatarBg = isAdminPortal ? 'var(--text-primary)' : themeColor;
-
-  const headerStyle = {
-    '--nav-accent': themeColor,
-    '--nav-accent-soft': themeBgLight,
-    ...(isAdminPortal ? { borderBottom: '2px solid var(--primary)' } : {}),
-  };
-
+  const avatarBg = isAdminPortal ? '#0f172a' : '#16a34a';
   const stateCode = stateLabelFor(user);
   const avatarInitial = (user?.email ? user.email[0] : (roleBadge?.[0] || 'U')).toUpperCase();
-  const roleLabel = isAdminPortal ? 'Administrator' : roleBadge.replace('& Family', '').trim();
+  const roleLabel = isAdminPortal ? 'Administrator' : (roleBadge ? roleBadge.replace('& Family', '').trim() : 'User');
   const identityLine = `${roleLabel} · ${stateCode}`;
   const brandActive = location.pathname === homePath;
 
-  const roleBadgeStyle = {
-    backgroundColor: roleBadgeColor?.bg || 'var(--primary-light)',
-    color: roleBadgeColor?.text || 'var(--primary)',
-    border: `1px solid ${roleBadgeColor?.border || 'var(--border-strong)'}`,
-  };
-
   return (
-    <header style={headerStyle}>
+    <header className="bg-base-100 border-b border-base-300 sticky top-0 z-40">
       <div className="navbar-inner">
         <Link
           to={homePath}
@@ -108,9 +90,11 @@ export default function PortalNavbar({
           <span className="brand-logo-text">
             CarePlatform
           </span>
-          <span className="badge" style={roleBadgeStyle}>
-            {roleBadge}
-          </span>
+          {roleBadge && (
+            <span className="badge badge-soft badge-neutral text-xs font-medium">
+              {roleBadge}
+            </span>
+          )}
         </Link>
 
         <NavbarDesktopMenu
@@ -122,17 +106,19 @@ export default function PortalNavbar({
           secondaryAction={secondaryAction}
         />
 
-        <NavbarUserMenu
-          user={user}
-          stateCode={stateCode}
-          avatarBg={avatarBg}
-          avatarInitial={avatarInitial}
-          identityLine={identityLine}
-          openMenu={openMenu}
-          setOpenMenu={setOpenMenu}
-          onRegisterTrigger={handleRegisterTrigger}
-          logout={logout}
-        />
+        {user && (
+          <NavbarUserMenu
+            user={user}
+            stateCode={stateCode}
+            avatarBg={avatarBg}
+            avatarInitial={avatarInitial}
+            identityLine={identityLine}
+            openMenu={openMenu}
+            setOpenMenu={setOpenMenu}
+            onRegisterTrigger={handleRegisterTrigger}
+            logout={logout}
+          />
+        )}
 
         <button
           type="button"

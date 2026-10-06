@@ -1,4 +1,7 @@
-import { getAuthStatusDetails, STATUS_DAYS_CLASS, STATUS_BADGE_CLASS } from '../../constants/authorizationConstants';
+import Card from '../../../../shared/components/common/Card';
+import EmptyState from '../../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../../shared/components/common/StatusBadge';
+import { getAuthStatusDetails } from '../../constants/authorizationConstants';
 
 export default function AuthorizationsTable({
   loading,
@@ -13,48 +16,45 @@ export default function AuthorizationsTable({
   onResetFilters,
 }) {
   return (
-    <div className="table-card">
+    <Card className="overflow-hidden">
       {loading ? (
-        <div className="table-loading">
-          <div className="spinner-md" />
-          <div className="mt-3">Loading Medicaid authorizations...</div>
+        <div className="py-16 text-center text-slate-500">
+          <div className="loading loading-spinner loading-md text-primary" />
+          <div className="mt-3 text-sm">Loading Medicaid authorizations...</div>
         </div>
       ) : filteredAuthorizations.length === 0 ? (
-        <div className="table-empty">
-          <svg className="empty-icon" width="48" height="48" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <h3 className="card-title mb-1">
-            {totalCount === 0 ? 'No Authorizations on Record' : 'No Matching Authorizations Found'}
-          </h3>
-          <p className="empty-text">
-            {totalCount === 0
+        <EmptyState
+          title={totalCount === 0 ? 'No Authorizations on Record' : 'No Matching Authorizations Found'}
+          message={
+            totalCount === 0
               ? 'Issue your first Medicaid service authorization using the form above.'
-              : 'Try adjusting your search terms, state, or status filters.'}
-          </p>
-          {totalCount === 0 ? (
-            <button
-              type="button"
-              onClick={onOpenForm}
-              className="btn-success"
-            >
-              + Issue First Authorization
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={onResetFilters}
-              className="btn-reset"
-            >
-              Clear Search & Filters
-            </button>
-          )}
-        </div>
+              : 'Try adjusting your search terms, state, or status filters.'
+          }
+          action={
+            totalCount === 0 ? (
+              <button
+                type="button"
+                onClick={onOpenForm}
+                className="btn btn-primary btn-sm"
+              >
+                + Issue First Authorization
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={onResetFilters}
+                className="btn btn-ghost btn-sm text-slate-600"
+              >
+                Clear Search & Filters
+              </button>
+            )
+          }
+        />
       ) : (
-        <div className="table-responsive">
-          <table className="table-auth">
+        <div className="overflow-x-auto">
+          <table className="table table-sm w-full">
             <thead>
-              <tr className="table-head-row">
+              <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                 <th>Authorization #</th>
                 <th>Client</th>
                 <th>State</th>
@@ -65,29 +65,29 @@ export default function AuthorizationsTable({
                 <th>Actions</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-base-200 text-sm">
               {filteredAuthorizations.map((a) => {
                 const statusInfo = getAuthStatusDetails(a.start_date, a.end_date, a.status);
                 const isCopied = copiedAuthId === a.id;
 
                 return (
-                  <tr key={a.id} className="table-row">
+                  <tr key={a.id} className="hover:bg-base-200/40 transition-colors">
                     {/* Auth Number + Copy Button */}
-                    <td className="whitespace-nowrap">
-                      <div className="inline-flex items-center gap-2">
-                        <span className="auth-number">
+                    <td className="whitespace-nowrap font-mono text-xs">
+                      <div className="inline-flex items-center gap-1.5">
+                        <span className="font-semibold text-slate-900">
                           {a.authorization_number}
                         </span>
                         <button
                           type="button"
                           onClick={() => onCopyAuthNumber(a.authorization_number, a.id)}
                           title="Copy Authorization #"
-                          className={`btn-copy ${isCopied ? 'btn-copy-copied' : ''}`}
+                          className="btn btn-ghost btn-xs btn-circle h-6 w-6 min-h-0 text-slate-400 hover:text-slate-600"
                         >
                           {isCopied ? (
-                            <span className="copy-confirm">✓ Copied</span>
+                            <span className="text-[10px] text-success font-sans font-semibold">✓</span>
                           ) : (
-                            <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
+                            <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
                           )}
                         </button>
                       </div>
@@ -95,63 +95,61 @@ export default function AuthorizationsTable({
 
                     {/* Client */}
                     <td>
-                      <div className="cell-strong">
+                      <div className="font-medium text-slate-900">
                         {a.clients?.first_name} {a.clients?.last_name}
                       </div>
                       {a.clients?.medicaid_number && (
-                        <div className="cell-sub">
-                          Medicaid: <span className="font-mono">{a.clients.medicaid_number}</span>
+                        <div className="text-xs text-slate-500 font-mono">
+                          ID: {a.clients.medicaid_number}
                         </div>
                       )}
                     </td>
 
                     {/* State */}
                     <td>
-                      <span className="state-chip">
+                      <span className="badge badge-sm badge-ghost font-medium">
                         {a.states?.code || 'FL'}
                       </span>
                     </td>
 
                     {/* Start Date */}
-                    <td className="cell-muted whitespace-nowrap">
+                    <td className="text-slate-500 whitespace-nowrap text-xs">
                       {a.start_date}
                     </td>
 
                     {/* End Date + Days countdown */}
                     <td className="whitespace-nowrap">
-                      <div className="cell-medium">{a.end_date}</div>
-                      <div className={STATUS_DAYS_CLASS[statusInfo.statusKey] || 'days-text'}>
+                      <div className="text-slate-900 font-medium text-xs">{a.end_date}</div>
+                      <div className="text-[11px] text-slate-500">
                         {statusInfo.daysText}
                       </div>
                     </td>
 
                     {/* Status */}
                     <td className="whitespace-nowrap">
-                      <span className={STATUS_BADGE_CLASS[statusInfo.statusKey] || 'badge badge-ghost'}>
-                        {statusInfo.label}
-                      </span>
+                      <StatusBadge status={statusInfo.statusKey} label={statusInfo.label} />
                     </td>
 
                     {/* Notes */}
-                    <td className="cell-notes">
+                    <td className="max-w-xs text-xs">
                       {a.notes ? (
-                        <div className="truncate" title={a.notes}>
+                        <div className="truncate text-slate-600" title={a.notes}>
                           {a.notes}
                         </div>
                       ) : (
-                        <span className="text-italic-muted">Standard authorization</span>
+                        <span className="text-slate-400 italic">Standard authorization</span>
                       )}
                     </td>
 
                     {/* Actions */}
                     <td className="whitespace-nowrap">
                       {a.status === 'pending' ? (
-                        <div className="inline-flex items-center gap-2">
+                        <div className="inline-flex items-center gap-1.5">
                           <button
                             type="button"
                             onClick={() => onReview(a.id, 'approved')}
                             disabled={reviewingId === a.id}
-                            className="btn-sm btn-success"
+                            className="btn btn-xs btn-primary"
                           >
                             {reviewingId === a.id && reviewAction === 'approved' ? 'Approving...' : 'Approve'}
                           </button>
@@ -159,7 +157,7 @@ export default function AuthorizationsTable({
                             type="button"
                             onClick={() => onReview(a.id, 'rejected')}
                             disabled={reviewingId === a.id}
-                            className="btn-sm border border-red-300 text-red-600 bg-white hover:bg-red-50"
+                            className="btn btn-xs btn-outline btn-error"
                           >
                             {reviewingId === a.id && reviewAction === 'rejected' ? 'Rejecting...' : 'Reject'}
                           </button>
@@ -167,7 +165,7 @@ export default function AuthorizationsTable({
                       ) : (
                         <a
                           href={`/admin/clients/${a.client_id}`}
-                          className="text-sm font-medium text-secondary underline"
+                          className="text-xs font-medium text-primary hover:underline"
                         >
                           View client
                         </a>
@@ -180,6 +178,6 @@ export default function AuthorizationsTable({
           </table>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

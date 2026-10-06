@@ -1,77 +1,86 @@
 import { Link } from 'react-router-dom';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 export default function CaregiverClientsPage() {
   const { data, loading, error } = useFetch('/caregivers/me/clients');
 
   if (loading) {
     return (
-      <div className="portal-container">
-        <div className="portal-card">Loading assigned clients...</div>
-      </div>
+      <PageContainer>
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading assigned clients...
+        </div>
+      </PageContainer>
     );
   }
 
   if (error) {
     return (
-      <div className="portal-container">
-        <div className="portal-card error-card">
-          <p>Failed to load assigned clients: {error.message || 'Unknown error'}</p>
+      <PageContainer>
+        <div role="alert" className="alert alert-error">
+          <span>Failed to load assigned clients: {error.message || 'Unknown error'}</span>
         </div>
-      </div>
+      </PageContainer>
     );
   }
 
   const clients = data?.clients || [];
 
   return (
-    <div className="portal-container">
-      <div className="portal-header">
-        <div>
-          <h1 className="portal-title">My Assigned Clients</h1>
-          <p className="portal-subtitle">Clients currently assigned for service delivery</p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="My Assigned Clients"
+        subtitle="Clients currently assigned for service delivery"
+      />
 
       {clients.length === 0 ? (
-        <div className="portal-card" style={{ textAlign: 'center', padding: '2rem' }}>
-          <p style={{ color: 'var(--color-text-secondary)', marginBottom: 0 }}>
-            You do not currently have any active client assignments.
-          </p>
-        </div>
+        <EmptyState
+          title="No assigned clients"
+          description="You do not currently have any active client assignments."
+        />
       ) : (
-        <div className="portal-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '1rem' }}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clients.map((client) => (
-            <div key={client.id} className="portal-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <Card key={client.id} className="p-5 flex flex-col justify-between">
               <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>
+                <div className="flex justify-between items-start gap-2 mb-3">
+                  <h3 className="font-semibold text-base text-slate-900 m-0">
                     {client.first_name} {client.last_name}
                   </h3>
-                  <span className="badge badge-info" style={{ textTransform: 'capitalize' }}>
+                  <span className="badge badge-soft text-slate-700 text-xs capitalize">
                     {client.assignment_role || 'Primary'}
                   </span>
                 </div>
 
-                <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', marginBottom: '1rem', lineHeight: 1.5 }}>
+                <div className="text-xs text-slate-600 space-y-1 mb-4 leading-normal">
                   {client.phone && <div>📞 {client.phone}</div>}
                   {client.address && <div>📍 {client.address}</div>}
                   {client.states?.name && <div>🌴 State: {client.states.name}</div>}
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid var(--color-border)' }}>
-                <Link to={`/caregiver/clients/${client.id}/care-plan`} className="btn btn-secondary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+              <div className="flex gap-2 pt-3 border-t border-base-300">
+                <Link
+                  to={`/caregiver/clients/${client.id}/care-plan`}
+                  className="btn btn-outline btn-xs flex-1"
+                >
                   Care Plan
                 </Link>
-                <Link to={`/caregiver/clients/${client.id}/schedule`} className="btn btn-primary btn-sm" style={{ flex: 1, textAlign: 'center' }}>
+                <Link
+                  to={`/caregiver/clients/${client.id}/schedule`}
+                  className="btn btn-primary btn-xs flex-1"
+                >
                   Schedule
                 </Link>
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { CLIENT_STATUS_LABELS } from '../constants/clientDetailConstants';
 import {
   fetchClientDetailBundle,
@@ -47,6 +47,18 @@ export function useClientDetailData(id, token) {
     setSuccessMsg
   );
 
+  // Stabilize: depend on applyCarePlan (useCallback []) not the whole carePlanMgmt object,
+  // which is a new identity every render and was retriggering the load effect forever.
+  const { applyCarePlan } = carePlanMgmt;
+
+  // #region agent log
+  const carePlanMgmtRef = useRef(carePlanMgmt);
+  const applyRef = useRef(null);
+  const effectRunCount = useRef(0);
+  const carePlanMgmtChanged = carePlanMgmtRef.current !== carePlanMgmt;
+  carePlanMgmtRef.current = carePlanMgmt;
+  // #endregion
+
   const applyClientPayload = useCallback(({ res, planRes, schedRes, asgnRes, cgRes }) => {
     const c = res?.client || null;
     setClient(c);
@@ -59,8 +71,16 @@ export function useClientDetailData(id, token) {
     setAssignments(asgnRes?.assignments || []);
     const cgs = cgRes?.caregivers || (Array.isArray(cgRes) ? cgRes : []);
     setAvailableCaregivers(cgs);
-    carePlanMgmt.applyCarePlan(planRes?.care_plan || null);
-  }, [carePlanMgmt]);
+    applyCarePlan(planRes?.care_plan || null);
+  }, [applyCarePlan]);
+
+  // #region agent log
+  const applyChanged = applyRef.current !== applyClientPayload;
+  applyRef.current = applyClientPayload;
+  if (carePlanMgmtChanged || applyChanged) {
+    fetch('http://127.0.0.1:7819/ingest/214caf9e-054b-4d1c-90b8-118c8b6c9a4e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08186c'},body:JSON.stringify({sessionId:'08186c',runId:'post-fix',hypothesisId:'A',location:'useClientDetailData.js:identity',message:'unstable identities detected',data:{carePlanMgmtChanged,applyChanged,id},timestamp:Date.now()})}).catch(()=>{});
+  }
+  // #endregion
 
   const refreshDetail = useCallback(async () => {
     try {
@@ -74,6 +94,12 @@ export function useClientDetailData(id, token) {
   useEffect(() => {
     if (!token || !id) return;
     let isMounted = true;
+
+    // #region agent log
+    effectRunCount.current += 1;
+    const run = effectRunCount.current;
+    fetch('http://127.0.0.1:7819/ingest/214caf9e-054b-4d1c-90b8-118c8b6c9a4e',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'08186c'},body:JSON.stringify({sessionId:'08186c',runId:'post-fix',hypothesisId:'A',location:'useClientDetailData.js:useEffect',message:'loadInitial effect fired',data:{run,id,tokenPresent:!!token,applyChangedSinceLast:applyChanged,carePlanMgmtChanged},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
 
     async function loadInitial() {
       try {

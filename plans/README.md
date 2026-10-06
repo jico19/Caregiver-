@@ -17,6 +17,7 @@ Numbering restarted at `001` on 2026-09-29. Plans `018` through `021` and their 
 | `009_mobile_and_dashboard_content.md` | Completed | Mobile layout for the application and real dashboard content. |
 | `010_data_retention_and_purge.md` | Completed | Statutory retention schedules, legal hold, and scheduled purge job. |
 | `011_performance_and_query_efficiency.md` | Completed | Stop over-fetching, remove the per-request auth round trips, batch writes, and index the real query shapes. |
+| `019_organize_backend_logs.md` | Completed | Organize backend logs into dedicated streams (access.log, app.log, error.log) and add error occurrence timestamps. |
 
 ## Delivery order
 

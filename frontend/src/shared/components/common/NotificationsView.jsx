@@ -3,6 +3,9 @@ import { useAuth } from '../../hooks/useAuth';
 import useFetch from '../../hooks/useFetch';
 import { api } from '../../services/api';
 import { queryClient } from '../../lib/queryClient';
+import PageContainer from './PageContainer';
+import PageHeader from './PageHeader';
+import EmptyState from './EmptyState';
 
 export default function NotificationsView({
   endpoint,
@@ -51,74 +54,75 @@ export default function NotificationsView({
     }
   }
 
-  if (isLoading) {
-    return <div className="loading-screen">Loading notification feed...</div>;
-  }
-
-
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  return (
-    <div className="container-medium">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            {pageTitle}
-          </h1>
-          <p className="page-subtitle">
-            {unreadCount > 0
-              ? `You have ${unreadCount} unread alert${unreadCount > 1 ? 's' : ''}.`
-              : 'All alerts are up to date.'}
-          </p>
+  if (isLoading) {
+    return (
+      <PageContainer size="narrow">
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading notification feed...
         </div>
+      </PageContainer>
+    );
+  }
 
-        {supportsMarkAllRead && unreadCount > 0 && (
-          <button
-            type="button"
-            onClick={handleMarkAllRead}
-            className="btn-outline-primary"
-          >
-            Mark all as read
-          </button>
-        )}
-      </div>
+  return (
+    <PageContainer size="narrow">
+      <PageHeader
+        title={pageTitle}
+        subtitle={
+          unreadCount > 0
+            ? `You have ${unreadCount} unread alert${unreadCount > 1 ? 's' : ''}.`
+            : 'All alerts are up to date.'
+        }
+        actions={
+          supportsMarkAllRead && unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              className="btn btn-outline btn-primary btn-sm"
+            >
+              Mark all as read
+            </button>
+          ) : null
+        }
+      />
 
       {(errorMsg || fetchError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || fetchError}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{errorMsg || fetchError}</span>
         </div>
       )}
 
-
       {notifications.length === 0 ? (
-        <div className="card-dashed">
-          <h2 className="section-title mb-2">
-            No notifications on record
-          </h2>
-          <p className="text-sm">
-            {emptySubtitle}
-          </p>
-        </div>
+        <EmptyState
+          title="No notifications on record"
+          description={emptySubtitle}
+        />
       ) : (
         <div className="flex flex-col gap-3">
           {notifications.map((n) => (
             <div
               key={n.id}
-              className={`notification-item ${!n.read ? 'notification-item-unread' : ''}`}
+              className={`p-4 rounded border flex items-start justify-between gap-4 transition-colors ${
+                !n.read
+                  ? 'bg-emerald-50/40 border-emerald-300'
+                  : 'bg-base-100 border-base-300'
+              }`}
             >
-              <div className="flex-1 mr-4">
-                <div className="flex items-center gap-2 mb-2">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
                   {!n.read && (
-                    <span className="notification-dot" />
+                    <span className="w-2 h-2 rounded-full bg-emerald-600 shrink-0" />
                   )}
-                  <h2 className="font-semibold text-sm m-0">
+                  <h2 className="font-semibold text-sm text-slate-900 m-0">
                     {n.title}
                   </h2>
                 </div>
-                <p className="text-sm text-secondary leading-snug mb-1">
+                <p className="text-sm text-slate-600 leading-snug mb-2">
                   {n.body}
                 </p>
-                <span className="text-xs text-muted">
+                <span className="text-xs text-slate-400">
                   {new Date(n.created_at).toLocaleString()}
                 </span>
               </div>
@@ -127,7 +131,7 @@ export default function NotificationsView({
                 <button
                   type="button"
                   onClick={() => handleMarkRead(n.id)}
-                  className="btn-outline-secondary btn-sm whitespace-nowrap"
+                  className="btn btn-ghost btn-xs text-slate-600 hover:text-slate-900 border border-base-300"
                 >
                   Mark read
                 </button>
@@ -136,6 +140,6 @@ export default function NotificationsView({
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

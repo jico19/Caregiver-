@@ -6,11 +6,16 @@ Each test gets a fresh `(client, db, fake)` via the `client` fixture.
 """
 import os
 import sys
+import tempfile
 
 import pytest
 from fastapi.testclient import TestClient
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Keep pytest file logs out of the developer's live backend/logs/
+if "CAREGIVER_LOGS_DIR" not in os.environ:
+    os.environ["CAREGIVER_LOGS_DIR"] = tempfile.mkdtemp(prefix="caregiver-pytest-logs-")
 
 from app.main import app
 from app.core import supabase as supabase_mod
@@ -43,6 +48,7 @@ from app.api.routes.admin import (
     legal_hold as admin_legal_hold_mod,
     assignments as admin_assignments_mod,
     restore as admin_restore_mod,
+    notifications as admin_notifications_mod,
 )
 from app.api.routes import admin_users as admin_users_mod
 from app.api.routes import training as training_mod
@@ -174,6 +180,15 @@ class FakeQuery:
         self._transformable = True
         return self
 
+    @property
+    def not_(self):
+        query_self = self
+        class _NotProxy:
+            def is_(self, key, value):
+                query_self.filters.append(("not_is", key, value))
+                return query_self
+        return _NotProxy()
+
     def _matches(self, row):
         for ftype, key, value in self.filters:
             if ftype == "eq" and row.get(key) != value:
@@ -182,8 +197,14 @@ class FakeQuery:
                 return False
             if ftype == "in" and row.get(key) not in value:
                 return False
-            if ftype == "is" and row.get(key) != value:
-                return False
+            if ftype == "is":
+                target = None if (value is None or value == "null") else value
+                if row.get(key) != target:
+                    return False
+            if ftype == "not_is":
+                target = None if (value is None or value == "null") else value
+                if row.get(key) == target:
+                    return False
             if ftype == "lt" and not (row.get(key) and row.get(key) < value):
                 return False
         return True
@@ -469,7 +490,7 @@ def client(monkeypatch):
         admin_audit_logs_mod, admin_announcements_mod, admin_referrals_mod,
         admin_reports_mod, admin_documents_mod, admin_training_mod,
         admin_settings_mod, admin_legal_hold_mod, admin_assignments_mod,
-        admin_restore_mod,
+        admin_restore_mod, admin_notifications_mod,
         cg_apps_mod, cg_portal_mod, cg_docs_mod, cg_roster_mod, cg_comms_mod,
         cl_portal_mod, cl_agreements_mod, cl_auths_mod, cl_clinical_mod, cl_notifs_mod,
     ):

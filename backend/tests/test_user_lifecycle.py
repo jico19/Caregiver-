@@ -168,11 +168,11 @@ def test_offboard_soft_delete_retains_rows_and_revokes_auth(client):
     c, db, fake = client
 
     # Seed client user, profile, care plan, schedule, document, and immutable agreement
-    db["clients"].append({"id": "client-1", "user_id": "u-client", "state_id": 1, "first_name": "Test", "last_name": "Client"})
-    db["documents"].append({"id": "doc-1", "user_id": "u-client", "name": "Agreement Doc"})
-    db["care_plans"].append({"id": "plan-1", "client_id": "client-1", "status": "active"})
-    db["care_schedules"].append({"id": "sched-1", "client_id": "client-1", "day_of_week": "Monday"})
-    db["client_agreements"].append({"id": "ag-1", "client_id": "client-1", "agreement_type": "terms"})
+    db["clients"].append({"id": "u-client", "state_id": 1, "first_name": "Test", "last_name": "Client"})
+    db["documents"].append({"id": "doc-1", "owner_id": "u-client", "name": "Agreement Doc"})
+    db["care_plans"].append({"id": "plan-1", "client_id": "u-client", "status": "active"})
+    db["care_schedules"].append({"id": "sched-1", "client_id": "u-client", "day_of_week": "Monday"})
+    db["client_agreements"].append({"id": "ag-1", "client_id": "u-client", "agreement_type": "terms"})
 
     # Perform offboarding by super admin
     res_offboard = c.delete("/api/v1/admin/users/u-client", headers=auth_headers("u-admin"))
@@ -185,7 +185,7 @@ def test_offboard_soft_delete_retains_rows_and_revokes_auth(client):
     assert user_row.get("deleted_by") == "u-admin"
 
     # 2. Profile and document rows physical presence retained with deleted_at set
-    cl_row = next(cl for cl in db["clients"] if cl["id"] == "client-1")
+    cl_row = next(cl for cl in db["clients"] if cl["id"] == "u-client")
     assert cl_row.get("deleted_at") is not None
 
     doc_row = next(d for d in db["documents"] if d["id"] == "doc-1")

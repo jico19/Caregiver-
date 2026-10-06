@@ -1,4 +1,7 @@
-import { CLIENT_STATUS_BADGE, CLIENT_STATUS_LABELS, ALLOWED_CLIENT_TRANSITIONS } from '../../constants/clientDetailConstants';
+import Card from '../../../../shared/components/common/Card';
+import FormField from '../../../../shared/components/common/FormField';
+import StatusBadge from '../../../../shared/components/common/StatusBadge';
+import { CLIENT_STATUS_LABELS, ALLOWED_CLIENT_TRANSITIONS } from '../../constants/clientDetailConstants';
 
 export default function AdmissionDecisionSection({
   client,
@@ -14,28 +17,29 @@ export default function AdmissionDecisionSection({
   const allowedTransitions = ALLOWED_CLIENT_TRANSITIONS[client.status || 'pending'] || [];
 
   return (
-    <div className="card mb-6 p-5">
+    <Card className="mb-6 p-5">
       <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-        <h2 className="section-title m-0">Admission & Lifecycle Decision</h2>
-        <span className={`badge ${CLIENT_STATUS_BADGE[client.status] || 'badge-neutral'} badge-lg`}>
-          {CLIENT_STATUS_LABELS[client.status] || client.status || 'Pending'}
-        </span>
+        <h2 className="font-semibold text-base text-slate-900 m-0">Admission & Lifecycle Decision</h2>
+        <StatusBadge
+          status={client.status}
+          label={CLIENT_STATUS_LABELS[client.status] || client.status || 'Pending'}
+        />
       </div>
 
-      <dl className="grid grid-cols-3 max-md:grid-cols-1 gap-4 mb-4 text-xs">
+      <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 text-xs">
         <div>
-          <dt className="text-muted mb-1">Confirmed Service Start Date</dt>
-          <dd className="font-semibold text-sm">
+          <dt className="text-slate-400 mb-0.5">Confirmed Service Start Date</dt>
+          <dd className="font-semibold text-sm text-slate-900">
             {client.service_start_date ? new Date(client.service_start_date).toLocaleDateString() : 'Not Set'}
           </dd>
         </div>
         <div>
-          <dt className="text-muted mb-1">Admitted / Reviewed By</dt>
-          <dd className="font-semibold text-sm">{client.admitted_by || '—'}</dd>
+          <dt className="text-slate-400 mb-0.5">Admitted / Reviewed By</dt>
+          <dd className="font-semibold text-sm text-slate-900">{client.admitted_by || '—'}</dd>
         </div>
         <div>
-          <dt className="text-muted mb-1">Admitted / Reviewed At</dt>
-          <dd className="font-semibold text-sm">
+          <dt className="text-slate-400 mb-0.5">Admitted / Reviewed At</dt>
+          <dd className="font-semibold text-sm text-slate-900">
             {client.admitted_at ? new Date(client.admitted_at).toLocaleString() : '—'}
           </dd>
         </div>
@@ -43,47 +47,48 @@ export default function AdmissionDecisionSection({
 
       {client.rejection_reason && (
         <div role="alert" className="alert alert-error mb-4">
-          <strong>Rejection Reason:</strong> {client.rejection_reason}
+          <span><strong>Rejection Reason:</strong> {client.rejection_reason}</span>
         </div>
       )}
 
-      <div className="form-grid-2 gap-4 mt-2">
-        <div>
-          <label htmlFor="service-start-date">Confirmed Service Start Date</label>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
+        <FormField label="Confirmed Service Start Date" id="service-start-date">
           <input
             id="service-start-date"
             type="date"
+            className="input input-bordered w-full text-sm"
             value={serviceStartDate}
             onChange={(e) => setServiceStartDate(e.target.value)}
           />
-        </div>
-        <div>
-          <label htmlFor="admission-notes">Admission Review Notes</label>
+        </FormField>
+        <FormField label="Admission Review Notes" id="admission-notes">
           <input
             id="admission-notes"
             type="text"
+            className="input input-bordered w-full text-sm"
             value={admissionNotes}
             onChange={(e) => setAdmissionNotes(e.target.value)}
             placeholder="Internal review notes or coordinator remarks"
           />
-        </div>
+        </FormField>
       </div>
 
       {allowedTransitions.includes('rejected') && (
         <div className="mt-3">
-          <label htmlFor="rejection-reason-input">Rejection Reason (Required if rejecting)</label>
-          <input
-            id="rejection-reason-input"
-            type="text"
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-            placeholder="State reason for rejecting admission (e.g. Ineligible coverage, out of jurisdiction)"
-            className="w-full"
-          />
+          <FormField label="Rejection Reason (Required if rejecting)" id="rejection-reason-input">
+            <input
+              id="rejection-reason-input"
+              type="text"
+              className="input input-bordered w-full text-sm"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="State reason for rejecting admission (e.g. Ineligible coverage, out of jurisdiction)"
+            />
+          </FormField>
         </div>
       )}
 
-      <div className="mt-4 flex items-center gap-3 flex-wrap">
+      <div className="mt-4 flex items-center gap-2 flex-wrap">
         {allowedTransitions.map((targetStatus) => {
           const labelMap = {
             approved: 'Approve Admission',
@@ -92,10 +97,10 @@ export default function AdmissionDecisionSection({
             rejected: 'Reject Admission',
           };
           const btnClassMap = {
-            approved: 'btn-success',
+            approved: 'btn-primary',
             active: 'btn-primary',
-            discharged: 'btn-outline-secondary',
-            rejected: 'btn-danger border border-red-300 text-red-600 bg-white hover:bg-red-50',
+            discharged: 'btn-outline',
+            rejected: 'btn-error btn-outline',
           };
           return (
             <button
@@ -103,13 +108,13 @@ export default function AdmissionDecisionSection({
               type="button"
               disabled={submittingAdmission}
               onClick={() => handleUpdateAdmission(targetStatus)}
-              className={`btn-sm ${btnClassMap[targetStatus] || 'btn-primary'}`}
+              className={`btn btn-sm ${btnClassMap[targetStatus] || 'btn-primary'}`}
             >
               {submittingAdmission ? 'Updating...' : labelMap[targetStatus] || targetStatus}
             </button>
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }

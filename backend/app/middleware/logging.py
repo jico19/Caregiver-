@@ -6,6 +6,7 @@ from fastapi import Request
 from app.core.supabase import db_metrics
 
 logger = logging.getLogger(__name__)
+access_logger = logging.getLogger("app.access")
 
 
 async def log_requests(request: Request, call_next):
@@ -32,13 +33,15 @@ async def log_requests(request: Request, call_next):
     if metrics["queries"] > 0:
         db_info = f" db_queries={metrics['queries']} db_time={metrics['duration']:.3f}s"
 
-    logger.info(
-        "%s %s %s %.3fs%s req_id=%s",
-        request.method,
-        request.url.path,
-        response.status_code,
-        duration,
-        db_info,
-        req_id,
-    )
+    msg = "%s %s %s %.3fs%s req_id=%s"
+    args = (request.method, request.url.path, response.status_code, duration, db_info, req_id)
+
+    # 5xx access lines stay at INFO so error.log is owned by exception handlers.
+    if response.status_code >= 500:
+        access_logger.info(msg, *args)
+    elif response.status_code >= 400:
+        access_logger.warning(msg, *args)
+    else:
+        access_logger.info(msg, *args)
+
     return response

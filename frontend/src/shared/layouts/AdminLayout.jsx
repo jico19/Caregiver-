@@ -1,7 +1,7 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useFetch from '../hooks/useFetch';
-import PortalNavbar from '../components/common/PortalNavbar';
+import PortalShell from '../components/sidebar/PortalShell';
 import { isAdmin } from '../lib/roles';
 
 export default function AdminLayout() {
@@ -12,7 +12,7 @@ export default function AdminLayout() {
 
   if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="min-h-screen flex items-center justify-center text-slate-500 text-sm">
         Loading Admin Operations Portal...
       </div>
     );
@@ -23,55 +23,58 @@ export default function AdminLayout() {
   if (user.role === 'client') return <Navigate to="/client/dashboard" replace />;
   if (!isAdmin(user)) return <Navigate to="/caregiver/login" replace />;
 
-  // Grouped into sections so the top row stays short; the brand links to the
-  // dashboard, which is why it is not repeated here.
+  // Grouped into explicit sections for clean sidebar navigation
   const navLinks = [
+    {
+      label: 'Overview',
+      items: [
+        { label: 'Dashboard', to: '/admin/dashboard', icon: 'dashboard' },
+      ],
+    },
     {
       label: 'People',
       items: [
-        { label: 'Caregivers', to: '/admin/caregivers' },
-        { label: 'Clients', to: '/admin/clients' },
-        { label: 'Users', to: '/admin/users' },
-        { label: 'Referrals', to: '/admin/referrals' },
+        { label: 'Caregivers', to: '/admin/caregivers', icon: 'caregivers' },
+        { label: 'Clients', to: '/admin/clients', icon: 'clients' },
+        { label: 'Users', to: '/admin/users', icon: 'users' },
+        { label: 'Referrals', to: '/admin/referrals', icon: 'referrals' },
       ],
     },
     {
       label: 'Operations',
       items: [
-        { label: 'Compliance', to: '/admin/documents' },
-        { label: 'Authorizations', to: '/admin/authorizations' },
+        { label: 'Compliance', to: '/admin/documents', icon: 'compliance' },
+        { label: 'Authorizations', to: '/admin/authorizations', icon: 'authorizations' },
+        { label: 'Training', to: '/admin/training', icon: 'training' },
       ],
     },
     {
       label: 'Oversight',
       items: [
-        { label: 'Reports', to: '/admin/reports' },
-        { label: 'Announcements', to: '/admin/announcements' },
-        { label: 'Audit Logs', to: '/admin/audit-logs' },
-        { label: 'Notifications', to: '/admin/notifications', hasBadge: true, badgeCount: unreadCount },
+        { label: 'Reports', to: '/admin/reports', icon: 'reports' },
+        { label: 'Announcements', to: '/admin/announcements', icon: 'announcements' },
+        { label: 'Audit Logs', to: '/admin/audit-logs', icon: 'audit' },
+      ],
+    },
+    {
+      label: 'System',
+      items: [
+        { label: 'Settings', to: '/admin/settings', icon: 'settings' },
+        { label: 'Notifications', to: '/admin/notifications', icon: 'notifications', hasBadge: true, badgeCount: unreadCount },
       ],
     },
   ];
 
   return (
-    <div className="portal-shell">
-      <PortalNavbar
-        roleBadge="Administrator"
-        roleBadgeColor={{
-          bg: 'var(--bg-subtle)',
-          text: 'var(--text-primary)',
-          border: 'var(--border-strong)',
-        }}
-        homePath="/admin/dashboard"
-        navLinks={navLinks}
-        user={user}
-        logout={logout}
-        accentColor="blue"
-        secondaryAction={{ label: 'Public Site ↗', to: '/florida' }}
-      />
-      <main>
-        <Outlet />
-      </main>
-    </div>
+    <PortalShell
+      roleBadge="Administrator"
+      homePath="/admin/dashboard"
+      navLinks={navLinks}
+      user={user}
+      logout={logout}
+      unreadCount={unreadCount}
+      notificationsPath="/admin/notifications"
+      secondaryAction={{ label: 'Public Site ↗', to: '/florida' }}
+    />
   );
 }

@@ -23,7 +23,7 @@ class DocumentService:
 
     def get_document_types(self, role: str | None = None):
         query = self.supabase.table("document_types").select(
-            "id, name, description, for_role, requires_expiration"
+            "id, name, for_role, requires_expiration"
         )
         if role:
             query = query.in_("for_role", [role, "both"])

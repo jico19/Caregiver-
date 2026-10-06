@@ -1,5 +1,9 @@
 import { useAuth } from '../../../shared/hooks/useAuth';
 import usePaginatedFetch from '../../../shared/hooks/usePaginatedFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import EmptyState from '../../../shared/components/common/EmptyState';
 import Pagination from '../../../shared/components/common/Pagination';
 
 export default function AuditLogsPage() {
@@ -21,38 +25,37 @@ export default function AuditLogsPage() {
   });
 
   return (
-    <div className="page-container">
-      <div className="page-head">
-        <h1 className="page-title">
-          Compliance & Security Audit Logs
-        </h1>
-        <p className="page-subtitle">
-          Immutable activity stream recording administrative approvals, rejections, and authorization issuances.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Compliance & Security Audit Logs"
+        description="Immutable activity stream recording administrative approvals, rejections, and authorization issuances."
+      />
 
       {error && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {error}
         </div>
       )}
 
-      <div className="admin-card">
-        <h2 className="section-title">
-          Recent Activity Stream ({total})
-        </h2>
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-base-200">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">
+            Recent Activity Stream ({total})
+          </h2>
+        </div>
 
         {loading ? (
-          <div className="table-loading-sm">Loading system logs...</div>
+          <div className="py-12 text-center text-slate-500 text-sm">Loading system logs...</div>
         ) : logs.length === 0 ? (
-          <div className="table-empty-sm">
-            No administrative actions recorded in audit logs yet.
-          </div>
+          <EmptyState
+            title="No audit entries recorded yet"
+            message="Administrative activities such as approvals, status changes, and issuances will be recorded here."
+          />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin table-admin-sm">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Timestamp</th>
                   <th>Actor (Admin)</th>
                   <th>IP Address</th>
@@ -61,27 +64,27 @@ export default function AuditLogsPage() {
                   <th>Record ID</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="cell-muted whitespace-nowrap">
+                  <tr key={log.id} className="hover:bg-base-200/40 transition-colors">
+                    <td className="text-slate-500 whitespace-nowrap text-xs">
                       {new Date(log.created_at).toLocaleString()}
                     </td>
-                    <td className="cell-strong">
+                    <td className="font-medium text-slate-900">
                       {log.users?.email || 'System / Admin'}
                     </td>
-                    <td className="cell-muted whitespace-nowrap font-mono text-xs">
+                    <td className="text-slate-500 whitespace-nowrap font-mono text-xs">
                       {log.ip_address || 'N/A'}
                     </td>
                     <td>
-                      <span className="chip-neutral">
+                      <span className="badge badge-sm badge-neutral badge-soft font-mono">
                         {log.action}
                       </span>
                     </td>
-                    <td className="cell-muted">
+                    <td className="text-slate-600 font-mono text-xs">
                       {log.table_name || 'N/A'}
                     </td>
-                    <td className="cell-dim">
+                    <td className="text-slate-400 font-mono text-xs">
                       {log.record_id ? log.record_id.slice(0, 8) + '...' : 'N/A'}
                     </td>
                   </tr>
@@ -91,16 +94,18 @@ export default function AuditLogsPage() {
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pages={pages}
-          total={total}
-          pageSize={pageSize}
-          listLabel="entries"
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
-      </div>
-    </div>
+        <div className="p-4 border-t border-base-200">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            listLabel="entries"
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      </Card>
+    </PageContainer>
   );
 }

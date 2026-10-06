@@ -42,7 +42,7 @@ def get_client_schedule(
     res = (
         active_only(
             supabase.table("care_schedules").select(
-                "id, client_id, state_id, day_of_week, start_time, end_time, service, status, notes, sort_order, created_at, updated_at"
+                "id, client_id, state_id, day_of_week, start_time, end_time, service, status, notes, sort_order, created_at"
             ),
             "care_schedules",
         )

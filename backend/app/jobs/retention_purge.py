@@ -57,8 +57,8 @@ def run_retention_purge(supabase=None):
         # Query expired soft-deleted rows
         query = (
             supabase.table(table_name)
-            .select("id, file_path" if table_name == "documents" else "id")
-            .neq("deleted_at", None)
+            .select("id, storage_path" if table_name == "documents" else "id")
+            .not_.is_("deleted_at", "null")
             .lt("deleted_at", cutoff_date)
         )
 
@@ -75,7 +75,7 @@ def run_retention_purge(supabase=None):
 
         # Clean up Storage files for documents table
         if table_name == "documents":
-            file_paths = [r["file_path"] for r in expired_rows if r.get("file_path")]
+            file_paths = [r["storage_path"] for r in expired_rows if r.get("storage_path")]
             if file_paths:
                 try:
                     supabase.storage.from_("documents").remove(file_paths)

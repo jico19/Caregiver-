@@ -1,7 +1,7 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import useFetch from '../hooks/useFetch';
-import PortalNavbar from '../components/common/PortalNavbar';
+import PortalShell from '../components/sidebar/PortalShell';
 import { isAdmin } from '../lib/roles';
 
 export default function ClientLayout() {
@@ -12,7 +12,7 @@ export default function ClientLayout() {
 
   if (loading) {
     return (
-      <div className="loading-screen">
+      <div className="min-h-screen flex items-center justify-center text-slate-500 text-sm">
         Loading Client Portal...
       </div>
     );
@@ -22,42 +22,47 @@ export default function ClientLayout() {
   if (isAdmin(user)) return <Navigate to="/admin/dashboard" replace />;
   if (user.role === 'caregiver') return <Navigate to="/caregiver/dashboard" replace />;
 
-  // The brand links to the dashboard, which is why it is not repeated here.
   const navLinks = [
+    {
+      label: 'Overview',
+      items: [
+        { label: 'Dashboard', to: '/client/dashboard', icon: 'dashboard' },
+      ],
+    },
     {
       label: 'My Care',
       items: [
-        { label: 'Care Plan', to: '/client/care-plan' },
-        { label: 'Schedule', to: '/client/schedule' },
+        { label: 'Care Plan', to: '/client/care-plan', icon: 'carePlan' },
+        { label: 'Schedule', to: '/client/schedule', icon: 'schedule' },
       ],
     },
     {
-      label: 'Documents',
+      label: 'Documents & Records',
       items: [
-        { label: 'Intake', to: '/client/intake' },
-        { label: 'Forms', to: '/client/forms' },
-        { label: 'Records', to: '/client/documents' },
-        { label: 'Authorizations', to: '/client/authorizations' },
+        { label: 'Intake', to: '/client/intake', icon: 'intake' },
+        { label: 'Forms', to: '/client/forms', icon: 'forms' },
+        { label: 'Records', to: '/client/documents', icon: 'records' },
+        { label: 'Authorizations', to: '/client/authorizations', icon: 'authorizations' },
       ],
     },
-    { label: 'Profile', to: '/client/profile' },
-    { label: 'Alerts', to: '/client/notifications', hasBadge: true, badgeCount: unreadCount },
+    {
+      label: 'Account',
+      items: [
+        { label: 'Profile', to: '/client/profile', icon: 'profile' },
+        { label: 'Alerts', to: '/client/notifications', icon: 'alerts', hasBadge: true, badgeCount: unreadCount },
+      ],
+    },
   ];
 
   return (
-    <div className="portal-shell">
-      <PortalNavbar
-        roleBadge="Client & Family"
-        roleBadgeColor={{
-          bg: 'var(--success-light)',
-          text: 'var(--success)',
-          border: 'var(--color-success-border)',
-        }}
-        homePath="/client/dashboard"
-        navLinks={navLinks}
-        user={user} logout={logout} accentColor="emerald"
-      />
-      <main><Outlet /></main>
-    </div>
+    <PortalShell
+      roleBadge="Client & Family"
+      homePath="/client/dashboard"
+      navLinks={navLinks}
+      user={user}
+      logout={logout}
+      unreadCount={unreadCount}
+      notificationsPath="/client/notifications"
+    />
   );
 }

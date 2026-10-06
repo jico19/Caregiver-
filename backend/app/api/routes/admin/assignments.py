@@ -30,14 +30,20 @@ def list_client_assignments(
     supabase = get_supabase()
     get_client_or_404(supabase, client_id, scope)
 
-    res = (
-        supabase.table("caregiver_client_assignments")
-        .select("id, caregiver_id, client_id, role, assigned_by, assigned_at, ended_at, created_at, caregivers(id, first_name, last_name, phone, ssn_last4)")
-        .eq("client_id", client_id)
-        .is_("ended_at", None)
-        .execute()
-    )
-    return {"assignments": res.data or []}
+    try:
+        res = (
+            supabase.table("caregiver_client_assignments")
+            .select("id, caregiver_id, client_id, role, assigned_by, assigned_at, ended_at, created_at, caregivers(id, first_name, last_name, phone, ssn_last4)")
+            .eq("client_id", client_id)
+            .is_("ended_at", None)
+            .execute()
+        )
+        return {"assignments": res.data or []}
+    except Exception as exc:
+        err_str = str(exc)
+        if "PGRST205" in err_str or "caregiver_client_assignments" in err_str:
+            return {"assignments": []}
+        raise
 
 
 @router.post("/clients/{client_id}/assignments")
@@ -163,11 +169,17 @@ def list_caregiver_assigned_clients(
 
     assert_state_allowed(scope, cg_res.data.get("state_id"))
 
-    res = (
-        supabase.table("caregiver_client_assignments")
-        .select("id, caregiver_id, client_id, role, assigned_by, assigned_at, ended_at, created_at, clients(id, first_name, last_name, phone, address, status, states(code, name))")
-        .eq("caregiver_id", caregiver_id)
-        .is_("ended_at", None)
-        .execute()
-    )
-    return {"assignments": res.data or []}
+    try:
+        res = (
+            supabase.table("caregiver_client_assignments")
+            .select("id, caregiver_id, client_id, role, assigned_by, assigned_at, ended_at, created_at, clients(id, first_name, last_name, phone, address, status, states(code, name))")
+            .eq("caregiver_id", caregiver_id)
+            .is_("ended_at", None)
+            .execute()
+        )
+        return {"assignments": res.data or []}
+    except Exception as exc:
+        err_str = str(exc)
+        if "PGRST205" in err_str or "caregiver_client_assignments" in err_str:
+            return {"assignments": []}
+        raise

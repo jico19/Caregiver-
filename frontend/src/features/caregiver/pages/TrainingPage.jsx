@@ -4,6 +4,10 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import { queryClient } from '../../../shared/lib/queryClient';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
 
 export default function TrainingPage() {
   const { token } = useAuth();
@@ -48,84 +52,82 @@ export default function TrainingPage() {
   }
 
   if (loading) {
-    return <div className="loading-screen">Loading in-service training modules...</div>;
+    return (
+      <PageContainer size="wide">
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading in-service training modules...
+        </div>
+      </PageContainer>
+    );
   }
 
   const completedCount = courses.filter((c) => c.enrollment_status === 'completed').length;
   const inProgressCount = courses.filter((c) => c.enrollment_status === 'in_progress').length;
 
   return (
-    <div className="container-wide">
-      <div className="mb-6">
-        <h1 className="page-title">
-          Caregiver In-Service Training
-        </h1>
-        <p className="page-subtitle">
-          Mandatory compliance education covering client safety, privacy standards, and state healthcare regulations.
-        </p>
-      </div>
+    <PageContainer size="wide">
+      <PageHeader
+        title="Caregiver In-Service Training"
+        subtitle="Mandatory compliance education covering client safety, privacy standards, and state healthcare regulations."
+      />
 
       {(errorMsg || listError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || listError}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{errorMsg || listError}</span>
         </div>
       )}
 
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{successMsg}</span>
         </div>
       )}
 
       {/* Progress Cards */}
-      <div className="grid grid-cols-3 max-md:grid-cols-1 gap-4 mb-8">
-        <div className="stat-card">
-          <div className="text-xs text-muted font-semibold mb-1">Total Modules</div>
-          <div className="stat-value">{courses.length}</div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card className="p-4">
+          <div className="text-xs text-slate-500 font-medium mb-1">Total Modules</div>
+          <div className="text-2xl font-bold text-slate-900">{courses.length}</div>
+        </Card>
 
-        <div className="stat-card stat-card-warning">
-          <div className="stat-label-warning">In Progress</div>
-          <div className="stat-value-warning">{inProgressCount}</div>
-        </div>
+        <Card className="p-4 bg-amber-50/30 border-amber-200">
+          <div className="text-xs text-amber-800 font-medium mb-1">In Progress</div>
+          <div className="text-2xl font-bold text-amber-900">{inProgressCount}</div>
+        </Card>
 
-        <div className="stat-card stat-card-success">
-          <div className="stat-label-success">Completed</div>
-          <div className="stat-value-success">{completedCount}</div>
-        </div>
+        <Card className="p-4 bg-emerald-50/30 border-emerald-200">
+          <div className="text-xs text-emerald-800 font-medium mb-1">Completed</div>
+          <div className="text-2xl font-bold text-emerald-900">{completedCount}</div>
+        </Card>
       </div>
 
       {/* Courses List */}
-      <div className="grid-cards">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {courses.map((course) => {
           const status = course.enrollment_status;
           const isBusy = actionLoading === course.id;
 
-          const badgeClass =
-            status === 'completed'
-              ? 'badge badge-green'
-              : status === 'in_progress'
-              ? 'badge badge-yellow'
-              : 'badge badge-gray';
-
           return (
-            <div
+            <Card
               key={course.id}
-              className={`course-card ${status === 'completed' ? 'course-card-completed' : ''}`}
+              className={`p-5 flex flex-col justify-between ${
+                status === 'completed' ? 'border-emerald-200 bg-emerald-50/10' : ''
+              }`}
             >
               <div>
                 <div className="flex justify-between items-start gap-2 mb-2">
-                  <h2 className="font-semibold text-sm m-0">{course.name}</h2>
-                  <span className={badgeClass}>
-                    {status.replace('_', ' ')}
-                  </span>
+                  <h2 className="font-semibold text-sm text-slate-900 m-0">{course.name}</h2>
+                  <StatusBadge
+                    status={status}
+                    label={status.replace('_', ' ')}
+                  />
                 </div>
 
-                <div className="text-xs text-primary font-semibold mb-2">
+                <div className="text-xs text-emerald-700 font-medium mb-2">
                   Duration: {course.duration_hours} hour{course.duration_hours > 1 ? 's' : ''}
                 </div>
 
-                <p className="text-secondary text-sm leading-normal mb-4">
+                <p className="text-slate-600 text-xs leading-normal mb-4">
                   {course.description}
                 </p>
               </div>
@@ -136,7 +138,7 @@ export default function TrainingPage() {
                     type="button"
                     disabled={isBusy}
                     onClick={() => handleEnroll(course.id)}
-                    className="btn-primary btn-full"
+                    className="btn btn-primary btn-sm w-full"
                   >
                     {isBusy ? 'Enrolling...' : 'Enroll Module'}
                   </button>
@@ -147,30 +149,30 @@ export default function TrainingPage() {
                     type="button"
                     disabled={isBusy}
                     onClick={() => handleComplete(course.id)}
-                    className="btn-success btn-full"
+                    className="btn btn-primary btn-sm w-full"
                   >
                     {isBusy ? 'Saving...' : 'Mark as Completed'}
                   </button>
                 )}
 
                 {status === 'completed' && (
-                  <div className="flex flex-col gap-2">
-                    <div className="alert alert-success text-center font-semibold text-xs m-0">
+                  <div className="space-y-2">
+                    <div className="text-center font-medium text-xs text-emerald-700 bg-emerald-50 py-1.5 px-2 rounded border border-emerald-200">
                       Completed on {course.completed_at ? new Date(course.completed_at).toLocaleDateString() : 'Record'} ✓
                     </div>
                     <Link
                       to={`/caregiver/training-certificate/${course.id}`}
-                      className="btn-outline-secondary btn-full btn-sm text-center"
+                      className="btn btn-outline btn-xs w-full text-center"
                     >
-                      View Certificate →
+                      View Certificate
                     </Link>
                   </div>
                 )}
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
-    </div>
+    </PageContainer>
   );
 }

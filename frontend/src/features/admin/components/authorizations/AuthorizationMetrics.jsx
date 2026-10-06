@@ -1,45 +1,58 @@
 export default function AuthorizationMetrics({ metrics, filterStatus, onSelectStatus }) {
+  const items = [
+    {
+      id: 'all',
+      label: 'Total Authorizations',
+      value: metrics.total,
+      hint: 'View all records →',
+    },
+    {
+      id: 'active',
+      label: 'Active (Current)',
+      value: metrics.active,
+      hint: '> 30 days remaining',
+    },
+    {
+      id: 'expiring_soon',
+      label: 'Expiring Soon',
+      value: metrics.expiringSoon,
+      hint: 'Within 30 days',
+    },
+    {
+      id: 'expired',
+      label: 'Expired',
+      value: metrics.expired,
+      hint: 'Requires re-authorization',
+    },
+  ];
+
   return (
-    <div className="metric-grid">
-      <button
-        type="button"
-        onClick={() => onSelectStatus('all')}
-        className={`metric-btn ${filterStatus === 'all' ? 'metric-btn-all-active' : ''}`}
-      >
-        <div className="metric-label metric-label-gray">Total Authorizations</div>
-        <div className="metric-value metric-value-dark">{metrics.total}</div>
-        <div className="metric-hint metric-hint-blue">View all records →</div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onSelectStatus('active')}
-        className={`metric-btn ${filterStatus === 'active' ? 'metric-btn-active-active' : ''}`}
-      >
-        <div className="metric-label metric-label-green">Active (Current)</div>
-        <div className="metric-value metric-value-green">{metrics.active}</div>
-        <div className="metric-hint metric-hint-green">&gt; 30 days remaining</div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onSelectStatus('expiring_soon')}
-        className={`metric-btn ${filterStatus === 'expiring_soon' ? 'metric-btn-warning-active' : ''}`}
-      >
-        <div className="metric-label metric-label-amber">Expiring Soon</div>
-        <div className="metric-value metric-value-amber">{metrics.expiringSoon}</div>
-        <div className="metric-hint metric-hint-amber">Within 30 days</div>
-      </button>
-
-      <button
-        type="button"
-        onClick={() => onSelectStatus('expired')}
-        className={`metric-btn ${filterStatus === 'expired' ? 'metric-btn-danger-active' : ''}`}
-      >
-        <div className="metric-label metric-label-red">Expired</div>
-        <div className="metric-value metric-value-red">{metrics.expired}</div>
-        <div className="metric-hint metric-hint-red">Requires re-authorization</div>
-      </button>
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {items.map((item) => {
+        const isActive = filterStatus === item.id;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onSelectStatus(item.id)}
+            className={`text-left p-4 rounded-box border transition-colors cursor-pointer ${
+              isActive
+                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                : 'border-base-300 bg-base-100 hover:border-slate-400'
+            }`}
+          >
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+              {item.label}
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">
+              {item.value}
+            </div>
+            <div className={`text-xs mt-1 ${isActive ? 'text-primary font-medium' : 'text-slate-500'}`}>
+              {item.hint}
+            </div>
+          </button>
+        );
+      })}
     </div>
   );
 }

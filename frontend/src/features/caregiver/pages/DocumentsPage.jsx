@@ -4,6 +4,12 @@ import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
 import { DOCUMENT_STATUS_META } from '../../../shared/constants/documentStatus';
 import { downloadDocument } from '../../../shared/utils/documentUtils';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 export default function DocumentsPage() {
   const { token } = useAuth();
@@ -29,7 +35,6 @@ export default function DocumentsPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const fileInputRef = useRef(null);
 
-
   useEffect(() => {
     let isMounted = true;
 
@@ -51,7 +56,6 @@ export default function DocumentsPage() {
       isMounted = false;
     };
   }, [token]);
-
 
   const selectedTypeObj = docTypes.find((t) => String(t.id) === String(selectedTypeId));
 
@@ -102,46 +106,45 @@ export default function DocumentsPage() {
   }
 
   if (loading) {
-    return <div className="loading-screen">Loading document records...</div>;
+    return (
+      <PageContainer size="wide">
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading document records...
+        </div>
+      </PageContainer>
+    );
   }
 
-
   return (
-    <div className="container-wide">
-      <div className="mb-6">
-        <h1 className="page-title">
-          Caregiver Credentials & Compliance
-        </h1>
-        <p className="page-subtitle">
-          Upload required professional certifications and state background check records. All files are securely encrypted.
-        </p>
-      </div>
+    <PageContainer size="wide">
+      <PageHeader
+        title="Caregiver Credentials & Compliance"
+        subtitle="Upload required professional certifications and state background check records. All files are securely encrypted."
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{errorMsg}</span>
         </div>
       )}
 
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{successMsg}</span>
         </div>
       )}
 
       {/* Upload Section */}
-      <div className="card mb-8">
-        <h2 className="section-title-bordered">
+      <Card className="mb-6">
+        <h2 className="font-semibold text-base text-slate-900 m-0 mb-4 pb-2 border-b border-base-300">
           Upload New Credential or Form
         </h2>
 
-        <form onSubmit={handleUploadSubmit} className="grid grid-cols-4 max-md:grid-cols-1 gap-4 items-end">
-          <div>
-            <label htmlFor="doc-type">
-              Document Category *
-            </label>
+        <form onSubmit={handleUploadSubmit} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <FormField label="Document Category" id="doc-type" required>
             <select
               id="doc-type"
+              className="select select-bordered w-full text-sm"
               value={selectedTypeId}
               onChange={(e) => setSelectedTypeId(e.target.value)}
             >
@@ -151,65 +154,67 @@ export default function DocumentsPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
-          <div>
-            <label htmlFor="expiration-date">
-              Expiration Date {selectedTypeObj?.requires_expiration ? '*' : '(Optional)'}
-            </label>
+          <FormField
+            label={`Expiration Date ${selectedTypeObj?.requires_expiration ? '*' : '(Optional)'}`}
+            id="expiration-date"
+            required={selectedTypeObj?.requires_expiration}
+          >
             <input
               id="expiration-date"
               type="date"
               required={selectedTypeObj?.requires_expiration}
+              className="input input-bordered w-full text-sm"
               value={expirationDate}
               onChange={(e) => setExpirationDate(e.target.value)}
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label htmlFor="doc-file">
-              File (PDF, PNG, JPEG, max 10MB) *
-            </label>
+          <FormField label="File (PDF, PNG, JPEG, max 10MB)" id="doc-file" required>
             <input
               id="doc-file"
               type="file"
+              ref={fileInputRef}
               required
               accept=".pdf,.png,.jpg,.jpeg"
               onChange={(e) => setSelectedFile(e.target.files[0] || null)}
-              className="text-sm"
+              className="file-input file-input-bordered file-input-sm w-full text-xs"
             />
-          </div>
+          </FormField>
 
           <div>
             <button
               type="submit"
               disabled={uploading}
-              className="btn-primary btn-full"
+              className="btn btn-primary w-full"
             >
               {uploading ? 'Uploading...' : 'Submit Credential'}
             </button>
           </div>
         </form>
-      </div>
+      </Card>
 
       {/* Uploaded Documents List */}
-      <div className="card">
-        <h2 className="section-title">
-          Submitted Documents ({documents.length})
-        </h2>
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b border-base-300">
+          <h2 className="font-semibold text-base text-slate-900 m-0">
+            Submitted Documents ({documents.length})
+          </h2>
+        </div>
 
         {documents.length === 0 ? (
-          <div className="card-dashed">
-            <p className="font-semibold">No documents uploaded yet.</p>
-            <p className="text-sm text-muted mt-2">
-              Select a category above to submit your driver license, CPR certification, or TB test.
-            </p>
+          <div className="p-6">
+            <EmptyState
+              title="No documents uploaded yet"
+              description="Select a category above to submit your driver license, CPR certification, or TB test."
+            />
           </div>
         ) : (
-          <div className="table-responsive">
-            <table>
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-300 text-slate-500 text-xs bg-base-200/50">
                   <th>Document Type</th>
                   <th>Uploaded Date</th>
                   <th>Expiration</th>
@@ -221,26 +226,24 @@ export default function DocumentsPage() {
                 {documents.map((doc) => {
                   const s = DOCUMENT_STATUS_META[doc.status] || DOCUMENT_STATUS_META.pending_review;
                   return (
-                    <tr key={doc.id}>
-                      <td className="font-semibold">
+                    <tr key={doc.id} className="border-b border-base-300/60 hover:bg-base-200/50">
+                      <td className="font-semibold text-slate-900 text-xs">
                         {doc.document_types?.name || 'Document'}
                       </td>
-                      <td className="text-secondary">
+                      <td className="text-slate-600 text-xs">
                         {new Date(doc.uploaded_at).toLocaleDateString()}
                       </td>
-                      <td className="text-secondary">
+                      <td className="text-slate-600 text-xs">
                         {doc.expiration_date ? new Date(doc.expiration_date).toLocaleDateString() : 'N/A'}
                       </td>
                       <td>
-                        <span className={`badge ${s.badge}`}>
-                          {s.label}
-                        </span>
+                        <StatusBadge status={doc.status} label={s.label} />
                       </td>
                       <td className="text-right">
                         <button
                           type="button"
                           onClick={() => downloadDocument(doc.id, token)}
-                          className="btn-outline-primary btn-sm"
+                          className="btn btn-outline btn-xs"
                         >
                           View / Download
                         </button>
@@ -252,7 +255,7 @@ export default function DocumentsPage() {
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

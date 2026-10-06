@@ -2,6 +2,9 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { CLIENT_STATUS_LABELS } from '../constants/clientDetailConstants';
 import { useClientDetailData } from '../hooks/useClientDetailData';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
 import ClientDetailsCard from '../components/client-detail/ClientDetailsCard';
 import AdmissionDecisionSection from '../components/client-detail/AdmissionDecisionSection';
 import CarePlanSection from '../components/client-detail/CarePlanSection';
@@ -14,59 +17,62 @@ export default function ClientDetailPage() {
   const detail = useClientDetailData(id, token);
 
   if (detail.loading) {
-    return <div className="loading-screen">Loading client details...</div>;
+    return (
+      <PageContainer>
+        <div className="py-12 text-center text-slate-500 text-sm">Loading client details...</div>
+      </PageContainer>
+    );
   }
 
   if (!detail.client) {
     return (
-      <div className="container-medium">
-        <div className="card text-center p-8">
-          <p className="text-secondary mb-4">Client not found.</p>
-          <Link to="/admin/clients" className="btn-primary">
-            ← Back to Clients
-          </Link>
+      <PageContainer>
+        <div role="alert" className="alert alert-error mb-4">
+          <span>Client not found.</span>
         </div>
-      </div>
+        <Link to="/admin/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+          ← Back to Clients
+        </Link>
+      </PageContainer>
     );
   }
 
   return (
-    <div className="container-medium">
-      {/* Header */}
-      <div className="mb-6 flex justify-between items-center flex-wrap gap-3">
-        <div>
-          <Link to="/admin/clients" className="text-sm text-secondary hover:text-ink">
-            ← Back to Clients
-          </Link>
-          <h1 className="page-title m-0 mt-1">
-            {detail.client.first_name} {detail.client.last_name}
-          </h1>
-          <p className="page-subtitle m-0">
-            {detail.client.states?.name || `State #${detail.client.state_id}`} · Status:{' '}
-            <span className="font-semibold text-ink">
-              {CLIENT_STATUS_LABELS[detail.client.status] || detail.client.status}
-            </span>
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <a
-            href={`/admin/authorizations?client_id=${detail.client.id}&state_id=${detail.client.state_id}`}
-            className="btn-outline-secondary btn-sm"
-          >
-            Manage Authorizations →
-          </a>
-        </div>
+    <PageContainer>
+      <div className="mb-2">
+        <Link to="/admin/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+          ← Back to Clients
+        </Link>
       </div>
+
+      <PageHeader
+        title={`${detail.client.first_name} ${detail.client.last_name}`}
+        subtitle={`${detail.client.states?.name || `State #${detail.client.state_id}`} · Client File`}
+        actions={
+          <div className="flex items-center gap-2">
+            <StatusBadge
+              status={detail.client.status}
+              label={CLIENT_STATUS_LABELS[detail.client.status] || detail.client.status}
+            />
+            <Link
+              to={`/admin/authorizations?client_id=${detail.client.id}&state_id=${detail.client.state_id}`}
+              className="btn btn-outline btn-xs"
+            >
+              Authorizations →
+            </Link>
+          </div>
+        }
+      />
 
       {/* Notifications */}
       {detail.errorMsg && (
-        <div role="alert" className="alert alert-error mb-4">
-          {detail.errorMsg}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{detail.errorMsg}</span>
         </div>
       )}
       {detail.successMsg && (
-        <div role="status" className="alert alert-success mb-4">
-          {detail.successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{detail.successMsg}</span>
         </div>
       )}
 
@@ -77,32 +83,32 @@ export default function ClientDetailPage() {
       <AdmissionDecisionSection
         client={detail.client}
         serviceStartDate={detail.serviceStartDate}
-        onServiceStartDateChange={detail.setServiceStartDate}
+        setServiceStartDate={detail.setServiceStartDate}
         admissionNotes={detail.admissionNotes}
-        onAdmissionNotesChange={detail.setAdmissionNotes}
+        setAdmissionNotes={detail.setAdmissionNotes}
         rejectionReason={detail.rejectionReason}
-        onRejectionReasonChange={detail.setRejectionReason}
+        setRejectionReason={detail.setRejectionReason}
         submittingAdmission={detail.submittingAdmission}
-        onUpdateAdmission={detail.handleUpdateAdmission}
+        handleUpdateAdmission={detail.handleUpdateAdmission}
       />
 
       {/* Care Plan Section */}
       <CarePlanSection
         carePlan={detail.carePlan}
         cpStatus={detail.cpStatus}
-        onCpStatusChange={detail.setCpStatus}
+        setCpStatus={detail.setCpStatus}
         cpEffectiveDate={detail.cpEffectiveDate}
-        onCpEffectiveDateChange={detail.setCpEffectiveDate}
+        setCpEffectiveDate={detail.setCpEffectiveDate}
         cpPrimaryNurse={detail.cpPrimaryNurse}
-        onCpPrimaryNurseChange={detail.setCpPrimaryNurse}
+        setCpPrimaryNurse={detail.setCpPrimaryNurse}
         cpEmergencyProtocol={detail.cpEmergencyProtocol}
-        onCpEmergencyProtocolChange={detail.setCpEmergencyProtocol}
+        setCpEmergencyProtocol={detail.setCpEmergencyProtocol}
         activities={detail.activities}
-        onActivityFieldChange={detail.setActivityField}
-        onAddActivityRow={detail.addActivityRow}
-        onRemoveActivityRow={detail.removeActivityRow}
+        setActivityField={detail.setActivityField}
+        addActivityRow={detail.addActivityRow}
+        removeActivityRow={detail.removeActivityRow}
         savingPlan={detail.savingPlan}
-        onSavePlan={detail.handleSavePlan}
+        handleSavePlan={detail.handleSavePlan}
       />
 
       {/* Caregiver Assignments Section */}
@@ -110,35 +116,35 @@ export default function ClientDetailPage() {
         assignments={detail.assignments}
         availableCaregivers={detail.availableCaregivers}
         selectedCaregiverId={detail.selectedCaregiverId}
-        onSelectCaregiverId={detail.setSelectedCaregiverId}
+        setSelectedCaregiverId={detail.setSelectedCaregiverId}
         selectedRole={detail.selectedRole}
-        onSelectRole={detail.setSelectedRole}
+        setSelectedRole={detail.setSelectedRole}
         assigning={detail.assigning}
-        onAssignCaregiver={detail.handleAssignCaregiver}
-        onEndAssignment={detail.handleEndAssignment}
+        handleAssignCaregiver={detail.handleAssignCaregiver}
+        handleEndAssignment={detail.handleEndAssignment}
       />
 
       {/* Service Schedule Section */}
       <ScheduleSection
         schedule={detail.schedule}
         schedDay={detail.schedDay}
-        onSchedDayChange={detail.setSchedDay}
+        setSchedDay={detail.setSchedDay}
         schedStart={detail.schedStart}
-        onSchedStartChange={detail.setSchedStart}
+        setSchedStart={detail.setSchedStart}
         schedEnd={detail.schedEnd}
-        onSchedEndChange={detail.setSchedEnd}
+        setSchedEnd={detail.setSchedEnd}
         schedService={detail.schedService}
-        onSchedServiceChange={detail.setSchedService}
+        setSchedService={detail.setSchedService}
         schedCustomService={detail.schedCustomService}
-        onSchedCustomServiceChange={detail.setSchedCustomService}
+        setSchedCustomService={detail.setSchedCustomService}
         schedStatus={detail.schedStatus}
-        onSchedStatusChange={detail.setSchedStatus}
+        setSchedStatus={detail.setSchedStatus}
         schedNotes={detail.schedNotes}
-        onSchedNotesChange={detail.setSchedNotes}
+        setSchedNotes={detail.setSchedNotes}
         addingSched={detail.addingSched}
-        onAddSchedule={detail.handleAddSchedule}
-        onDeleteSchedule={detail.handleDeleteSchedule}
+        handleAddSchedule={detail.handleAddSchedule}
+        handleDeleteSchedule={detail.handleDeleteSchedule}
       />
-    </div>
+    </PageContainer>
   );
 }

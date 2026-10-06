@@ -4,6 +4,11 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
 import SignaturePad from '../../../shared/components/common/SignaturePad';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import LoadingState from '../../../shared/components/common/LoadingState';
 import { admissionPacketUrl, ADMISSION_PACKET_ITEMS, STATE_PACKET_CODE } from '../../../shared/utils/packets';
 
 export default function IntakePage() {
@@ -15,7 +20,13 @@ export default function IntakePage() {
   });
 
   if (loading) {
-    return <div className="loading-text">Loading client intake profile...</div>;
+    return (
+      <LoadingState
+        title="Loading Client Intake Profile..."
+        subtitle="Retrieving care recipient identification..."
+        variant="page"
+      />
+    );
   }
 
   return (
@@ -86,213 +97,186 @@ function ClientIntakeForm({ initialProfile, token, user, fetchError }) {
   const stateCode = STATE_PACKET_CODE[stateId] || STATE_PACKET_CODE[1];
   const admissionItems = ADMISSION_PACKET_ITEMS[stateCode];
 
-
   return (
-    <div className="container-medium">
-      <div className="page-head">
-        <h1 className="page-title">
-          Client Service Intake
-        </h1>
-        <p className="page-subtitle">
-          Provide the care recipient's identification and Medicaid details to initiate authorization and scheduling.
-        </p>
-      </div>
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Client Service Intake"
+        subtitle="Provide the care recipient's identification and Medicaid details to initiate authorization and scheduling."
+      />
 
       {(errorMsg || fetchError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || fetchError}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg || fetchError}</span>
         </div>
       )}
-
 
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-soft alert-success my-4">
+          <span className="text-xs">{successMsg}</span>
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="form-card">
-        <h2 className="section-title-bordered">
-          Care Recipient Information
-        </h2>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <Card title="Care Recipient Information">
+          <div className="flex flex-col gap-4 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="First Name" htmlFor="client-first-name" required>
+                <input
+                  id="client-first-name"
+                  type="text"
+                  required
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+              </FormField>
 
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="client-first-name">
-              First Name *
-            </label>
-            <input
-              id="client-first-name"
-              type="text"
-              required
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="client-last-name">
-              Last Name *
-            </label>
-            <input
-              id="client-last-name"
-              type="text"
-              required
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="client-state">
-              Service State *
-            </label>
-            <select
-              id="client-state"
-              value={stateId}
-              onChange={(e) => setStateId(e.target.value)}
-            >
-              <option value="1">Florida (FL)</option>
-              <option value="2">Indiana (IN)</option>
-              <option value="3">Georgia (GA)</option>
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="client-dob">
-              Date of Birth
-            </label>
-            <input
-              id="client-dob"
-              type="date"
-              value={dateOfBirth}
-              onChange={(e) => setDateOfBirth(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="form-grid-2">
-          <div>
-            <label htmlFor="client-phone">
-              Primary Phone
-            </label>
-            <input
-              id="client-phone"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(555) 000-0000"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="client-medicaid">
-              Medicaid or Insurance Number
-            </label>
-            <input
-              id="client-medicaid"
-              type="text"
-              value={medicaidNumber}
-              onChange={(e) => setMedicaidNumber(e.target.value)}
-              placeholder="E.g., 9-digit Medicaid ID"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="client-address">
-            Service Address (Home Location)
-          </label>
-          <input
-            id="client-address"
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Street address, City, State, ZIP"
-          />
-        </div>
-
-        <div className="admission-packet-card">
-          <div className="flex justify-between items-center gap-4">
-            <div>
-              <h3 className="section-title m-0">
-                Client Admission Packet
-              </h3>
-              <p className="text-sm text-muted mt-1">
-                Review the forms included in this state's admission packet before signing.
-              </p>
+              <FormField label="Last Name" htmlFor="client-last-name" required>
+                <input
+                  id="client-last-name"
+                  type="text"
+                  required
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+              </FormField>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="Service State" htmlFor="client-state" required>
+                <select
+                  id="client-state"
+                  value={stateId}
+                  onChange={(e) => setStateId(e.target.value)}
+                  className="select select-bordered w-full"
+                >
+                  <option value="1">Florida (FL)</option>
+                  <option value="2">Indiana (IN)</option>
+                  <option value="3">Georgia (GA)</option>
+                </select>
+              </FormField>
+
+              <FormField label="Date of Birth" htmlFor="client-dob">
+                <input
+                  id="client-dob"
+                  type="date"
+                  value={dateOfBirth}
+                  onChange={(e) => setDateOfBirth(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+              </FormField>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label="Primary Phone" htmlFor="client-phone">
+                <input
+                  id="client-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="(555) 000-0000"
+                  className="input input-bordered w-full"
+                />
+              </FormField>
+
+              <FormField label="Medicaid or Insurance Number" htmlFor="client-medicaid">
+                <input
+                  id="client-medicaid"
+                  type="text"
+                  value={medicaidNumber}
+                  onChange={(e) => setMedicaidNumber(e.target.value)}
+                  placeholder="E.g., 9-digit Medicaid ID"
+                  className="input input-bordered w-full"
+                />
+              </FormField>
+            </div>
+
+            <FormField label="Service Address (Home Location)" htmlFor="client-address">
+              <input
+                id="client-address"
+                type="text"
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Street address, City, State, ZIP"
+                className="input input-bordered w-full"
+              />
+            </FormField>
+          </div>
+        </Card>
+
+        <Card
+          title="Client Admission Packet"
+          subtitle="Review the forms included in this state's admission packet before signing."
+        >
+          <div className="mt-2">
             <button
               type="button"
               onClick={() => setPacketOpen(!packetOpen)}
-              className="btn-outline-secondary"
+              className="btn btn-outline btn-xs text-slate-700"
             >
-              {packetOpen ? 'Hide forms' : 'View included forms'}
+              {packetOpen ? 'Hide included forms ▲' : 'View included forms ▼'}
+            </button>
+
+            {packetOpen && (
+              <ul className="list-disc pl-5 mt-3 text-xs text-slate-600 space-y-1">
+                {admissionItems.map((item) => <li key={item}>{item}</li>)}
+              </ul>
+            )}
+
+            <div className="mt-4">
+              <a
+                href={admissionPacketUrl(stateId)}
+                download
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline btn-sm text-slate-700 inline-flex items-center gap-2"
+              >
+                Download {stateId === '2' ? 'Indiana' : stateId === '3' ? 'Georgia' : 'Florida'} Admission Packet (PDF)
+              </a>
+            </div>
+          </div>
+        </Card>
+
+        <Card
+          title="Client Acknowledgement & Signature"
+          subtitle="By signing below, you confirm the care recipient information above is accurate and acknowledge receipt of the admission packet."
+        >
+          <div className="flex flex-col gap-4 mt-2">
+            <FormField label="Full Legal Name (typed)" htmlFor="client-signed-name" required>
+              <input
+                id="client-signed-name"
+                type="text"
+                required
+                value={signedName}
+                onChange={(e) => setSignedName(e.target.value)}
+                placeholder="Enter the signer's full legal name"
+                className="input input-bordered w-full"
+              />
+            </FormField>
+
+            <FormField label="Draw Signature" required>
+              <div className="border border-base-300 rounded-box p-1 bg-white">
+                <SignaturePad value={signatureData} onChange={setSignatureData} height={180} />
+              </div>
+            </FormField>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="btn btn-primary w-full mt-2"
+            >
+              {submitting ? 'Saving Intake...' : 'Sign & Submit Intake →'}
             </button>
           </div>
-
-          {packetOpen && (
-            <ul className="list-disc pl-5 mt-3 text-sm text-secondary">
-              {admissionItems.map((item) => <li key={item}>{item}</li>)}
-            </ul>
-          )}
-
-          <a
-            href={admissionPacketUrl(stateId)}
-            download
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn-success mt-4 inline-flex items-center gap-2"
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 3v13m0 0l-4-4m4 4l4-4" /></svg>
-            Download {stateId === '2' ? 'Indiana' : stateId === '3' ? 'Georgia' : 'Florida'} Admission Packet (PDF)
-          </a>
-        </div>
-
-        <h2 className="section-title-bordered">
-          Client Acknowledgement & Signature
-        </h2>
-        <p className="text-sm text-muted">
-          By signing below, you confirm the care recipient information above is accurate and acknowledge receipt of the admission packet.
-        </p>
-
-        <div>
-          <label htmlFor="client-signed-name">
-            Full Legal Name (typed) *
-          </label>
-          <input
-            id="client-signed-name"
-            type="text"
-            required
-            value={signedName}
-            onChange={(e) => setSignedName(e.target.value)}
-            placeholder="Enter the signer's full legal name"
-          />
-        </div>
-
-        <div>
-          <label>
-            Draw Signature *
-          </label>
-          <SignaturePad value={signatureData} onChange={setSignatureData} height={180} />
-        </div>
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="btn-success-full"
-        >
-          {submitting ? 'Saving Intake...' : 'Sign & Submit Intake'}
-        </button>
+        </Card>
       </form>
 
       <div className="flex justify-end mt-6">
-        <Link to="/client/documents" className="text-success text-sm font-medium">
+        <Link to="/client/documents" className="text-xs font-semibold text-green-700 hover:text-green-800 underline">
           Go to Document Submission →
         </Link>
       </div>
-    </div>
+    </PageContainer>
   );
 }

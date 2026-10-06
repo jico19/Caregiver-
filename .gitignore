@@ -43,6 +43,8 @@ storage/
 # Logs
 # ============================================
 *.log
+backend/logs/*.log
+!backend/logs/.gitkeep
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

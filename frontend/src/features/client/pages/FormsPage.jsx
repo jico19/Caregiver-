@@ -4,6 +4,14 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
 import SignaturePad from '../../../shared/components/common/SignaturePad';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import Toast from '../../../shared/components/common/Toast';
+import LoadingState from '../../../shared/components/common/LoadingState';
 import { admissionPacketUrl, STATE_PACKET_CODE } from '../../../shared/utils/packets';
 
 export default function FormsPage() {
@@ -19,20 +27,18 @@ export default function FormsPage() {
   const [signedName, setSignedName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
 
   function openSign(tpl) {
     setActiveKey(tpl.agreement_key);
     setSignatureData(null);
     setSignedName(tpl.signed_name || '');
     setErrorMsg('');
-    setSuccessMsg('');
   }
 
   async function handleSign(e) {
     e.preventDefault();
     setErrorMsg('');
-    setSuccessMsg('');
 
     if (!signatureData) {
       setErrorMsg('Please draw your signature.');
@@ -49,10 +55,9 @@ export default function FormsPage() {
         signature_data: signatureData,
         signed_name: signedName.trim(),
       }, token);
-      setSuccessMsg('Form signed and stored on your record.');
+      setToastMsg('Form signed and stored on your record.');
       setActiveKey(null);
       setSignatureData(null);
-
       await refetch();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to sign the form.');
@@ -62,114 +67,98 @@ export default function FormsPage() {
   }
 
   if (loading) {
-    return <div className="loading-text">Loading client forms...</div>;
+    return (
+      <LoadingState
+        title="Loading Client Forms..."
+        subtitle="Retrieving electronic agreements..."
+        variant="page"
+      />
+    );
   }
-
 
   const signedCount = agreements.filter((a) => a.signed).length;
   const stateCode = STATE_PACKET_CODE[user?.state_id] || 'FL';
   const stateSlug = stateCode.toLowerCase();
 
   return (
-    <div className="container-medium">
-      <div className="page-head">
-        <h1 className="page-title">
-          Client Forms & Agreements
-        </h1>
-        <p className="page-subtitle">
-          Review and electronically sign the agreements required for your home care services. Signatures apply your name on its own behalf.
-        </p>
-      </div>
-
-      {(errorMsg || fetchError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || fetchError}
-        </div>
-      )}
-
-
-      {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
-        </div>
-      )}
-
-      <div className="card mb-6">
-        <div className="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h2 className="section-title m-0">
-              Admission Packet & State Forms
-            </h2>
-            <p className="text-sm text-muted mt-1">
-              Download the state admission packet and view regulatory forms for your service state.
-            </p>
-          </div>
-          <div className="flex gap-3">
+    <PageContainer size="narrow">
+      <PageHeader
+        title="Client Forms & Agreements"
+        subtitle="Review and electronically sign agreements required for home care services. Signatures apply directly to your medical record."
+        badge={<StatusBadge status={signedCount === agreements.length && agreements.length > 0 ? 'completed' : 'pending'} label={`${signedCount}/${agreements.length} Signed`} />}
+        actions={
+          <div className="flex gap-2">
             <a
               href={admissionPacketUrl(stateCode)}
               download
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-outline-secondary"
+              className="btn btn-outline btn-sm text-slate-700"
             >
               Admission Packet (PDF)
             </a>
-            <Link to={`/${stateSlug}/forms`} className="btn-outline-primary">
-              State Forms
+            <Link to={`/${stateSlug}/forms`} className="btn btn-outline btn-sm text-slate-700">
+              State Forms ↗
             </Link>
           </div>
-        </div>
-      </div>
+        }
+      />
 
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="section-title m-0">
-            Required Forms ({signedCount}/{agreements.length} signed)
-          </h2>
+      {(errorMsg || fetchError) && (
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg || fetchError}</span>
         </div>
+      )}
 
+      <Toast message={toastMsg} type="success" onClose={() => setToastMsg('')} />
+
+      <Card title={`Required Forms (${signedCount}/${agreements.length} signed)`}>
         {agreements.length === 0 ? (
-          <div className="card-empty">
-            No forms to review at this time.
-          </div>
+          <EmptyState
+            title="No forms to review at this time"
+            description="Your intake documentation and service agreements are fully up to date."
+          />
         ) : (
-          <div className="grid gap-4">
+          <div className="flex flex-col gap-4 mt-2">
             {agreements.map((tpl) => (
-              <div key={tpl.agreement_key} className="border rounded-lg p-5">
+              <div key={tpl.agreement_key} className="border border-base-300 rounded-box p-4 bg-slate-50/50">
                 <div className="flex justify-between items-start gap-4">
                   <div>
-                    <h3 className="font-semibold">
+                    <h3 className="font-semibold text-sm text-slate-900 m-0">
                       {tpl.title}
                     </h3>
                     {tpl.signed ? (
-                      <p className="text-xs text-muted mt-1">
+                      <p className="text-xs text-slate-500 mt-1 mb-0">
                         Signed by {tpl.signed_name} on {new Date(tpl.signed_at).toLocaleDateString()}
                       </p>
                     ) : (
-                      <p className="text-xs text-[#b45309] mt-1">
-                        Not signed yet
+                      <p className="text-xs text-orange-700 font-medium mt-1 mb-0">
+                        Pending signature
                       </p>
                     )}
                   </div>
-                  {tpl.signed ? (
-                    <span className="badge badge-green">Signed</span>
-                  ) : (
-                    <button type="button" onClick={() => openSign(tpl)} className="btn-outline-secondary">
-                      Review & Sign
-                    </button>
-                  )}
+                  <div>
+                    {tpl.signed ? (
+                      <StatusBadge status="completed" label="Signed" size="xs" />
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => openSign(tpl)}
+                        className="btn btn-primary btn-xs"
+                      >
+                        Review & Sign
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                <p className="text-sm text-muted leading-normal mt-3">
+                <p className="text-xs text-slate-600 leading-normal mt-3 mb-0">
                   {tpl.body}
                 </p>
 
                 {activeKey === tpl.agreement_key && (
-                  <form onSubmit={handleSign} className="border-t mt-4 pt-4">
-                    <div>
-                      <label htmlFor={`sign-name-${tpl.agreement_key}`}>
-                        Full Legal Name (typed) *
-                      </label>
+                  <form onSubmit={handleSign} className="border-t border-base-300 mt-4 pt-4 flex flex-col gap-3">
+                    <FormField label="Full Legal Name (typed)" htmlFor={`sign-name-${tpl.agreement_key}`} required>
                       <input
                         id={`sign-name-${tpl.agreement_key}`}
                         type="text"
@@ -177,28 +166,30 @@ export default function FormsPage() {
                         value={signedName}
                         onChange={(e) => setSignedName(e.target.value)}
                         placeholder="Enter the signer's full legal name"
+                        className="input input-bordered w-full"
                       />
-                    </div>
-                    <div>
-                      <label>
-                        Draw Signature *
-                      </label>
-                      <SignaturePad value={signatureData} onChange={setSignatureData} height={150} />
-                    </div>
-                    <div className="flex gap-3 mt-4">
+                    </FormField>
+
+                    <FormField label="Draw Signature" required>
+                      <div className="border border-base-300 rounded-box p-1 bg-white">
+                        <SignaturePad value={signatureData} onChange={setSignatureData} height={140} />
+                      </div>
+                    </FormField>
+
+                    <div className="flex justify-end gap-2 mt-2">
                       <button
                         type="button"
                         onClick={() => { setActiveKey(null); setSignatureData(null); }}
-                        className="btn-cancel"
+                        className="btn btn-ghost btn-sm text-slate-600"
                       >
                         Cancel
                       </button>
                       <button
                         type="submit"
                         disabled={submitting}
-                        className="btn-success"
+                        className="btn btn-primary btn-sm"
                       >
-                        {submitting ? 'Signing...' : 'Sign & Submit'}
+                        {submitting ? 'Signing...' : 'Sign & Submit Agreement'}
                       </button>
                     </div>
                   </form>
@@ -207,7 +198,7 @@ export default function FormsPage() {
             ))}
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

@@ -4,6 +4,15 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
 import { downloadDocument } from '../../../shared/utils/documentUtils';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import DataTable from '../../../shared/components/common/DataTable';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import Toast from '../../../shared/components/common/Toast';
+import LoadingState from '../../../shared/components/common/LoadingState';
 
 export default function AuthorizationsPage() {
   const { token } = useAuth();
@@ -13,7 +22,7 @@ export default function AuthorizationsPage() {
   });
   const authorizations = data?.authorizations || (Array.isArray(data) ? data : []);
   const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
 
   // Upload form state
   const [showUpload, setShowUpload] = useState(false);
@@ -26,7 +35,7 @@ export default function AuthorizationsPage() {
   async function handleUpload(e) {
     e.preventDefault();
     setErrorMsg('');
-    setSuccessMsg('');
+    setToastMsg('');
 
     if (!file) {
       setErrorMsg('Please select the authorization document to upload.');
@@ -50,13 +59,12 @@ export default function AuthorizationsPage() {
       if (notes.trim()) formData.append('notes', notes.trim());
 
       const res = await api.upload('/clients/me/authorizations', formData, token);
-      setSuccessMsg(`Authorization ${res?.authorization?.authorization_number || ''} submitted for review.`);
+      setToastMsg(`Authorization ${res?.authorization?.authorization_number || ''} submitted for review.`);
       setShowUpload(false);
       setFile(null);
       setStartDate('');
       setEndDate('');
       setNotes('');
-
       await refetch();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to submit your authorization document.');
@@ -70,229 +78,186 @@ export default function AuthorizationsPage() {
     downloadDocument(documentId, token);
   }
 
-
   if (loading) {
-    return <div className="loading-text">Loading service authorizations...</div>;
+    return (
+      <LoadingState
+        title="Loading Service Authorizations..."
+        subtitle="Retrieving state approval records..."
+        variant="page"
+      />
+    );
   }
 
-  const statusBadge = {
-    active: 'badge-green',
-    expiring_soon: 'badge-yellow',
-    pending: 'badge-blue',
-    expired: 'badge-red',
-    rejected: 'badge-gray',
-  };
-
-  const statusLabel = {
-    active: 'Active',
-    expiring_soon: 'Expiring Soon',
-    pending: 'Pending Review',
-    expired: 'Expired',
-    rejected: 'Rejected',
-  };
-
-  const sourceLabel = (source) => (source === 'client' ? 'Self-Submitted' : 'State / Coordinator');
+  const columns = [
+    {
+      key: 'authorization_number',
+      label: 'Authorization #',
+      render: (val) => <span className="font-semibold text-slate-900">{val}</span>,
+    },
+    {
+      key: 'state',
+      label: 'State',
+      render: (_, row) => <span className="text-slate-600">{row.states?.code || 'State'}</span>,
+    },
+    {
+      key: 'dates',
+      label: 'Effective Window',
+      render: (_, row) => {
+        const isExpiringSoon = row.days_until_expiration !== null && row.days_until_expiration <= 30;
+        return (
+          <div className="text-slate-600 whitespace-nowrap">
+            <span>{row.start_date} to {row.end_date}</span>
+            {isExpiringSoon && row.days_until_expiration !== null && row.status === 'active' && (
+              <span className="block text-xs font-semibold text-orange-600">
+                {row.days_until_expiration} days remaining
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (val) => <StatusBadge status={val} size="xs" />,
+    },
+    {
+      key: 'source',
+      label: 'Source',
+      render: (val) => <span className="text-xs text-slate-500">{val === 'client' ? 'Self-Submitted' : 'State / Agency'}</span>,
+    },
+    {
+      key: 'document',
+      label: 'Document',
+      render: (_, row) =>
+        row.document_id ? (
+          <button
+            type="button"
+            onClick={() => openDocument(row.document_id)}
+            className="btn btn-ghost btn-xs text-green-700 hover:text-green-800 font-semibold"
+          >
+            View File ↓
+          </button>
+        ) : (
+          <span className="text-slate-400 text-xs">—</span>
+        ),
+    },
+    {
+      key: 'notes',
+      label: 'Notes',
+      render: (val) => <span className="text-xs text-slate-500">{val || 'Routine authorization'}</span>,
+    },
+  ];
 
   return (
-    <div className="container-wide">
-      <div className="page-head">
-        <h1 className="page-title">
-          Medicaid & Insurance Authorizations
-        </h1>
-        <p className="page-subtitle">
-          Official state authorizations governing covered hours, service periods, and home care provisions.
-        </p>
-      </div>
-
-      {(errorMsg || fetchError) && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg || fetchError}
-        </div>
-      )}
-
-
-      {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
-        </div>
-      )}
-
-      <div className="card mb-6">
-        <div className="flex justify-between items-center gap-4">
-          <div>
-            <h2 className="section-title m-0">
-              Submit an Authorization Document
-            </h2>
-            <p className="text-sm text-muted mt-1">
-              Upload a new prior-authorization letter or renewal notice. Submissions are queued for care coordinator review.
-            </p>
-          </div>
+    <PageContainer>
+      <PageHeader
+        title="Medicaid & Insurance Authorizations"
+        subtitle="Official state authorizations governing covered hours, service periods, and home care provisions."
+        actions={
           <button
             type="button"
             onClick={() => setShowUpload(!showUpload)}
-            className={showUpload ? 'btn-cancel' : 'btn-outline-secondary'}
+            className="btn btn-primary btn-sm"
           >
-            {showUpload ? 'Close' : 'Upload Document'}
+            {showUpload ? 'Close Upload' : 'Upload Document +'}
           </button>
-        </div>
+        }
+      />
 
-        {showUpload && (
-          <form onSubmit={handleUpload} className="border-t mt-4 pt-4">
-            <div className="form-grid-2">
-              <div>
-                <label htmlFor="auth-upload-file">
-                  Authorization Document *
-                </label>
+      {(errorMsg || fetchError) && (
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg || fetchError}</span>
+        </div>
+      )}
+
+      <Toast message={toastMsg} type="success" onClose={() => setToastMsg('')} />
+
+      {showUpload && (
+        <Card title="Submit Authorization Document" className="mb-6">
+          <form onSubmit={handleUpload} className="flex flex-col gap-4 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField label="Authorization Document (PDF, PNG, JPG)" htmlFor="auth-upload-file" required>
                 <input
                   id="auth-upload-file"
                   type="file"
+                  required
                   accept=".pdf,.png,.jpg,.jpeg"
                   onChange={(e) => setFile(e.target.files[0] || null)}
+                  className="file-input file-input-bordered file-input-sm w-full"
                 />
-              </div>
-              <div className="form-grid-2">
-                <div>
-                  <label htmlFor="auth-upload-start">
-                    Service Start Date *
-                  </label>
-                  <input
-                    id="auth-upload-start"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label htmlFor="auth-upload-end">
-                    Service End Date *
-                  </label>
-                  <input
-                    id="auth-upload-end"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
+              </FormField>
+
+              <FormField label="Service Start Date" htmlFor="auth-upload-start" required>
+                <input
+                  id="auth-upload-start"
+                  type="date"
+                  required
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+              </FormField>
+
+              <FormField label="Service End Date" htmlFor="auth-upload-end" required>
+                <input
+                  id="auth-upload-end"
+                  type="date"
+                  required
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="input input-bordered w-full"
+                />
+              </FormField>
             </div>
-            <div>
-              <label htmlFor="auth-upload-notes">
-                Notes (optional)
-              </label>
+
+            <FormField label="Notes (optional)" htmlFor="auth-upload-notes">
               <input
                 id="auth-upload-notes"
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="E.g., Renewal for 2026, home health aide 20 hrs/wk"
+                className="input input-bordered w-full"
               />
-            </div>
-            <div className="flex justify-end gap-3 mt-4">
-              <button type="button" onClick={() => setShowUpload(false)} className="btn-cancel">
+            </FormField>
+
+            <div className="flex justify-end gap-2 mt-2">
+              <button type="button" onClick={() => setShowUpload(false)} className="btn btn-ghost btn-sm text-slate-600">
                 Cancel
               </button>
-              <button type="submit" disabled={submitting} className="btn-success">
+              <button type="submit" disabled={submitting} className="btn btn-primary btn-sm">
                 {submitting ? 'Submitting...' : 'Submit for Review'}
               </button>
             </div>
           </form>
-        )}
-      </div>
+        </Card>
+      )}
 
-      <div className="card">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="section-title m-0">
-            Authorization Records ({authorizations.length})
-          </h2>
-          <span className="text-xs text-muted">
-            Managed by State Medicaid Office
-          </span>
-        </div>
-
+      <Card title={`Authorization Records (${authorizations.length})`}>
         {authorizations.length === 0 ? (
-          <div className="card-empty">
-            <h3 className="section-title mb-2">
-              No Authorizations on File
-            </h3>
-            <p className="text-sm max-w-lg mx-auto mb-6 leading-normal">
-              Authorizations are generated once your intake details, physician orders, and Medicaid eligibility have been reviewed by your state coordinator.
-            </p>
-            <div className="flex justify-center gap-4">
-              <button type="button" onClick={() => setShowUpload(true)} className="btn-success">
-                Upload Authorization Document
-              </button>
-              <Link to="/client/intake" className="btn-outline-secondary">
-                Complete Intake Details
-              </Link>
-            </div>
-          </div>
+          <EmptyState
+            title="No Authorizations on File"
+            description="Authorizations are generated once your intake details, physician orders, and Medicaid eligibility have been reviewed by your coordinator."
+            action={
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setShowUpload(true)} className="btn btn-primary btn-sm">
+                  Upload Document
+                </button>
+                <Link to="/client/intake" className="btn btn-outline btn-sm text-slate-700">
+                  Complete Intake
+                </Link>
+              </div>
+            }
+          />
         ) : (
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Authorization #</th>
-                  <th>State</th>
-                  <th>Effective Window</th>
-                  <th>Status</th>
-                  <th>Source</th>
-                  <th>Document</th>
-                  <th>Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {authorizations.map((auth) => {
-                  const isExpiringSoon = auth.days_until_expiration !== null && auth.days_until_expiration <= 30;
-                  const badge = statusBadge[auth.status] || statusBadge.pending;
-                  const label = statusLabel[auth.status] || statusLabel.pending;
-                  return (
-                    <tr key={auth.id}>
-                      <td className="font-semibold">
-                        {auth.authorization_number}
-                      </td>
-                      <td className="text-secondary">
-                        {auth.states?.code || 'State'}
-                      </td>
-                      <td className="text-secondary whitespace-nowrap">
-                        {auth.start_date} to {auth.end_date}
-                        {isExpiringSoon && auth.days_until_expiration !== null && auth.status === 'active' && (
-                          <div className="text-xs text-warning font-semibold">
-                            {auth.days_until_expiration} days remaining
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`badge ${badge}`}>
-                          {label}
-                        </span>
-                      </td>
-                      <td className="text-xs text-secondary">
-                        {sourceLabel(auth.source)}
-                      </td>
-                      <td>
-                        {auth.document_id ? (
-                          <button
-                            type="button"
-                            onClick={() => openDocument(auth.document_id)}
-                            className="text-success text-sm font-medium underline"
-                          >
-                            View document
-                          </button>
-                        ) : (
-                          <span className="text-muted text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="text-muted text-xs">
-                        {auth.notes || 'Routine authorized services'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={authorizations}
+            keyField="id"
+          />
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

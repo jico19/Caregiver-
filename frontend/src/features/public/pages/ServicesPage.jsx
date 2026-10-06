@@ -1,6 +1,10 @@
 import { useParams, Link } from 'react-router-dom';
 import useFetch from '../../../shared/hooks/useFetch';
 import LoadingState from '../../../shared/components/common/LoadingState';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 export default function ServicesPage() {
   const { state } = useParams();
@@ -8,22 +12,19 @@ export default function ServicesPage() {
 
   const services = data?.services || [];
   const error = errorText || null;
-
   const stateName = state ? state.charAt(0).toUpperCase() + state.slice(1) : '';
 
   return (
-    <div className="container-880">
-      <div className="page-head">
-        <Link to={`/${state}`} className="text-secondary text-sm">
-          ← Back to {stateName} Home
-        </Link>
-        <h1 className="page-title mt-2">
-          Home Care Services in {stateName}
-        </h1>
-        <p className="page-subtitle mt-1">
-          State approved programs for elderly care, disability assistance, and skilled nursing.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        breadcrumbs={
+          <Link to={`/${state}`} className="text-slate-600 hover:text-slate-900 hover:underline">
+            ← Back to {stateName} Home
+          </Link>
+        }
+        title={`Home Care Services in ${stateName}`}
+        subtitle="State approved programs for elderly care, disability assistance, and skilled nursing."
+      />
 
       {loading && (
         <LoadingState
@@ -35,46 +36,45 @@ export default function ServicesPage() {
       )}
 
       {error && (
-        <div role="alert" className="alert alert-error">
-          {error}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{error}</span>
         </div>
       )}
 
       {!loading && !error && services.length === 0 && (
-        <div className="card-dashed">
-          <h2 className="card-title">
-            No specialized listings published yet for {stateName}
-          </h2>
-          <p className="text-secondary text-sm max-w-[480px] mx-auto mb-6">
-            We offer personal care, companion care, respite care, and skilled nursing across all licensed counties in {stateName}.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Link
-              to={`/${state}/contact`}
-              className="btn-primary"
-            >
-              Contact {stateName} Coordinator
-            </Link>
-            <Link
-              to="/client/login"
-              className="btn-outline-secondary"
-            >
-              Start Intake
-            </Link>
-          </div>
-        </div>
+        <EmptyState
+          title={`No specialized listings published yet for ${stateName}`}
+          description={`We offer personal care, companion care, respite care, and skilled nursing across all licensed counties in ${stateName}.`}
+          action={
+            <div className="flex justify-center gap-3">
+              <Link
+                to={`/${state}/contact`}
+                className="btn btn-primary btn-sm"
+              >
+                Contact {stateName} Coordinator
+              </Link>
+              <Link
+                to="/client/login"
+                className="btn btn-outline btn-sm text-slate-700"
+              >
+                Start Intake
+              </Link>
+            </div>
+          }
+        />
       )}
 
       {!loading && !error && services.length > 0 && (
-        <div className="grid grid-cols-3 max-md:grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {services.map((svc) => (
-            <div key={svc.id} className="card p-5">
-              <h2 className="card-title">{svc.name}</h2>
-              <p className="text-secondary text-sm leading-normal">{svc.description}</p>
-            </div>
+            <Card key={svc.id} title={svc.name}>
+              <p className="text-xs text-slate-600 leading-normal m-0 mt-1">
+                {svc.description}
+              </p>
+            </Card>
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

@@ -96,7 +96,7 @@ def list_referrals(
     query = scope_query(
         active_only(
             supabase.table("client_referrals").select(
-                "id, state_id, first_name, last_name, email, phone, address, notes, status, assigned_to, handled_notes, converted_client_id, created_at, updated_at, states(code, name)",
+                "id, state_id, first_name, last_name, email, phone, notes, status, assigned_to, handled_notes, converted_client_id, created_at, updated_at, states(code, name)",
                 count="exact",
             ),
             "client_referrals",
@@ -126,7 +126,7 @@ def update_referral_status(
     existing = (
         active_only(
             supabase.table("client_referrals").select(
-                "id, state_id, first_name, last_name, email, phone, address, notes, status, assigned_to, handled_notes, converted_client_id"
+                "id, state_id, first_name, last_name, email, phone, notes, status, assigned_to, handled_notes, converted_client_id"
             ),
             "client_referrals",
         )

@@ -5,6 +5,8 @@ import { STATUS_META, milestoneMeta } from '../../../shared/utils/caregiverStatu
 import { packetUrl, STATE_PACKET_CODE } from '../../../shared/utils/packets';
 import { getStateName } from '../constants/applicationConstants';
 import { useCaregiverApplication } from '../hooks/useCaregiverApplication';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
 import ApplicationSuccessScreen from '../components/application/ApplicationSuccessScreen';
 import ApplicationRoadmapCard from '../components/application/ApplicationRoadmapCard';
 import ApplicationSummaryCard from '../components/application/ApplicationSummaryCard';
@@ -16,7 +18,13 @@ export default function ApplicationPage() {
   const app = useCaregiverApplication(auth);
 
   if (app.loading) {
-    return <div className="loading-screen">Loading application details...</div>;
+    return (
+      <PageContainer size="narrow">
+        <div className="py-12 text-center text-slate-500 text-sm">
+          Loading application details...
+        </div>
+      </PageContainer>
+    );
   }
 
   const appStatus = app.application?.status || null;
@@ -47,54 +55,49 @@ export default function ApplicationPage() {
   }
 
   return (
-    <div className="container-medium">
-      {/* Top Banner & Header */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center flex-wrap gap-2 mb-2">
-          <div className="flex items-center gap-2">
-            <span className="badge badge-info">
-              Direct Candidate Onboarding
-            </span>
-            <span className="text-xs text-secondary font-semibold">
-              Florida • Indiana • Georgia
-            </span>
-          </div>
-
-          {!auth.user && (
-            <Link to="/caregiver/login" className="text-sm font-semibold text-primary">
-              Already registered? Sign In →
-            </Link>
-          )}
-
-          {auth.user && (
-            <a
-              href={packetUrl(STATE_PACKET_CODE[stateId])}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-outline-secondary btn-sm"
-            >
-              Download Employment Packet (PDF)
-            </a>
-          )}
+    <PageContainer size="narrow">
+      <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="badge badge-soft text-emerald-800 text-xs">
+            Direct Candidate Onboarding
+          </span>
+          <span className="text-xs text-slate-500 font-medium">
+            Florida • Indiana • Georgia
+          </span>
         </div>
 
-        <h1 className="page-title">
-          Caregiver Employment Application
-        </h1>
-        <p className="page-subtitle">
-          Apply to provide state-licensed home care services. Fill out your candidate details below — no preliminary registration required.
-        </p>
+        {!auth.user && (
+          <Link to="/caregiver/login" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+            Already registered? Sign In →
+          </Link>
+        )}
+
+        {auth.user && (
+          <a
+            href={packetUrl(STATE_PACKET_CODE[stateId])}
+            target="_blank"
+            rel="noreferrer"
+            className="btn btn-outline btn-xs"
+          >
+            Download Employment Packet (PDF)
+          </a>
+        )}
       </div>
 
+      <PageHeader
+        title="Caregiver Employment Application"
+        subtitle="Apply to provide state-licensed home care services. Fill out your candidate details below — no preliminary registration required."
+      />
+
       {app.errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {app.errorMsg}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{app.errorMsg}</span>
         </div>
       )}
 
       {app.successMsg && (
-        <div role="status" className="alert alert-success">
-          {app.successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{app.successMsg}</span>
         </div>
       )}
 
@@ -131,6 +134,6 @@ export default function ApplicationPage() {
           onSubmit={app.submitHandler}
         />
       )}
-    </div>
+    </PageContainer>
   );
 }

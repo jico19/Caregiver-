@@ -2,8 +2,13 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
-import { STATUS_META, badgeClass } from '../../../shared/utils/caregiverStatus';
-
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import { STATUS_META } from '../../../shared/utils/caregiverStatus';
 
 const NEXT_ACTIONS = {
   submitted: ['under_review', 'approved', 'rejected'],
@@ -100,17 +105,23 @@ export default function CaregiverDetailPage() {
   }
 
   if (loading) {
-    return <div className="table-loading-sm">Loading application details...</div>;
+    return (
+      <PageContainer>
+        <div className="py-12 text-center text-slate-500 text-sm">Loading application details...</div>
+      </PageContainer>
+    );
   }
 
   if (!application) {
     return (
-      <div className="page-container">
-        <div role="alert" className="alert alert-error">Application not found.</div>
-        <Link to="/admin/caregivers" className="text-sm font-semibold text-primary">
+      <PageContainer>
+        <div role="alert" className="alert alert-error mb-4">
+          <span>Application not found.</span>
+        </div>
+        <Link to="/admin/caregivers" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
           ← Back to Caregiver Applications
         </Link>
-      </div>
+      </PageContainer>
     );
   }
 
@@ -121,57 +132,62 @@ export default function CaregiverDetailPage() {
   const canReview = nextActions.length > 0;
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            Application Review
-          </h1>
-          <p className="page-subtitle">
-            <Link to="/admin/caregivers" className="text-sm font-semibold text-primary">
-              ← Back to Caregiver Applications
-            </Link>
-          </p>
-        </div>
-        <span className={`badge ${badgeClass(application.status)} badge-lg`}>
-          {(STATUS_META[application.status]?.label || application.status).toUpperCase()}
-        </span>
+    <PageContainer>
+      <div className="mb-2">
+        <Link to="/admin/caregivers" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+          ← Back to Caregiver Applications
+        </Link>
       </div>
 
+      <PageHeader
+        title="Application Review"
+        subtitle={`Candidate: ${caregiver.first_name ? `${caregiver.first_name} ${caregiver.last_name || ''}` : 'Applicant'}`}
+        actions={
+          <StatusBadge
+            status={application.status}
+            label={STATUS_META[application.status]?.label || application.status.replace('_', ' ')}
+          />
+        }
+      />
+
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-error mb-6">
+          <span>{errorMsg}</span>
         </div>
       )}
       {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
+        <div role="status" className="alert alert-success mb-6">
+          <span>{successMsg}</span>
         </div>
       )}
 
       {/* Review Action Panel */}
       {canReview && (
-        <div className="admin-card mb-6 p-5">
-          <h2 className="section-title m-0 mb-3">Review Decision</h2>
+        <Card className="mb-6 p-5">
+          <h2 className="font-semibold text-base text-slate-900 m-0 mb-3">Review Decision</h2>
 
           {pendingStatus ? (
-            <div className="card-muted p-4">
-              <h3 className="font-semibold text-sm mb-2">
+            <div className="p-4 rounded border border-base-300 bg-base-200/40">
+              <h3 className="font-semibold text-sm text-slate-900 mb-2">
                 {pendingStatus === 'rejected' ? 'Reject Application' : ACTION_LABELS[pendingStatus]}
               </h3>
 
               {pendingStatus === 'rejected' && (
                 <div className="mb-4">
-                  <label htmlFor="rejection-reason">
-                    Rejection Reason (required, shown to the caregiver)
-                  </label>
-                  <textarea
+                  <FormField
+                    label="Rejection Reason (required, shown to the caregiver)"
                     id="rejection-reason"
-                    rows={3}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="E.g., Background check pending / expired certification / incomplete information — the applicant will see this when they resubmit."
-                  />
+                    required
+                  >
+                    <textarea
+                      id="rejection-reason"
+                      rows={3}
+                      value={reason}
+                      onChange={(e) => setReason(e.target.value)}
+                      className="textarea textarea-bordered w-full text-sm"
+                      placeholder="E.g., Background check pending / expired certification / incomplete information — the applicant will see this when they resubmit."
+                    />
+                  </FormField>
                 </div>
               )}
 
@@ -180,7 +196,7 @@ export default function CaregiverDetailPage() {
                   type="button"
                   disabled={actionLoading}
                   onClick={confirmAction}
-                  className={pendingStatus === 'rejected' ? 'btn-reject' : 'btn-approve'}
+                  className={`btn btn-sm ${pendingStatus === 'rejected' ? 'btn-error' : 'btn-primary'}`}
                 >
                   {actionLoading ? 'Updating...' : `Confirm ${ACTION_LABELS[pendingStatus]}`}
                 </button>
@@ -188,7 +204,7 @@ export default function CaregiverDetailPage() {
                   type="button"
                   disabled={actionLoading}
                   onClick={() => setPendingStatus(null)}
-                  className="btn-outline-secondary"
+                  className="btn btn-outline btn-sm"
                 >
                   Cancel
                 </button>
@@ -202,85 +218,92 @@ export default function CaregiverDetailPage() {
                   type="button"
                   disabled={actionLoading}
                   onClick={() => openAction(status)}
-                  className={status === 'rejected' ? 'btn-reject' : 'btn-approve'}
+                  className={`btn btn-sm ${status === 'rejected' ? 'btn-outline text-red-600 hover:bg-red-50 hover:border-red-300' : 'btn-primary'}`}
                 >
                   {ACTION_LABELS[status]}
                 </button>
               ))}
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Applicant Details */}
-      <div className="card mb-6 p-5">
-        <h2 className="section-title m-0 mb-4">Applicant Details</h2>
+      <Card className="mb-6 p-5">
+        <h2 className="font-semibold text-base text-slate-900 m-0 mb-4">Applicant Details</h2>
 
-        <dl className="grid grid-cols-2 max-md:grid-cols-1 gap-4 mb-4">
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div>
-            <dt className="text-xs text-muted mb-1">Full Name</dt>
-            <dd className="text-sm font-semibold">
+            <dt className="text-xs text-slate-400 mb-0.5">Full Name</dt>
+            <dd className="text-sm font-semibold text-slate-900">
               {caregiver.first_name ? `${caregiver.first_name} ${caregiver.last_name || ''}` : 'N/A'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted mb-1">Portal Email</dt>
-            <dd className="text-sm font-semibold">{userAccount.email || 'N/A'}</dd>
+            <dt className="text-xs text-slate-400 mb-0.5">Portal Email</dt>
+            <dd className="text-sm font-semibold text-slate-900">{userAccount.email || 'N/A'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted mb-1">Phone</dt>
-            <dd className="text-sm font-semibold">{caregiver.phone || 'N/A'}</dd>
+            <dt className="text-xs text-slate-400 mb-0.5">Phone</dt>
+            <dd className="text-sm font-semibold text-slate-900">{caregiver.phone || 'N/A'}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted mb-1">State Office</dt>
-            <dd className="text-sm font-semibold">{state}</dd>
+            <dt className="text-xs text-slate-400 mb-0.5">State Office</dt>
+            <dd className="text-sm font-semibold text-slate-900">{state}</dd>
           </div>
           <div>
-            <dt className="text-xs text-muted mb-1">Date of Birth</dt>
-            <dd className="text-sm font-semibold">
+            <dt className="text-xs text-slate-400 mb-0.5">Date of Birth</dt>
+            <dd className="text-sm font-semibold text-slate-900">
               {caregiver.date_of_birth ? new Date(caregiver.date_of_birth).toLocaleDateString() : '—'}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-muted mb-1">Submitted</dt>
-            <dd className="text-sm font-semibold">
+            <dt className="text-xs text-slate-400 mb-0.5">Submitted</dt>
+            <dd className="text-sm font-semibold text-slate-900">
               {application.submitted_at ? new Date(application.submitted_at).toLocaleDateString() : '—'}
             </dd>
           </div>
         </dl>
 
         {caregiver.address && (
-          <div className="mb-2">
-            <dt className="text-xs text-muted mb-1">Address</dt>
-            <dd className="text-sm text-secondary">{caregiver.address}</dd>
+          <div className="mb-3 pt-3 border-t border-base-300">
+            <dt className="text-xs text-slate-400 mb-0.5">Address</dt>
+            <dd className="text-xs text-slate-700 leading-normal">{caregiver.address}</dd>
           </div>
         )}
         {application.notes && (
-          <div>
-            <dt className="text-xs text-muted mb-1">Experience & Notes</dt>
-            <dd className="text-sm text-secondary leading-normal">{application.notes}</dd>
+          <div className="mb-3 pt-3 border-t border-base-300">
+            <dt className="text-xs text-slate-400 mb-0.5">Experience & Notes</dt>
+            <dd className="text-xs text-slate-700 leading-normal">{application.notes}</dd>
           </div>
         )}
         {application.rejection_reason && (
-          <div className="alert alert-error mt-4">
-            <strong>Previous rejection reason:</strong> {application.rejection_reason}
+          <div role="alert" className="alert alert-error mt-4">
+            <span><strong>Previous rejection reason:</strong> {application.rejection_reason}</span>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Uploaded Documents */}
-      <div className="card mb-6 p-5">
-        <h2 className="section-title m-0 mb-4">
-          Uploaded Credentials & Documents ({documents.length})
-        </h2>
+      <Card className="mb-6 p-0 overflow-hidden">
+        <div className="p-4 border-b border-base-300">
+          <h2 className="font-semibold text-base text-slate-900 m-0">
+            Uploaded Credentials & Documents ({documents.length})
+          </h2>
+        </div>
 
         {documents.length === 0 ? (
-          <div className="table-empty-sm">No documents uploaded yet.</div>
+          <div className="p-6">
+            <EmptyState
+              title="No documents uploaded"
+              description="No documents uploaded yet for this applicant."
+            />
+          </div>
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-300 text-slate-500 text-xs bg-base-200/50">
                   <th>Document Type</th>
                   <th>Status</th>
                   <th>Uploaded</th>
@@ -288,16 +311,14 @@ export default function CaregiverDetailPage() {
               </thead>
               <tbody>
                 {documents.map((doc) => (
-                  <tr key={doc.id}>
-                    <td className="cell-strong">
+                  <tr key={doc.id} className="border-b border-base-300/60 hover:bg-base-200/50">
+                    <td className="font-semibold text-slate-900 text-xs">
                       {doc.document_types?.name || 'Unknown type'}
                     </td>
                     <td>
-                      <span className={`badge ${doc.status === 'approved' ? 'badge-green' : doc.status === 'rejected' ? 'badge-red' : 'badge-yellow'}`}>
-                        {doc.status.replace('_', ' ')}
-                      </span>
+                      <StatusBadge status={doc.status} label={doc.status.replace('_', ' ')} />
                     </td>
-                    <td className="cell-muted">
+                    <td className="text-slate-600 text-xs">
                       {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString() : '—'}
                     </td>
                   </tr>
@@ -306,21 +327,28 @@ export default function CaregiverDetailPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Training Enrollments */}
-      <div className="card p-5 mb-5">
-        <h2 className="section-title m-0 mb-4">
-          Assigned Training ({enrollments.length})
-        </h2>
+      <Card className="mb-6 p-0 overflow-hidden">
+        <div className="p-4 border-b border-base-300">
+          <h2 className="font-semibold text-base text-slate-900 m-0">
+            Assigned Training ({enrollments.length})
+          </h2>
+        </div>
 
         {enrollments.length === 0 ? (
-          <div className="table-empty-sm">No training courses assigned yet.</div>
+          <div className="p-6">
+            <EmptyState
+              title="No training courses assigned"
+              description="No training courses assigned yet for this applicant."
+            />
+          </div>
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-300 text-slate-500 text-xs bg-base-200/50">
                   <th>Course</th>
                   <th>Progress</th>
                   <th>Enrolled</th>
@@ -328,16 +356,16 @@ export default function CaregiverDetailPage() {
               </thead>
               <tbody>
                 {enrollments.map((enr) => (
-                  <tr key={enr.id}>
-                    <td className="cell-strong">
+                  <tr key={enr.id} className="border-b border-base-300/60 hover:bg-base-200/50">
+                    <td className="font-semibold text-slate-900 text-xs">
                       {enr.training_courses?.name || 'Course'}
                     </td>
                     <td>
-                      <span className={`badge ${enr.progress >= 100 ? 'badge-green' : enr.progress > 0 ? 'badge-yellow' : 'badge-gray'}`}>
+                      <span className="badge badge-soft text-slate-700 text-xs">
                         {enr.progress ?? 0}%
                       </span>
                     </td>
-                    <td className="cell-muted">
+                    <td className="text-slate-600 text-xs">
                       {enr.enrolled_at ? new Date(enr.enrolled_at).toLocaleDateString() : '—'}
                     </td>
                   </tr>
@@ -346,21 +374,28 @@ export default function CaregiverDetailPage() {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Assigned Clients */}
-      <div className="card p-5">
-        <h2 className="section-title m-0 mb-4">
-          Assigned Clients ({assignments.length})
-        </h2>
+      <Card className="p-0 overflow-hidden">
+        <div className="p-4 border-b border-base-300">
+          <h2 className="font-semibold text-base text-slate-900 m-0">
+            Assigned Clients ({assignments.length})
+          </h2>
+        </div>
 
         {assignments.length === 0 ? (
-          <div className="table-empty-sm">No clients assigned to this caregiver yet.</div>
+          <div className="p-6">
+            <EmptyState
+              title="No assigned clients"
+              description="No clients assigned to this caregiver yet."
+            />
+          </div>
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-300 text-slate-500 text-xs bg-base-200/50">
                   <th>Client</th>
                   <th>Role</th>
                   <th>Contact</th>
@@ -371,21 +406,24 @@ export default function CaregiverDetailPage() {
                 {assignments.map((asg) => {
                   const client = asg.clients;
                   return (
-                    <tr key={asg.id}>
-                      <td className="cell-strong">
+                    <tr key={asg.id} className="border-b border-base-300/60 hover:bg-base-200/50">
+                      <td className="font-semibold text-slate-900 text-xs">
                         {client ? (
-                          <Link to={`/admin/clients/${client.id}`} style={{ color: 'var(--color-primary)', textDecoration: 'underline' }}>
+                          <Link
+                            to={`/admin/clients/${client.id}`}
+                            className="text-emerald-700 hover:text-emerald-800 underline"
+                          >
                             {client.first_name} {client.last_name}
                           </Link>
                         ) : 'Client'}
                       </td>
                       <td>
-                        <span className="badge badge-blue" style={{ textTransform: 'capitalize' }}>
+                        <span className="badge badge-soft text-slate-700 text-xs capitalize">
                           {asg.role || 'primary'}
                         </span>
                       </td>
-                      <td className="cell-muted">{client?.phone || '—'}</td>
-                      <td className="cell-muted">
+                      <td className="text-slate-600 text-xs">{client?.phone || '—'}</td>
+                      <td className="text-slate-600 text-xs">
                         {asg.assigned_at ? new Date(asg.assigned_at).toLocaleDateString() : '—'}
                       </td>
                     </tr>
@@ -395,7 +433,7 @@ export default function CaregiverDetailPage() {
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

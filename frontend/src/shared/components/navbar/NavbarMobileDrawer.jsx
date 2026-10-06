@@ -74,35 +74,61 @@ export default function NavbarMobileDrawer({
         {renderSecondaryAction()}
       </nav>
 
-      <div className="mobile-user-card">
-        <div className="flex items-center gap-2 min-w-0">
-          <div
-            className="avatar-circle"
-            style={{ backgroundColor: avatarBg }}
-            aria-hidden="true"
-          >
-            {avatarInitial}
+      {user && (
+        <div className="mobile-user-card">
+          <div className="flex items-center gap-2 min-w-0">
+            <div
+              className="avatar-circle"
+              style={{ backgroundColor: avatarBg }}
+              aria-hidden="true"
+            >
+              {avatarInitial}
+            </div>
+            <div className="flex flex-col min-w-0">
+              {user?.email && (
+                <span className="mobile-user-name">
+                  {user.email}
+                </span>
+              )}
+              <span className="text-muted text-xs">{identityLine}</span>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            {user?.email && (
-              <span className="mobile-user-name">
-                {user.email}
-              </span>
-            )}
-            <span className="text-muted text-xs">{identityLine}</span>
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              logout?.();
+            }}
+            className="btn btn-ghost btn-xs text-error border border-error/30"
+          >
+            Sign Out
+          </button>
+        </div>
+      )}
+
+      {!user && (
+        <div className="flex flex-col gap-2 pt-2 border-t border-base-300">
+          <span className="text-xs font-semibold text-slate-500 uppercase px-1">
+            Portal Access
+          </span>
+          <div className="grid grid-cols-2 gap-2">
+            <Link
+              to="/caregiver/login"
+              onClick={onClose}
+              className="btn btn-sm btn-outline text-slate-700"
+            >
+              Caregiver
+            </Link>
+            <Link
+              to="/client/login"
+              onClick={onClose}
+              className="btn btn-sm btn-outline text-slate-700"
+            >
+              Client
+            </Link>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            onClose();
-            logout?.();
-          }}
-          className="btn-signout"
-        >
-          Sign Out
-        </button>
-      </div>
+      )}
     </div>
   );
 }

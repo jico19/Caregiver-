@@ -2,8 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
-import { DOCUMENT_STATUS_META } from '../../../shared/constants/documentStatus';
 import { downloadDocument } from '../../../shared/utils/documentUtils';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import DataTable from '../../../shared/components/common/DataTable';
+import EmptyState from '../../../shared/components/common/EmptyState';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import Toast from '../../../shared/components/common/Toast';
+import LoadingState from '../../../shared/components/common/LoadingState';
 
 export default function DocumentsPage() {
   const { token } = useAuth();
@@ -20,7 +28,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [successMsg, setSuccessMsg] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
 
   // Upload state
   const [selectedTypeIdState, setSelectedTypeId] = useState('');
@@ -29,7 +37,6 @@ export default function DocumentsPage() {
   const [selectedFile, setSelectedFile] = useState(null);
 
   const fileInputRef = useRef(null);
-
   const [docStatus, setDocStatus] = useState(null);
   const selectedTypeObj = docTypes.find((t) => String(t.id) === String(selectedTypeId));
 
@@ -60,11 +67,10 @@ export default function DocumentsPage() {
     };
   }, [token]);
 
-
   async function handleUploadSubmit(e) {
     e.preventDefault();
     setErrorMsg('');
-    setSuccessMsg('');
+    setToastMsg('');
 
     if (!selectedFile) {
       setErrorMsg('Please select a file to submit.');
@@ -87,7 +93,7 @@ export default function DocumentsPage() {
 
     try {
       await api.upload('/documents/upload', formData, token);
-      setSuccessMsg(`Document '${selectedFile.name}' received and queued for administrative review.`);
+      setToastMsg(`Document '${selectedFile.name}' received and queued for administrative review.`);
       setSelectedFile(null);
       setExpirationDate('');
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -112,98 +118,130 @@ export default function DocumentsPage() {
   }
 
   if (loading) {
-    return <div className="loading-text">Loading client documents...</div>;
+    return (
+      <LoadingState
+        title="Loading Client Documents..."
+        subtitle="Retrieving medical records and compliance files..."
+        variant="page"
+      />
+    );
   }
 
+  const columns = [
+    {
+      key: 'name',
+      label: 'Document Type',
+      render: (_, row) => <span className="font-semibold text-slate-900">{row.document_types?.name || 'Document'}</span>,
+    },
+    {
+      key: 'uploaded_at',
+      label: 'Uploaded Date',
+      render: (val) => <span className="text-slate-600">{new Date(val).toLocaleDateString()}</span>,
+    },
+    {
+      key: 'expiration_date',
+      label: 'Expiration',
+      render: (val) => <span className="text-slate-600">{val ? new Date(val).toLocaleDateString() : 'N/A'}</span>,
+    },
+    {
+      key: 'status',
+      label: 'Status',
+      render: (val) => <StatusBadge status={val} size="xs" />,
+    },
+    {
+      key: 'actions',
+      label: '',
+      headerClassName: 'text-right',
+      cellClassName: 'text-right',
+      render: (_, row) => (
+        <button
+          type="button"
+          onClick={() => downloadDocument(row.id, token)}
+          className="btn btn-ghost btn-xs text-green-700 hover:text-green-800 font-semibold"
+        >
+          View File ↓
+        </button>
+      ),
+    },
+  ];
 
   return (
-    <div className="container-wide">
-      <div className="page-head">
-        <h1 className="page-title">
-          Client Medical & Care Documents
-        </h1>
-        <p className="page-subtitle">
-          Submit insurance cards, Medicaid enrollment documents, and physician treatment plans.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Client Medical & Care Documents"
+        subtitle="Submit insurance cards, Medicaid enrollment documents, and physician treatment plans."
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
-          {errorMsg}
+        <div role="alert" className="alert alert-soft alert-error my-4">
+          <span className="text-xs">{errorMsg}</span>
         </div>
       )}
 
-      {successMsg && (
-        <div role="status" className="alert alert-success">
-          {successMsg}
-        </div>
-      )}
+      <Toast message={toastMsg} type="success" onClose={() => setToastMsg('')} />
 
       {/* Requirements Panel */}
       {docStatus && (
-        <div className="card mb-8">
-          <h2 className="section-title-bordered">
-            State Document Requirements
-          </h2>
-          <div className="grid grid-cols-4 max-md:grid-cols-1 gap-3 mb-4">
-            <div className="p-3 bg-subtle rounded border">
-              <span className="text-xs text-secondary block">Missing Documents</span>
-              <strong className={`text-lg ${docStatus.summary?.missing > 0 ? 'text-red' : 'text-green'}`}>
+        <Card title="State Document Requirements" className="mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="p-3 bg-slate-50 rounded border border-base-300">
+              <span className="text-xs text-slate-500 block">Missing</span>
+              <strong className={`text-base font-bold ${docStatus.summary?.missing > 0 ? 'text-error' : 'text-green-700'}`}>
                 {docStatus.summary?.missing || 0}
               </strong>
             </div>
-            <div className="p-3 bg-subtle rounded border">
-              <span className="text-xs text-secondary block">Expired</span>
-              <strong className={`text-lg ${docStatus.summary?.expired > 0 ? 'text-red' : 'text-green'}`}>
+            <div className="p-3 bg-slate-50 rounded border border-base-300">
+              <span className="text-xs text-slate-500 block">Expired</span>
+              <strong className={`text-base font-bold ${docStatus.summary?.expired > 0 ? 'text-error' : 'text-green-700'}`}>
                 {docStatus.summary?.expired || 0}
               </strong>
             </div>
-            <div className="p-3 bg-subtle rounded border">
-              <span className="text-xs text-secondary block">Expiring Soon</span>
-              <strong className="text-lg text-yellow">
+            <div className="p-3 bg-slate-50 rounded border border-base-300">
+              <span className="text-xs text-slate-500 block">Expiring Soon</span>
+              <strong className="text-base font-bold text-orange-600">
                 {docStatus.summary?.expiring_soon || 0}
               </strong>
             </div>
-            <div className="p-3 bg-subtle rounded border">
-              <span className="text-xs text-secondary block">Compliance Status</span>
-              <strong className={`text-sm ${docStatus.summary?.compliant ? 'text-green' : 'text-red'}`}>
-                {docStatus.summary?.compliant ? 'Compliant' : 'Action Required'}
-              </strong>
+            <div className="p-3 bg-slate-50 rounded border border-base-300">
+              <span className="text-xs text-slate-500 block">Compliance</span>
+              <StatusBadge
+                status={docStatus.summary?.compliant ? 'completed' : 'error'}
+                label={docStatus.summary?.compliant ? 'Compliant' : 'Action Required'}
+                size="xs"
+              />
             </div>
           </div>
+
           {docStatus.required_types?.length > 0 && (
             <div>
-              <span className="text-xs font-semibold text-secondary block mb-2">Required for your state:</span>
+              <span className="text-xs font-semibold text-slate-700 block mb-2">Required for your jurisdiction:</span>
               <div className="flex flex-wrap gap-2">
                 {docStatus.required_types.map((rt) => {
                   const isMissing = docStatus.missing?.some((m) => m.document_type_id === rt.document_type_id);
                   return (
-                    <span key={rt.document_type_id} className={`badge ${isMissing ? 'badge-red' : 'badge-green'}`}>
-                      {rt.name} {isMissing ? '(Missing)' : '(Uploaded)'}
-                    </span>
+                    <StatusBadge
+                      key={rt.document_type_id}
+                      status={isMissing ? 'error' : 'success'}
+                      label={`${rt.name} ${isMissing ? '(Missing)' : '(Uploaded)'}`}
+                      size="xs"
+                    />
                   );
                 })}
               </div>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
-      {/* Upload Box */}
-      <div className="card mb-8">
-        <h2 className="section-title-bordered">
-          Submit Document
-        </h2>
-
-        <form onSubmit={handleUploadSubmit} className="grid grid-cols-4 max-md:grid-cols-1 gap-4 items-end">
-          <div>
-            <label htmlFor="client-doc-type">
-              Document Type *
-            </label>
+      {/* Upload Card */}
+      <Card title="Submit Document" className="mb-6">
+        <form onSubmit={handleUploadSubmit} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end mt-2">
+          <FormField label="Document Type" htmlFor="client-doc-type" required>
             <select
               id="client-doc-type"
               value={selectedTypeId}
               onChange={(e) => setSelectedTypeId(e.target.value)}
+              className="select select-bordered w-full"
             >
               {docTypes.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -211,24 +249,22 @@ export default function DocumentsPage() {
                 </option>
               ))}
             </select>
-          </div>
+          </FormField>
 
-          <div>
-            <label htmlFor="client-expiration-date">
-              Expiration Date {selectedTypeObj?.requires_expiration ? '*' : '(if applicable)'}
-            </label>
+          <FormField
+            label={`Expiration ${selectedTypeObj?.requires_expiration ? '*' : '(optional)'}`}
+            htmlFor="client-expiration-date"
+          >
             <input
               id="client-expiration-date"
               type="date"
               value={expirationDate}
               onChange={(e) => setExpirationDate(e.target.value)}
+              className="input input-bordered w-full"
             />
-          </div>
+          </FormField>
 
-          <div>
-            <label htmlFor="client-file">
-              File (PDF, PNG, JPEG, max 10MB) *
-            </label>
+          <FormField label="File (PDF, PNG, JPG < 10MB)" htmlFor="client-file" required>
             <input
               id="client-file"
               ref={fileInputRef}
@@ -236,83 +272,37 @@ export default function DocumentsPage() {
               required
               accept=".pdf,.png,.jpg,.jpeg"
               onChange={(e) => setSelectedFile(e.target.files[0] || null)}
-              className="text-sm"
+              className="file-input file-input-bordered file-input-sm w-full"
             />
-          </div>
+          </FormField>
 
           <div>
             <button
               type="submit"
               disabled={uploading}
-              className="btn-success btn-full"
+              className="btn btn-primary btn-sm w-full"
             >
-              {uploading ? 'Submitting...' : 'Upload File'}
+              {uploading ? 'Uploading...' : 'Upload File'}
             </button>
           </div>
         </form>
-      </div>
+      </Card>
 
-      {/* Documents Table */}
-      <div className="card">
-        <h2 className="section-title">
-          Document Records ({documents.length})
-        </h2>
-
+      {/* Document Records */}
+      <Card title={`Document Records (${documents.length})`}>
         {documents.length === 0 ? (
-          <div className="card-empty-compact">
-            <p>No documents recorded yet.</p>
-            <p className="text-sm text-muted mt-2">
-              Upload your Insurance Card, Medicaid card, or Physician Orders above.
-            </p>
-          </div>
+          <EmptyState
+            title="No documents recorded yet"
+            description="Upload your Insurance Card, Medicaid card, or Physician Orders above."
+          />
         ) : (
-          <div className="table-responsive">
-            <table>
-              <thead>
-                <tr>
-                  <th>Document Type</th>
-                  <th>Uploaded Date</th>
-                  <th>Expiration</th>
-                  <th>Status</th>
-                  <th className="text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {documents.map((doc) => {
-                  const meta = DOCUMENT_STATUS_META[doc.status] || DOCUMENT_STATUS_META.pending_review;
-                  return (
-                    <tr key={doc.id}>
-                      <td className="font-medium">
-                        {doc.document_types?.name || 'Document'}
-                      </td>
-                      <td className="text-secondary">
-                        {new Date(doc.uploaded_at).toLocaleDateString()}
-                      </td>
-                      <td className="text-secondary">
-                        {doc.expiration_date ? new Date(doc.expiration_date).toLocaleDateString() : 'N/A'}
-                      </td>
-                      <td>
-                        <span className={`badge ${meta.badge}`}>
-                          {meta.label}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <button
-                          type="button"
-                          onClick={() => downloadDocument(doc.id, token)}
-                          className="btn-ghost-download"
-                        >
-                          View File
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={columns}
+            data={documents}
+            keyField="id"
+          />
         )}
-      </div>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

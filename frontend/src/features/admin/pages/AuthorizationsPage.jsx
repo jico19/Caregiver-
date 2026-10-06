@@ -1,5 +1,7 @@
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { useAuthorizationsData } from '../hooks/useAuthorizationsData';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
 import AuthorizationMetrics from '../components/authorizations/AuthorizationMetrics';
 import AuthorizationForm from '../components/authorizations/AuthorizationForm';
 import AuthorizationToolbar from '../components/authorizations/AuthorizationToolbar';
@@ -10,52 +12,44 @@ export default function AuthorizationsPage() {
   const data = useAuthorizationsData(token);
 
   return (
-    <div className="container-1120">
-      <div className="page-header items-start">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h1 className="page-title m-0">
-              Medicaid Authorizations
-            </h1>
-            <span className="badge badge-info">
-              FL • IN • GA
-            </span>
-          </div>
-          <p className="page-subtitle m-0">
-            Issue, track expiration windows, and maintain compliance for state Medicaid service approvals.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => data.setShowForm(!data.showForm)}
-          className={`btn-toggle ${data.showForm ? 'btn-neutral' : 'btn-success'}`}
-        >
-          {data.showForm ? (
-            <>
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              Close Form
-            </>
-          ) : (
-            <>
-              <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Issue New Authorization
-            </>
-          )}
-        </button>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Medicaid Authorizations"
+        badge="FL • IN • GA"
+        badgeVariant="info"
+        description="Issue, track expiration windows, and maintain compliance for state Medicaid service approvals."
+        actions={
+          <button
+            type="button"
+            onClick={() => data.setShowForm(!data.showForm)}
+            className={`btn btn-sm ${data.showForm ? 'btn-ghost' : 'btn-primary'}`}
+          >
+            {data.showForm ? (
+              <>
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                Close Form
+              </>
+            ) : (
+              <>
+                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                Issue New Authorization
+              </>
+            )}
+          </button>
+        }
+      />
 
       {data.errorMsg && (
-        <div role="alert" className="alert alert-error alert-row">
+        <div role="alert" className="alert alert-error mb-4 flex justify-between items-center text-sm py-2 px-4 rounded-box">
           <span>{data.errorMsg}</span>
-          <button type="button" onClick={() => data.setErrorMsg('')} className="alert-dismiss">✕</button>
+          <button type="button" onClick={() => data.setErrorMsg('')} className="btn btn-ghost btn-xs btn-circle">✕</button>
         </div>
       )}
 
       {data.successMsg && (
-        <div role="status" className="alert alert-success alert-row">
+        <div role="status" className="alert alert-success mb-4 flex justify-between items-center text-sm py-2 px-4 rounded-box">
           <span>{data.successMsg}</span>
-          <button type="button" onClick={() => data.setSuccessMsg('')} className="alert-dismiss">✕</button>
+          <button type="button" onClick={() => data.setSuccessMsg('')} className="btn btn-ghost btn-xs btn-circle">✕</button>
         </div>
       )}
 
@@ -115,6 +109,6 @@ export default function AuthorizationsPage() {
         onOpenForm={() => data.setShowForm(true)}
         onResetFilters={data.handleResetFilters}
       />
-    </div>
+    </PageContainer>
   );
 }

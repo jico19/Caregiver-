@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import usePaginatedFetch from '../../../shared/hooks/usePaginatedFetch';
 import useFetch from '../../../shared/hooks/useFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import FormField from '../../../shared/components/common/FormField';
 import Pagination from '../../../shared/components/common/Pagination';
 import { api } from '../../../shared/services/api';
 
@@ -56,76 +61,59 @@ export default function TrainingPage() {
     }
   }
 
-  function badgeClass(status) {
-    switch (status) {
-      case 'completed': return 'badge badge-success';
-      case 'in_progress': return 'badge badge-info';
-      default: return 'badge badge-ghost';
-    }
-  }
-
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            In-Service Training & Compliance Tracking
-          </h1>
-          <p className="page-subtitle">
-            Monitor caregiver course completion, track overdue requirements, and assign mandatory training.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
+    <PageContainer>
+      <PageHeader
+        title="In-Service Training & Compliance Tracking"
+        description="Monitor caregiver course completion, track overdue requirements, and assign mandatory training."
+        actions={
           <div className="flex items-center gap-2">
-            <label htmlFor="filter-status" className="filter-label">
-              Status:
-            </label>
             <select
               id="filter-status"
+              aria-label="Filter status"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="select-compact"
+              className="select select-bordered select-sm text-sm"
             >
               <option value="all">All Statuses</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
-          </div>
 
-          <button
-            onClick={() => setShowAssignModal(true)}
-            className="btn-primary"
-          >
-            + Assign Course
-          </button>
-        </div>
-      </div>
+            <button
+              onClick={() => setShowAssignModal(true)}
+              className="btn btn-primary btn-sm"
+            >
+              + Assign Course
+            </button>
+          </div>
+        }
+      />
 
       {message && (
-        <div role="alert" className={`alert ${message.type === 'error' ? 'alert-error' : 'alert-success'}`}>
+        <div role="alert" className={`alert ${message.type === 'error' ? 'alert-error' : 'alert-success'} mb-4 text-sm py-2 px-4 rounded-box`}>
           {message.text}
         </div>
       )}
 
       {error && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {error}
         </div>
       )}
 
-      <div className="admin-card">
+      <Card className="overflow-hidden">
         {loading ? (
-          <div className="table-loading-sm">Loading training enrollments...</div>
+          <div className="py-12 text-center text-slate-500 text-sm">Loading training enrollments...</div>
         ) : enrollments.length === 0 ? (
-          <div className="table-empty-sm">
+          <div className="py-12 text-center text-slate-500 text-sm">
             No training enrollments found.
           </div>
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Caregiver</th>
                   <th>Course Name</th>
                   <th>Status</th>
@@ -133,29 +121,30 @@ export default function TrainingPage() {
                   <th>Completed At</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {enrollments.map((enr) => {
                   const caregiver = enr.caregivers || {};
                   const course = enr.training_courses || {};
                   const cgName = caregiver.first_name ? `${caregiver.first_name} ${caregiver.last_name}` : 'Caregiver';
 
                   return (
-                    <tr key={enr.id}>
-                      <td className="cell-strong">
+                    <tr key={enr.id} className="hover:bg-base-200/40 transition-colors">
+                      <td className="font-medium text-slate-900">
                         {cgName}
                       </td>
-                      <td className="cell-muted font-medium">
+                      <td className="text-slate-600">
                         {course.name || 'Training Course'}
                       </td>
                       <td>
-                        <span className={badgeClass(enr.status)}>
-                          {enr.status ? enr.status.replace('_', ' ') : 'not started'}
-                        </span>
+                        <StatusBadge
+                          status={enr.status || 'not_started'}
+                          label={enr.status ? enr.status.replace('_', ' ') : 'not started'}
+                        />
                       </td>
-                      <td className="cell-muted">
+                      <td className="text-slate-500 text-xs whitespace-nowrap">
                         {enr.enrolled_at ? new Date(enr.enrolled_at).toLocaleDateString() : 'N/A'}
                       </td>
-                      <td className="cell-muted">
+                      <td className="text-slate-500 text-xs whitespace-nowrap">
                         {enr.completed_at ? new Date(enr.completed_at).toLocaleDateString() : '—'}
                       </td>
                     </tr>
@@ -166,33 +155,41 @@ export default function TrainingPage() {
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pages={pages}
-          total={total}
-          pageSize={pageSize}
-          listLabel="enrollments"
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
-      </div>
+        <div className="p-4 border-t border-base-200">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            listLabel="enrollments"
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      </Card>
 
       {showAssignModal && (
-        <div className="modal-overlay" tabIndex={-1}>
-          <div className="modal-card">
-            <div className="modal-header">
-              <h3 className="modal-title">Assign Training Course</h3>
-              <button onClick={() => setShowAssignModal(false)} className="btn-close">×</button>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
+          <Card className="p-6 max-w-md w-full shadow-lg">
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-base-200">
+              <h3 className="text-base font-semibold text-slate-900 m-0">Assign Training Course</h3>
+              <button
+                type="button"
+                onClick={() => setShowAssignModal(false)}
+                className="btn btn-ghost btn-xs btn-circle text-slate-400 hover:text-slate-600"
+              >
+                ✕
+              </button>
             </div>
             <form onSubmit={handleAssignSubmit}>
               <div className="space-y-4 my-4">
-                <div>
-                  <label className="form-label">Select Caregiver</label>
+                <FormField label="Caregiver" required htmlFor="assign-caregiver">
                   <select
+                    id="assign-caregiver"
                     required
                     value={assignForm.caregiver_id}
                     onChange={(e) => setAssignForm({ ...assignForm, caregiver_id: e.target.value })}
-                    className="select-field"
+                    className="select select-bordered select-sm w-full"
                   >
                     <option value="">-- Choose Caregiver --</option>
                     {caregiversList.map((app) => {
@@ -206,15 +203,15 @@ export default function TrainingPage() {
                       );
                     })}
                   </select>
-                </div>
+                </FormField>
 
-                <div>
-                  <label className="form-label">Select Course</label>
+                <FormField label="Course" required htmlFor="assign-course">
                   <select
+                    id="assign-course"
                     required
                     value={assignForm.course_id}
                     onChange={(e) => setAssignForm({ ...assignForm, course_id: e.target.value })}
-                    className="select-field"
+                    className="select select-bordered select-sm w-full"
                   >
                     <option value="">-- Choose Course --</option>
                     {coursesList.map((c) => (
@@ -223,21 +220,29 @@ export default function TrainingPage() {
                       </option>
                     ))}
                   </select>
-                </div>
+                </FormField>
               </div>
 
-              <div className="modal-actions">
-                <button type="button" onClick={() => setShowAssignModal(false)} className="btn-secondary">
+              <div className="flex items-center justify-end gap-2 mt-6 pt-3 border-t border-base-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  className="btn btn-ghost btn-sm"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="btn-primary">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="btn btn-primary btn-sm"
+                >
                   {submitting ? 'Assigning...' : 'Assign Course'}
                 </button>
               </div>
             </form>
-          </div>
+          </Card>
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }

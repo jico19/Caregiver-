@@ -39,7 +39,7 @@ def list_admin_documents(
 
     query = active_only(
         supabase.table("documents").select(
-            "id, owner_id, state_id, document_type_id, status, file_path, file_name, file_size, mime_type, expiration_date, rejection_reason, reviewed_at, reviewed_by, uploaded_at, document_types(name, for_role, requires_expiration), users:users!documents_owner_id_fkey(email, role_id, deleted_at), states(code, name)",
+            "id, owner_id, state_id, document_type_id, status, storage_path, expiration_date, rejection_reason, reviewed_at, reviewed_by, uploaded_at, document_types(name, for_role, requires_expiration), users:users!documents_owner_id_fkey(email, role_id, deleted_at), states(code, name)",
             count="exact",
         ),
         "documents",

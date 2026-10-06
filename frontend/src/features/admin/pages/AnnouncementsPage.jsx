@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import { queryClient } from '../../../shared/lib/queryClient';
-import LoadingState from '../../../shared/components/common/LoadingState';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
 import usePaginatedFetch from '../../../shared/hooks/usePaginatedFetch';
 import Pagination from '../../../shared/components/common/Pagination';
 
@@ -110,42 +115,37 @@ export default function AnnouncementsPage() {
   }
 
   return (
-    <div className="page-container">
-      <div className="page-head">
-        <h1 className="page-title">
-          Announcements
-        </h1>
-        <p className="page-subtitle">
-          Broadcast in-app messages to caregivers and clients. Announcements appear on the relevant portal dashboard.
-        </p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Announcements"
+        description="Broadcast in-app messages to caregivers and clients. Announcements appear on the relevant portal dashboard."
+      />
 
       {error && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {error}
         </div>
       )}
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {errorMsg}
         </div>
       )}
 
       {successMsg && (
-        <div role="status" className="alert alert-success">
+        <div role="status" className="alert alert-success mb-4 text-sm py-2 px-4 rounded-box">
           {successMsg}
         </div>
       )}
 
-      <div className="admin-card mb-6">
-        <h2 className="section-title">
+      <Card className="p-6 mb-6">
+        <h2 className="text-base font-semibold text-slate-900 m-0 pb-3 mb-4 border-b border-base-200">
           Publish New Announcement
         </h2>
-        <form onSubmit={handleCreate} className="flex flex-col gap-4 mt-4">
-          <div className="form-grid-2">
-            <div>
-              <label htmlFor="ann-title">Title *</label>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField label="Title" required htmlFor="ann-title">
               <input
                 id="ann-title"
                 type="text"
@@ -153,100 +153,105 @@ export default function AnnouncementsPage() {
                 value={form.title}
                 onChange={(e) => setField('title', e.target.value)}
                 placeholder="E.g., Holiday schedule update"
+                className="input input-bordered input-sm w-full"
               />
-            </div>
-            <div>
-              <label htmlFor="ann-audience">Audience *</label>
+            </FormField>
+            <FormField label="Audience" required htmlFor="ann-audience">
               <select
                 id="ann-audience"
                 value={form.audience}
                 onChange={(e) => setField('audience', e.target.value)}
+                className="select select-bordered select-sm w-full"
               >
                 {AUDIENCE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-            </div>
-            <div className="form-grid-2 col-span-2">
-              <label htmlFor="ann-state">State</label>
+            </FormField>
+            <FormField label="State" htmlFor="ann-state">
               <select
                 id="ann-state"
                 value={form.state_id}
                 onChange={(e) => setField('state_id', e.target.value)}
+                className="select select-bordered select-sm w-full"
               >
                 {STATE_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-            </div>
+            </FormField>
           </div>
-          <div>
-            <label htmlFor="ann-body">Message *</label>
+          <FormField label="Message" required htmlFor="ann-body">
             <textarea
               id="ann-body"
               rows={3}
               value={form.body}
               onChange={(e) => setField('body', e.target.value)}
               placeholder="Short in-app message shown on the portal dashboard."
+              className="textarea textarea-bordered text-sm w-full"
             />
-          </div>
-          <div>
-            <button type="submit" disabled={busy} className="btn-primary">
+          </FormField>
+          <div className="flex justify-end pt-2">
+            <button type="submit" disabled={busy} className="btn btn-primary btn-sm">
               {busy ? 'Publishing...' : 'Publish Announcement'}
             </button>
           </div>
         </form>
-      </div>
+      </Card>
 
-      <div className="admin-card">
-        <h2 className="section-title">
-          Published Announcements ({total})
-        </h2>
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-base-200">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">
+            Published Announcements ({total})
+          </h2>
+        </div>
 
         {loading ? (
-          <LoadingState title="Loading announcements..." variant="cards" count={1} />
+          <div className="py-12 text-center text-slate-500 text-sm">Loading announcements...</div>
         ) : announcements.length === 0 ? (
-          <div className="table-empty-sm">
-            No announcements published yet.
-          </div>
+          <EmptyState
+            title="No announcements published yet"
+            message="Use the form above to post announcements visible across portal dashboards."
+          />
         ) : (
-          <div className="flex flex-col gap-3 mt-4">
+          <div className="divide-y divide-base-200">
             {announcements.map((ann) => (
-              <div key={ann.id} className="card p-4 flex flex-col gap-2">
+              <div key={ann.id} className="p-4 flex flex-col gap-2 hover:bg-base-200/40 transition-colors">
                 <div className="flex justify-between items-center flex-wrap gap-2">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-sm m-0">{ann.title}</h3>
-                    <span className={`badge ${ann.is_active ? 'badge-green' : 'badge-gray'}`}>
-                      {ann.is_active ? 'Active' : 'Draft'}
-                    </span>
-                    <span className="chip-neutral">
+                    <h3 className="font-semibold text-sm text-slate-900 m-0">{ann.title}</h3>
+                    <StatusBadge
+                      status={ann.is_active ? 'active' : 'draft'}
+                      label={ann.is_active ? 'Active' : 'Draft'}
+                    />
+                    <span className="badge badge-sm badge-ghost font-medium">
                       {AUDIENCE_OPTIONS.find((o) => o.value === ann.audience)?.label || ann.audience}
                     </span>
                     {ann.states?.code && (
-                      <span className="chip-neutral">{ann.states.code}</span>
+                      <span className="badge badge-sm badge-ghost font-medium">{ann.states.code}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => handleToggle(ann)}
-                      className="text-xs font-semibold text-primary underline"
+                      className="text-xs font-medium text-primary hover:underline"
                     >
                       {ann.is_active ? 'Archive' : 'Activate'}
                     </button>
                     <button
                       type="button"
                       onClick={() => handleDelete(ann)}
-                      className="text-xs font-semibold text-red-600 underline"
+                      className="text-xs font-medium text-error hover:underline"
                     >
                       Delete
                     </button>
                   </div>
                 </div>
-                <p className="text-secondary text-sm leading-normal m-0">
+                <p className="text-slate-600 text-sm leading-normal m-0">
                   {ann.body}
                 </p>
-                <p className="text-xs text-muted m-0">
+                <p className="text-xs text-slate-400 m-0">
                   {ann.users?.email || 'Administrator'} · {new Date(ann.created_at).toLocaleString()}
                 </p>
               </div>
@@ -254,16 +259,18 @@ export default function AnnouncementsPage() {
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pages={pages}
-          total={total}
-          pageSize={pageSize}
-          listLabel="announcements"
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
-      </div>
-    </div>
+        <div className="p-4 border-t border-base-200">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            listLabel="announcements"
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      </Card>
+    </PageContainer>
   );
 }

@@ -1,13 +1,10 @@
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
-
-const AUTH_STATUS_BADGE = {
-  active: 'badge badge-green',
-  expiring_soon: 'badge badge-yellow',
-  expired: 'badge badge-red',
-  pending: 'badge badge-gray',
-  rejected: 'badge badge-gray',
-};
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import EmptyState from '../../../shared/components/common/EmptyState';
 
 function fmtDate(value) {
   if (!value) return '—';
@@ -33,27 +30,26 @@ export default function ReportsPage() {
 
   if (loading) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <h1 className="page-title">Reports</h1>
+      <PageContainer>
+        <PageHeader title="Reports" />
+        <div className="py-16 text-center text-slate-500 text-sm">
+          <div className="loading loading-spinner loading-md text-primary mb-2" />
+          <div>Loading operational reports...</div>
         </div>
-        <div className="table-loading-sm">Loading reports...</div>
-      </div>
+      </PageContainer>
     );
   }
 
   if (!data) {
     return (
-      <div className="page-container">
-        <div className="page-header">
-          <h1 className="page-title">Reports</h1>
-        </div>
+      <PageContainer>
+        <PageHeader title="Reports" />
         {errorMsg && (
-          <div role="alert" className="alert alert-error">
+          <div role="alert" className="alert alert-error text-sm py-2 px-4 rounded-box">
             {errorMsg}
           </div>
         )}
-      </div>
+      </PageContainer>
     );
   }
 
@@ -65,56 +61,51 @@ export default function ReportsPage() {
   const inquiries = data.website_inquiries || { by_state: [], recent: [], total: 0 };
 
   const stats = [
-    { label: 'Compliant caregivers', value: `${compliance.compliant}/${compliance.total}`, cls: 'text-green-700' },
-    { label: 'Credential issues', value: `${credentials.total}`, cls: credentials.total ? 'text-red-700' : 'text-gray-700' },
-    { label: 'Courses tracked', value: `${training.total_courses}`, cls: 'text-gray-700' },
-    { label: 'Active authorizations', value: `${authorizations.summary.active ?? 0}`, cls: 'text-green-700' },
-    { label: 'Total referrals', value: `${sources.total}`, cls: 'text-blue-700' },
-    { label: 'Web inquiries', value: `${inquiries.total}`, cls: 'text-blue-700' },
+    { label: 'Compliant caregivers', value: `${compliance.compliant}/${compliance.total}` },
+    { label: 'Credential issues', value: `${credentials.total}`, highlight: credentials.total > 0 },
+    { label: 'Courses tracked', value: `${training.total_courses}` },
+    { label: 'Active authorizations', value: `${authorizations.summary.active ?? 0}` },
+    { label: 'Total referrals', value: `${sources.total}` },
+    { label: 'Web inquiries', value: `${inquiries.total}` },
   ];
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Reports</h1>
-          <p className="page-subtitle">
-            Operational snapshot across all states, generated{' '}
-            {data.generated_at ? new Date(data.generated_at).toLocaleString() : ''}.
-          </p>
-        </div>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Reports"
+        description={`Operational snapshot across all states, generated ${data.generated_at ? new Date(data.generated_at).toLocaleString() : ''}.`}
+      />
 
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {errorMsg}
         </div>
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
         {stats.map((s) => (
-          <div key={s.label} className="card p-4">
-            <div className="text-xs text-muted mb-1">{s.label}</div>
-            <div className={`text-xl font-bold ${s.cls}`}>{s.value}</div>
-          </div>
+          <Card key={s.label} className="p-4">
+            <div className="text-xs font-medium text-slate-500 uppercase tracking-wide">{s.label}</div>
+            <div className={`text-2xl font-bold mt-1 ${s.highlight ? 'text-error' : 'text-slate-900'}`}>{s.value}</div>
+          </Card>
         ))}
       </div>
 
       {/* Caregiver compliance */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">Caregiver Compliance</h2>
-          <span className={`badge ${compliance.compliant === compliance.total ? 'badge-green' : 'badge-red'}`}>
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">Caregiver Compliance</h2>
+          <span className={`badge badge-sm ${compliance.compliant === compliance.total ? 'badge-success badge-soft' : 'badge-error badge-soft'} font-medium`}>
             {compliance.compliant} of {compliance.total} compliant
           </span>
         </div>
         {compliance.rows.length === 0 ? (
-          <div className="table-empty-sm">No caregivers found.</div>
+          <EmptyState title="No caregivers found" message="No caregiver records available." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Caregiver</th>
                   <th>State</th>
                   <th className="text-right">Missing</th>
@@ -124,24 +115,27 @@ export default function ReportsPage() {
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {compliance.rows.map((r) => (
-                  <tr key={r.caregiver_id}>
-                    <td className="cell-strong">
-                      {r.name}
-                      <div className="cell-sub">{r.email || 'No portal email'}</div>
-                    </td>
-                    <td className="cell-muted">{r.state_code || '—'}</td>
-                    <td className="text-right">{r.missing}</td>
-                    <td className="text-right">{r.expired}</td>
-                    <td className="text-right">{r.expiring_soon}</td>
-                    <td className="text-right">{r.valid}</td>
+                  <tr key={r.caregiver_id} className="hover:bg-base-200/40 transition-colors">
                     <td>
-                      <span className={r.compliant ? 'badge badge-green' : 'badge badge-red'}>
-                        {r.compliant ? 'Compliant' : 'Action needed'}
-                      </span>
+                      <div className="font-medium text-slate-900">{r.name}</div>
+                      <div className="text-xs text-slate-500">{r.email || 'No portal email'}</div>
+                    </td>
+                    <td>
+                      <span className="badge badge-sm badge-ghost font-medium">{r.state_code || '—'}</span>
+                    </td>
+                    <td className="text-right text-xs text-slate-600">{r.missing}</td>
+                    <td className="text-right text-xs text-slate-600">{r.expired}</td>
+                    <td className="text-right text-xs text-slate-600">{r.expiring_soon}</td>
+                    <td className="text-right text-xs text-slate-600">{r.valid}</td>
+                    <td>
+                      <StatusBadge
+                        status={r.compliant ? 'active' : 'error'}
+                        label={r.compliant ? 'Compliant' : 'Action needed'}
+                      />
                       {r.missing_names?.length > 0 && (
-                        <div className="cell-sub">Missing: {r.missing_names.join(', ')}</div>
+                        <div className="text-xs text-slate-500 mt-1">Missing: {r.missing_names.join(', ')}</div>
                       )}
                     </td>
                   </tr>
@@ -150,21 +144,21 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Expiring credentials */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">Expiring Credentials</h2>
-          <span className="badge badge-yellow">{credentials.total} total</span>
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">Expiring Credentials</h2>
+          <span className="badge badge-sm badge-warning badge-soft font-medium">{credentials.total} total</span>
         </div>
         {credentials.rows.length === 0 ? (
-          <div className="table-empty-sm">No credentials expiring or expired in the next 30 days.</div>
+          <EmptyState title="No expiring credentials" message="No credentials expiring or expired in the next 30 days." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Caregiver</th>
                   <th>Credential</th>
                   <th>State</th>
@@ -172,17 +166,20 @@ export default function ReportsPage() {
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {credentials.rows.map((r, i) => (
-                  <tr key={`${r.caregiver_id}-${r.document_name}-${i}`}>
-                    <td className="cell-strong">{r.caregiver_name}</td>
-                    <td>{r.document_name}</td>
-                    <td className="cell-muted">{r.state_code || '—'}</td>
-                    <td className="whitespace-nowrap">{fmtDate(r.expiration_date)}</td>
+                  <tr key={`${r.caregiver_id}-${r.document_name}-${i}`} className="hover:bg-base-200/40 transition-colors">
+                    <td className="font-medium text-slate-900">{r.caregiver_name}</td>
+                    <td className="text-slate-600 text-xs">{r.document_name}</td>
                     <td>
-                      <span className={r.status === 'expired' ? 'badge badge-red' : 'badge badge-yellow'}>
-                        {r.status === 'expired' ? `Expired ${daysLabel(r.days_remaining)}` : daysLabel(r.days_remaining)}
-                      </span>
+                      <span className="badge badge-sm badge-ghost font-medium">{r.state_code || '—'}</span>
+                    </td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{fmtDate(r.expiration_date)}</td>
+                    <td>
+                      <StatusBadge
+                        status={r.status === 'expired' ? 'expired' : 'warning'}
+                        label={r.status === 'expired' ? `Expired ${daysLabel(r.days_remaining)}` : daysLabel(r.days_remaining)}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -190,21 +187,21 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       {/* In-service completion */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">In-Service Training Completion</h2>
-          <span className="badge badge-blue">{training.total_courses} courses</span>
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">In-Service Training Completion</h2>
+          <span className="badge badge-sm badge-ghost font-medium">{training.total_courses} courses</span>
         </div>
         {training.rows.length === 0 ? (
-          <div className="table-empty-sm">No training courses have enrollments yet.</div>
+          <EmptyState title="No course enrollments" message="No training courses have enrollments yet." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Course</th>
                   <th>State</th>
                   <th className="text-right">Enrolled</th>
@@ -212,15 +209,17 @@ export default function ReportsPage() {
                   <th className="text-right">Completion</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {training.rows.map((r) => (
-                  <tr key={r.course_id}>
-                    <td className="cell-strong">{r.name}</td>
-                    <td className="cell-muted">{r.state_code || '—'}</td>
-                    <td className="text-right">{r.enrolled}</td>
-                    <td className="text-right">{r.completed}</td>
+                  <tr key={r.course_id} className="hover:bg-base-200/40 transition-colors">
+                    <td className="font-medium text-slate-900">{r.name}</td>
+                    <td>
+                      <span className="badge badge-sm badge-ghost font-medium">{r.state_code || '—'}</span>
+                    </td>
+                    <td className="text-right text-xs text-slate-600">{r.enrolled}</td>
+                    <td className="text-right text-xs text-slate-600">{r.completed}</td>
                     <td className="text-right">
-                      <span className={r.completion_pct === 100 ? 'badge badge-green' : 'badge badge-gray'}>
+                      <span className={`badge badge-sm ${r.completion_pct === 100 ? 'badge-success badge-soft' : 'badge-ghost'} font-medium`}>
                         {r.completion_pct}%
                       </span>
                     </td>
@@ -230,27 +229,27 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Client authorizations */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">Client Authorizations</h2>
-          <div className="flex flex-wrap items-center gap-2">
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">Client Authorizations</h2>
+          <div className="flex flex-wrap items-center gap-1.5">
             {['active', 'expiring_soon', 'expired', 'pending', 'rejected'].map((s) => (
-              <span key={s} className={AUTH_STATUS_BADGE[s]}>
+              <span key={s} className="badge badge-xs badge-ghost font-medium">
                 {s.replace('_', ' ')}: {authorizations.summary[s] ?? 0}
               </span>
             ))}
           </div>
         </div>
         {authorizations.rows.length === 0 ? (
-          <div className="table-empty-sm">No authorizations on record.</div>
+          <EmptyState title="No authorizations" message="No authorizations on record." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Authorization</th>
                   <th>Client</th>
                   <th>State</th>
@@ -259,19 +258,19 @@ export default function ReportsPage() {
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {authorizations.rows.map((r) => (
-                  <tr key={r.authorization_number || `${r.client_name}-${r.end_date}`}>
-                    <td className="cell-strong whitespace-nowrap">{r.authorization_number || '—'}</td>
-                    <td>{r.client_name}</td>
-                    <td className="cell-muted">{r.state_code || '—'}</td>
-                    <td className="whitespace-nowrap">{fmtDate(r.start_date)}</td>
-                    <td className="whitespace-nowrap">{fmtDate(r.end_date)}</td>
+                  <tr key={r.authorization_number || `${r.client_name}-${r.end_date}`} className="hover:bg-base-200/40 transition-colors">
+                    <td className="font-mono text-xs font-medium text-slate-900 whitespace-nowrap">{r.authorization_number || '—'}</td>
+                    <td className="font-medium text-slate-900">{r.client_name}</td>
                     <td>
-                      <span className={AUTH_STATUS_BADGE[r.status] || 'badge badge-gray'}>
-                        {r.status ? r.status.replace('_', ' ') : '—'}
-                      </span>
-                      <div className="cell-sub">{daysLabel(r.days_left)}</div>
+                      <span className="badge badge-sm badge-ghost font-medium">{r.state_code || '—'}</span>
+                    </td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{fmtDate(r.start_date)}</td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{fmtDate(r.end_date)}</td>
+                    <td>
+                      <StatusBadge status={r.status || 'neutral'} label={r.status ? r.status.replace('_', ' ') : '—'} />
+                      <div className="text-[11px] text-slate-500 mt-0.5">{daysLabel(r.days_left)}</div>
                     </td>
                   </tr>
                 ))}
@@ -279,35 +278,35 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Referral sources */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">Referral Sources</h2>
-          <span className="badge badge-blue">{sources.total} total</span>
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">Referral Sources</h2>
+          <span className="badge badge-sm badge-ghost font-medium">{sources.total} total</span>
         </div>
         {sources.rows.length === 0 ? (
-          <div className="table-empty-sm">No referrals yet.</div>
+          <EmptyState title="No referrals" message="No referrals recorded yet." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Source</th>
                   <th className="text-right">Referrals</th>
                   <th>By State</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {sources.rows.map((r) => (
-                  <tr key={r.source}>
-                    <td className="cell-strong">{r.source}</td>
-                    <td className="text-right">{r.count}</td>
+                  <tr key={r.source} className="hover:bg-base-200/40 transition-colors">
+                    <td className="font-medium text-slate-900">{r.source}</td>
+                    <td className="text-right text-xs font-semibold text-slate-900">{r.count}</td>
                     <td>
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
                         {(r.states || []).map((s) => (
-                          <span key={s.code} className="chip-neutral">
+                          <span key={s.code} className="badge badge-xs badge-neutral badge-soft">
                             {s.code}: {s.count}
                           </span>
                         ))}
@@ -319,27 +318,27 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
+      </Card>
 
       {/* Website inquiries */}
-      <section className="admin-card mb-6">
-        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-          <h2 className="section-title m-0">Website Inquiries</h2>
-          <div className="flex flex-wrap items-center gap-2">
+      <Card className="overflow-hidden mb-6">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-slate-900 m-0">Website Inquiries</h2>
+          <div className="flex flex-wrap items-center gap-1.5">
             {inquiries.by_state.map((s) => (
-              <span key={s.code} className="chip-neutral">
+              <span key={s.code} className="badge badge-xs badge-neutral badge-soft">
                 {s.code}: {s.count}
               </span>
             ))}
           </div>
         </div>
         {inquiries.recent.length === 0 ? (
-          <div className="table-empty-sm">No website inquiries yet.</div>
+          <EmptyState title="No inquiries" message="No website inquiries recorded yet." />
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Lead</th>
                   <th>State</th>
                   <th>Contact</th>
@@ -347,20 +346,22 @@ export default function ReportsPage() {
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {inquiries.recent.map((r) => (
-                  <tr key={r.id}>
-                    <td className="cell-strong">
+                  <tr key={r.id} className="hover:bg-base-200/40 transition-colors">
+                    <td className="font-medium text-slate-900">
                       {r.first_name} {r.last_name}
                     </td>
-                    <td className="cell-muted">{r.state_code || '—'}</td>
-                    <td className="cell-sub">
+                    <td>
+                      <span className="badge badge-sm badge-ghost font-medium">{r.state_code || '—'}</span>
+                    </td>
+                    <td className="text-xs text-slate-500">
                       {r.phone || 'No phone'}
                       {r.email && ` · ${r.email}`}
                     </td>
-                    <td className="cell-muted whitespace-nowrap">{fmtDate(r.created_at)}</td>
+                    <td className="whitespace-nowrap text-xs text-slate-500">{fmtDate(r.created_at)}</td>
                     <td>
-                      <span className="badge badge-gray">{r.status || '—'}</span>
+                      <StatusBadge status={r.status || 'neutral'} label={r.status || '—'} />
                     </td>
                   </tr>
                 ))}
@@ -368,7 +369,7 @@ export default function ReportsPage() {
             </table>
           </div>
         )}
-      </section>
-    </div>
+      </Card>
+    </PageContainer>
   );
 }

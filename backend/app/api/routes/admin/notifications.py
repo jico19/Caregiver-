@@ -14,7 +14,7 @@ def get_admin_notifications(user: dict = Depends(require_admin)):
     res = (
         active_only(
             supabase.table("notifications").select(
-                "id, user_id, type, title, body, read, reference_id, created_at, updated_at"
+                "id, user_id, type, title, body, read, reference_id, created_at"
             ),
             "notifications",
         )

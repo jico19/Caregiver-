@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate, Link, Navigate } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { homePathFor } from '../../../shared/lib/roles';
+import Card from '../../../shared/components/common/Card';
+import FormField from '../../../shared/components/common/FormField';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -75,209 +77,192 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="card bg-base-100 border border-base-200 shadow-sm p-8 max-w-[440px] mx-auto my-12">
-      <div className="text-center mb-6">
-        <h1 className="text-2xl font-bold text-base-content mb-1">
-          Caregiver Portal
-        </h1>
-        <p className="text-secondary text-sm">
-          {mode === 'login' ? 'Sign in to access your dashboard, documents, and training.' : 'Register as a caregiver candidate.'}
-        </p>
-      </div>
-
-      <div role="tablist" className="tabs tabs-border mb-6">
-        <button
-          type="button"
-          role="tab"
-          onClick={() => { setMode('login'); setErrorMsg(''); setSuccessMsg(''); }}
-          className={`tab ${mode === 'login' ? 'tab-active font-semibold text-primary' : ''}`}
-        >
-          Sign In
-        </button>
-        <button
-          type="button"
-          role="tab"
-          onClick={() => { setMode('register'); setErrorMsg(''); setSuccessMsg(''); }}
-          className={`tab ${mode === 'register' ? 'tab-active font-semibold text-primary' : ''}`}
-        >
-          Create Account
-        </button>
-      </div>
-
-      {errorMsg && (
-        <div role="alert" className="alert alert-error mb-4">
-          {errorMsg}
+    <div className="w-full max-w-md mx-auto my-12 px-4">
+      <Card>
+        <div className="text-center mb-6">
+          <h1 className="text-xl font-bold tracking-tight text-slate-900 mb-1">
+            Caregiver Portal
+          </h1>
+          <p className="text-xs text-slate-500 m-0">
+            {mode === 'login' ? 'Sign in to access your dashboard, documents, and training.' : 'Register as a caregiver candidate.'}
+          </p>
         </div>
-      )}
 
-      {successMsg && (
-        <div role="status" className="alert alert-success mb-4">
-          {successMsg}
-        </div>
-      )}
-
-      {mode === 'login' ? (
-        <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="login-email">
-              Email Address
-            </label>
-            <input
-              id="login-email"
-              type="email"
-              required
-              className="input input-bordered w-full"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="caregiver@example.com"
-            />
-          </div>
-
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="login-password">
-              Password
-            </label>
-            <input
-              id="login-password"
-              type="password"
-              required
-              className="input input-bordered w-full"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </div>
-
+        <div role="tablist" className="flex border-b border-base-300 mb-6">
           <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn-primary w-full mt-2"
+            type="button"
+            role="tab"
+            onClick={() => { setMode('login'); setErrorMsg(''); setSuccessMsg(''); }}
+            className={`flex-1 pb-2 text-xs text-center border-b-2 font-medium transition-colors ${
+              mode === 'login'
+                ? 'border-green-600 text-slate-900 font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
-            {isLoading ? 'Signing In...' : 'Sign In'}
+            Sign In
           </button>
-        </form>
-      ) : (
-        <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-4">
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-state">
-              Operating State
-            </label>
-            <select
-              id="reg-state"
-              className="select select-bordered w-full"
-              value={stateId}
-              onChange={(e) => setStateId(e.target.value)}
+          <button
+            type="button"
+            role="tab"
+            onClick={() => { setMode('register'); setErrorMsg(''); setSuccessMsg(''); }}
+            className={`flex-1 pb-2 text-xs text-center border-b-2 font-medium transition-colors ${
+              mode === 'register'
+                ? 'border-green-600 text-slate-900 font-semibold'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            Create Account
+          </button>
+        </div>
+
+        {errorMsg && (
+          <div role="alert" className="alert alert-soft alert-error mb-4">
+            <span className="text-xs">{errorMsg}</span>
+          </div>
+        )}
+
+        {successMsg && (
+          <div role="status" className="alert alert-soft alert-success mb-4">
+            <span className="text-xs">{successMsg}</span>
+          </div>
+        )}
+
+        {mode === 'login' ? (
+          <form onSubmit={handleLoginSubmit} className="flex flex-col gap-4">
+            <FormField label="Email Address" htmlFor="login-email" required>
+              <input
+                id="login-email"
+                type="email"
+                required
+                className="input input-bordered w-full"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="caregiver@example.com"
+              />
+            </FormField>
+
+            <FormField label="Password" htmlFor="login-password" required>
+              <input
+                id="login-password"
+                type="password"
+                required
+                className="input input-bordered w-full"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </FormField>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn btn-primary btn-sm w-full mt-2"
             >
-              <option value="1">Florida (FL)</option>
-              <option value="2">Indiana (IN)</option>
-              <option value="3">Georgia (GA)</option>
-            </select>
-          </div>
+              {isLoading ? 'Signing In...' : 'Sign In'}
+            </button>
+          </form>
+        ) : (
+          <form onSubmit={handleRegisterSubmit} className="flex flex-col gap-3">
+            <FormField label="Operating State" htmlFor="reg-state">
+              <select
+                id="reg-state"
+                className="select select-bordered w-full"
+                value={stateId}
+                onChange={(e) => setStateId(e.target.value)}
+              >
+                <option value="1">Florida (FL)</option>
+                <option value="2">Indiana (IN)</option>
+                <option value="3">Georgia (GA)</option>
+              </select>
+            </FormField>
 
-          <div className="grid grid-cols-2 max-md:grid-cols-1 gap-4">
-            <div className="form-control">
-              <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-firstname">
-                First Name
-              </label>
-              <input
-                id="reg-firstname"
-                type="text"
-                required
-                className="input input-bordered w-full"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <FormField label="First Name" htmlFor="reg-firstname" required>
+                <input
+                  id="reg-firstname"
+                  type="text"
+                  required
+                  className="input input-bordered w-full"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+              </FormField>
+
+              <FormField label="Last Name" htmlFor="reg-lastname" required>
+                <input
+                  id="reg-lastname"
+                  type="text"
+                  required
+                  className="input input-bordered w-full"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+              </FormField>
             </div>
 
-            <div className="form-control">
-              <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-lastname">
-                Last Name
-              </label>
+            <FormField label="Phone Number" htmlFor="reg-phone">
               <input
-                id="reg-lastname"
-                type="text"
+                id="reg-phone"
+                type="tel"
+                className="input input-bordered w-full"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(555) 000-0000"
+              />
+            </FormField>
+
+            <FormField label="Email Address" htmlFor="reg-email" required>
+              <input
+                id="reg-email"
+                type="email"
                 required
                 className="input input-bordered w-full"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="caregiver@example.com"
               />
-            </div>
-          </div>
+            </FormField>
 
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-phone">
-              Phone Number
-            </label>
-            <input
-              id="reg-phone"
-              type="tel"
-              className="input input-bordered w-full"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="(555) 000-0000"
-            />
-          </div>
+            <FormField label="Create Password" htmlFor="reg-password" required>
+              <input
+                id="reg-password"
+                type="password"
+                required
+                minLength={6}
+                className="input input-bordered w-full"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+              />
+            </FormField>
 
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-email">
-              Email Address
-            </label>
-            <input
-              id="reg-email"
-              type="email"
-              required
-              className="input input-bordered w-full"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="caregiver@example.com"
-            />
-          </div>
+            <FormField label="Confirm Password" htmlFor="reg-confirm" required>
+              <input
+                id="reg-confirm"
+                type="password"
+                required
+                minLength={6}
+                className="input input-bordered w-full"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </FormField>
 
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-password">
-              Create Password
-            </label>
-            <input
-              id="reg-password"
-              type="password"
-              required
-              minLength={6}
-              className="input input-bordered w-full"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-            />
-          </div>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="btn btn-primary btn-sm w-full mt-2"
+            >
+              {isLoading ? 'Creating Account...' : 'Register Caregiver'}
+            </button>
+          </form>
+        )}
 
-          <div className="form-control">
-            <label className="label text-sm font-medium text-base-content mb-1" htmlFor="reg-confirm">
-              Confirm Password
-            </label>
-            <input
-              id="reg-confirm"
-              type="password"
-              required
-              minLength={6}
-              className="input input-bordered w-full"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn-primary w-full mt-2"
-          >
-            {isLoading ? 'Creating Account...' : 'Register Caregiver'}
-          </button>
-        </form>
-      )}
-
-      <div className="text-center text-sm mt-6">
-        <Link to="/florida" className="text-secondary hover:underline">
-          ← Back to Public Website
-        </Link>
-      </div>
+        <div className="text-center text-xs mt-6 pt-4 border-t border-base-300">
+          <Link to="/florida" className="text-slate-500 hover:text-slate-900 hover:underline">
+            ← Back to Public Website
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

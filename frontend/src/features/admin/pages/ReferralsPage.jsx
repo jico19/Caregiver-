@@ -4,6 +4,11 @@ import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import useFetch from '../../../shared/hooks/useFetch';
 import usePaginatedFetch from '../../../shared/hooks/usePaginatedFetch';
+import PageContainer from '../../../shared/components/common/PageContainer';
+import PageHeader from '../../../shared/components/common/PageHeader';
+import Card from '../../../shared/components/common/Card';
+import StatusBadge from '../../../shared/components/common/StatusBadge';
+import ConfirmModal from '../../../shared/components/common/ConfirmModal';
 import Pagination from '../../../shared/components/common/Pagination';
 
 const STATUS_LABELS = {
@@ -12,14 +17,6 @@ const STATUS_LABELS = {
   converted: 'Converted',
   closed: 'Closed',
 };
-
-const STATUS_BADGE = {
-  new: 'badge badge-info',
-  contacted: 'badge badge-warning',
-  converted: 'badge badge-success',
-  closed: 'badge badge-neutral',
-};
-
 
 export default function ReferralsPage() {
   const { token } = useAuth();
@@ -113,36 +110,29 @@ export default function ReferralsPage() {
   const hasActiveFilters = filterStatus !== 'all' || filterState !== 'all' || filterUnassigned;
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">
-            Referral Inbox
-          </h1>
-          <p className="page-subtitle">
-            Online care consultations, physician referrals, and Medicaid waiver inquiries from the public site.
-          </p>
-        </div>
-        <span className="badge badge-blue">
-          {total} total
-        </span>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Referral Inbox"
+        description="Online care consultations, physician referrals, and Medicaid waiver inquiries from the public site."
+        badge={`${total} total`}
+        badgeVariant="neutral"
+      />
 
       {error && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {error}
         </div>
       )}
       {errorMsg && (
-        <div role="alert" className="alert alert-error">
+        <div role="alert" className="alert alert-error mb-4 text-sm py-2 px-4 rounded-box">
           {errorMsg}
         </div>
       )}
       {successMsg && (
-        <div role="status" className="alert alert-success flex items-center justify-between">
+        <div role="status" className="alert alert-success mb-4 flex items-center justify-between text-sm py-2 px-4 rounded-box">
           <span>{successMsg}</span>
           {convertedClientId && (
-            <Link to={`/admin/clients/${convertedClientId}`} className="underline font-semibold ml-3">
+            <Link to={`/admin/clients/${convertedClientId}`} className="link link-hover font-semibold ml-3">
               View Client Profile & Admit →
             </Link>
           )}
@@ -150,42 +140,29 @@ export default function ReferralsPage() {
       )}
 
       {/* Confirmation Modal for Conversion */}
-      {confirmTarget && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50">
-          <div className="card p-6 max-w-md w-full shadow-lg bg-white">
-            <h3 className="section-title m-0 mb-2">Confirm Client Conversion</h3>
-            <p className="text-sm text-secondary mb-4">
-              Converting <strong>{confirmTarget.first_name} {confirmTarget.last_name}</strong> will automatically create a pending <strong>Client Profile</strong> and user portal account using their email (<code>{confirmTarget.email || 'N/A'}</code>).
-            </p>
-            <div className="flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setConfirmTarget(null)}
-                className="btn-outline-secondary btn-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={updatingId === confirmTarget.id}
-                onClick={() => executeStatusChange(confirmTarget, 'converted')}
-                className="btn-success btn-sm"
-              >
-                {updatingId === confirmTarget.id ? 'Converting...' : 'Convert to Client'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!confirmTarget}
+        title="Confirm Client Conversion"
+        message={
+          confirmTarget
+            ? `Converting ${confirmTarget.first_name} ${confirmTarget.last_name} will automatically create a pending Client Profile and user portal account using their email (${confirmTarget.email || 'N/A'}).`
+            : ''
+        }
+        confirmText="Convert to Client"
+        confirmVariant="primary"
+        loading={updatingId === confirmTarget?.id}
+        onConfirm={() => executeStatusChange(confirmTarget, 'converted')}
+        onClose={() => setConfirmTarget(null)}
+      />
 
-      <div className="admin-card">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-base-200 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <select
               aria-label="Filter by status"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="filter-select"
+              className="select select-bordered select-sm text-sm"
             >
               <option value="all">All Statuses</option>
               {Object.entries(STATUS_LABELS).map(([val, label]) => (
@@ -197,7 +174,7 @@ export default function ReferralsPage() {
               aria-label="Filter by state"
               value={filterState}
               onChange={(e) => setFilterState(e.target.value)}
-              className="filter-select"
+              className="select select-bordered select-sm text-sm"
             >
               <option value="all">All States</option>
               {states.map((st) => (
@@ -207,11 +184,12 @@ export default function ReferralsPage() {
               ))}
             </select>
 
-            <label className="inline-flex items-center gap-1.5 text-xs text-secondary cursor-pointer border border-gray-300 rounded px-2 py-1 bg-white">
+            <label className="inline-flex items-center gap-1.5 text-xs text-slate-700 cursor-pointer border border-base-300 rounded px-2.5 py-1.5 bg-base-100 hover:bg-base-200/50">
               <input
                 type="checkbox"
                 checked={filterUnassigned}
                 onChange={(e) => setFilterUnassigned(e.target.checked)}
+                className="checkbox checkbox-primary checkbox-xs"
               />
               Unassigned Only
             </label>
@@ -220,31 +198,31 @@ export default function ReferralsPage() {
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="btn-reset"
+                className="btn btn-ghost btn-sm text-slate-600 hover:text-slate-900"
               >
                 Reset Filters
               </button>
             )}
           </div>
 
-          <div className="text-sm text-secondary">
-            Showing <strong>{referrals.length}</strong> of <strong>{total}</strong> referrals
+          <div className="text-xs text-slate-500">
+            Showing <strong className="text-slate-900">{referrals.length}</strong> of <strong className="text-slate-900">{total}</strong> referrals
           </div>
         </div>
 
         {loading ? (
-          <div className="table-loading-sm">Loading referrals...</div>
+          <div className="py-12 text-center text-slate-500 text-sm">Loading referrals...</div>
         ) : referrals.length === 0 ? (
-          <div className="table-empty-sm">
+          <div className="py-12 text-center text-slate-500 text-sm">
             {total === 0
               ? 'No referrals yet. New inquiries from the public contact forms will appear here.'
               : 'No referrals match the current filters.'}
           </div>
         ) : (
-          <div className="table-responsive">
-            <table className="table-admin">
+          <div className="overflow-x-auto">
+            <table className="table table-sm w-full">
               <thead>
-                <tr>
+                <tr className="border-b border-base-200 text-slate-600 font-semibold text-xs">
                   <th>Lead</th>
                   <th>State</th>
                   <th>Source</th>
@@ -255,70 +233,72 @@ export default function ReferralsPage() {
                   <th className="text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-base-200 text-sm">
                 {referrals.map((r) => (
-                  <tr key={r.id}>
-                    <td className="cell-strong">
-                      {r.first_name} {r.last_name}
-                      <div className="cell-sub">
+                  <tr key={r.id} className="hover:bg-base-200/40 transition-colors">
+                    <td>
+                      <div className="font-medium text-slate-900">
+                        {r.first_name} {r.last_name}
+                      </div>
+                      <div className="text-xs text-slate-500">
                         {r.phone || 'No phone'}
                         {r.email && ` · ${r.email}`}
                       </div>
                     </td>
-                    <td className="cell-muted">
-                      {r.states?.code || '—'}
+                    <td>
+                      <span className="badge badge-sm badge-ghost font-medium">
+                        {r.states?.code || '—'}
+                      </span>
                     </td>
                     <td>
-                      <span className="chip-neutral">
+                      <span className="badge badge-sm badge-neutral badge-soft">
                         {r.referral_source || 'Website Inquiry'}
                       </span>
                     </td>
-                    <td className="cell-notes">
+                    <td className="max-w-xs text-xs">
                       {r.notes ? (
-                        <div className="truncate max-w-xs" title={r.notes}>{r.notes}</div>
+                        <div className="truncate text-slate-600" title={r.notes}>{r.notes}</div>
                       ) : (
-                        <span className="text-italic-muted">No notes</span>
+                        <span className="text-slate-400 italic">No notes</span>
                       )}
                     </td>
-                    <td className="cell-notes">
+                    <td className="max-w-xs text-xs">
                       <div
                         onClick={() => {
                           const val = window.prompt('Enter handling remarks / office notes:', r.handled_notes || '');
                           if (val !== null && val !== r.handled_notes) handleUpdateNotes(r.id, val);
                         }}
-                        className="cursor-pointer hover:bg-gray-50 rounded p-1"
+                        className="cursor-pointer hover:bg-base-200/70 rounded p-1"
                         title="Click to edit handling remarks"
                       >
                         {r.handled_notes ? (
-                          <div className="text-xs text-secondary">{r.handled_notes}</div>
+                          <div className="text-xs text-slate-700">{r.handled_notes}</div>
                         ) : (
-                          <span className="text-italic-muted text-xs">+ Add remarks</span>
+                          <span className="text-slate-400 italic text-xs hover:text-primary">+ Add remarks</span>
                         )}
                       </div>
                     </td>
 
-                    <td className="cell-muted whitespace-nowrap">
+                    <td className="text-slate-500 whitespace-nowrap text-xs">
                       {r.created_at ? new Date(r.created_at).toLocaleDateString() : '—'}
                     </td>
                     <td className="whitespace-nowrap">
-                      <span className={STATUS_BADGE[r.status] || 'badge badge-gray'}>
-                        {STATUS_LABELS[r.status] || r.status}
-                      </span>
+                      <StatusBadge status={r.status} label={STATUS_LABELS[r.status] || r.status} />
                       {r.converted_client_id && (
                         <div className="mt-1">
-                          <Link to={`/admin/clients/${r.converted_client_id}`} className="text-xs text-primary underline font-semibold">
+                          <Link to={`/admin/clients/${r.converted_client_id}`} className="text-xs text-primary font-semibold hover:underline">
                             View Client →
                           </Link>
                         </div>
                       )}
                     </td>
-                    <td className="text-right">
+                    <td className="text-right whitespace-nowrap">
                       <select
                         aria-label={`Update status for ${r.first_name} ${r.last_name}`}
                         value={r.status}
                         disabled={updatingId === r.id || r.status === 'converted'}
                         onChange={(e) => handleStatusSelect(r, e.target.value)}
-                        className="filter-select text-xs"
+                        className="select select-bordered select-xs"
                       >
                         {Object.entries(STATUS_LABELS).map(([val, label]) => (
                           <option key={val} value={val} disabled={val === 'converted' && r.converted_client_id}>
@@ -334,16 +314,18 @@ export default function ReferralsPage() {
           </div>
         )}
 
-        <Pagination
-          page={page}
-          pages={pages}
-          total={total}
-          pageSize={pageSize}
-          listLabel="referrals"
-          onPageChange={setPage}
-          onPageSizeChange={setPageSize}
-        />
-      </div>
-    </div>
+        <div className="p-4 border-t border-base-200">
+          <Pagination
+            page={page}
+            pages={pages}
+            total={total}
+            pageSize={pageSize}
+            listLabel="referrals"
+            onPageChange={setPage}
+            onPageSizeChange={setPageSize}
+          />
+        </div>
+      </Card>
+    </PageContainer>
   );
 }
