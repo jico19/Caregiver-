@@ -61,13 +61,12 @@ def assign_caregiver_to_client(
     cg_res = (
         active_only(supabase.table("caregivers").select("id, state_id, first_name, last_name"), "caregivers")
         .eq("id", payload.caregiver_id)
-        .single()
         .execute()
     )
     if not cg_res.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caregiver not found.")
 
-    cg = cg_res.data
+    cg = cg_res.data[0]
     assert_state_allowed(scope, cg.get("state_id"))
 
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -161,19 +160,33 @@ def list_caregiver_assigned_clients(
     cg_res = (
         active_only(supabase.table("caregivers").select("id, state_id"), "caregivers")
         .eq("id", caregiver_id)
-        .single()
         .execute()
     )
-    if not cg_res.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caregiver not found.")
+    if cg_res.data:
+        target_cg_id = cg_res.data[0].get("id")
+        target_state_id = cg_res.data[0].get("state_id")
+    else:
+        app_res = (
+            active_only(
+                supabase.table("caregiver_applications").select("caregiver_id, state_id"),
+                "caregiver_applications",
+            )
+            .eq("id", caregiver_id)
+            .execute()
+        )
+        if app_res.data:
+            target_cg_id = app_res.data[0].get("caregiver_id")
+            target_state_id = app_res.data[0].get("state_id")
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Caregiver not found.")
 
-    assert_state_allowed(scope, cg_res.data.get("state_id"))
+    assert_state_allowed(scope, target_state_id)
 
     try:
         res = (
             supabase.table("caregiver_client_assignments")
             .select("id, caregiver_id, client_id, role, assigned_by, assigned_at, ended_at, created_at, clients(id, first_name, last_name, phone, address, status, states(code, name))")
-            .eq("caregiver_id", caregiver_id)
+            .eq("caregiver_id", target_cg_id)
             .is_("ended_at", None)
             .execute()
         )

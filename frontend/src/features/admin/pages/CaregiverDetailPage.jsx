@@ -49,8 +49,8 @@ export default function CaregiverDetailPage() {
     try {
       const [detailRes, docRes, asgnRes] = await Promise.all([
         api.get(`/admin/caregivers/${id}`, token),
-        api.get(`/admin/caregivers/${id}/documents`, token),
-        api.get(`/admin/caregivers/${id}/assignments`, token),
+        api.get(`/admin/caregivers/${id}/documents`, token).catch(() => ({ documents: [] })),
+        api.get(`/admin/caregivers/${id}/assignments`, token).catch(() => ({ assignments: [] })),
       ]);
       setApplication(detailRes?.application || null);
       setEnrollments(detailRes?.enrollments || []);

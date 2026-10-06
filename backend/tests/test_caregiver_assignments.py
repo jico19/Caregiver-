@@ -165,3 +165,45 @@ def test_admin_assignment_and_state_scoping(client):
     # History preserved in DB
     asg = [a for a in db["caregiver_client_assignments"] if a["client_id"] == "client-fl"][0]
     assert asg["ended_at"] is not None
+
+
+def test_caregiver_assignments_not_found(client):
+    c, db, _ = client
+    db["clients"].append({"id": "client-fl", "state_id": 1})
+
+    # Non-existent caregiver assignments returns 404, not 500
+    res = c.get(
+        "/api/v1/admin/caregivers/9088ba37-80c6-4b9d-8b01-d8529b7febc1/assignments",
+        headers=auth_headers("u-admin"),
+    )
+    assert res.status_code == 404
+    assert res.json()["detail"] == "Caregiver not found."
+
+    # Assigning non-existent caregiver returns 404
+    res_assign = c.post(
+        "/api/v1/admin/clients/client-fl/assignments",
+        headers=auth_headers("u-admin-fl"),
+        json={"caregiver_id": "9088ba37-80c6-4b9d-8b01-d8529b7febc1", "role": "primary"},
+    )
+    assert res_assign.status_code == 404
+    assert res_assign.json()["detail"] == "Caregiver not found."
+
+
+def test_caregiver_assignments_resolved_via_application_id(client):
+    c, db, _ = client
+    # Application exists with caregiver_id pointing to u-caregiver
+    db["caregiver_applications"].append({
+        "id": "app-9088ba37",
+        "caregiver_id": "u-caregiver",
+        "state_id": 1,
+        "status": "submitted",
+    })
+    db["caregivers"].append({"id": "u-caregiver", "state_id": 1})
+
+    # Calling assignments endpoint with application_id resolves to u-caregiver and returns 200
+    res = c.get(
+        "/api/v1/admin/caregivers/app-9088ba37/assignments",
+        headers=auth_headers("u-admin"),
+    )
+    assert res.status_code == 200
+    assert res.json() == {"assignments": []}
