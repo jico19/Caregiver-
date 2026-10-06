@@ -39,26 +39,7 @@ class UserStateUpdateRequest(BaseModel):
     state_id: Optional[int] = None
 
 
-def record_audit_log(
-    supabase,
-    user_id: str,
-    action: str,
-    table_name: str,
-    record_id: str,
-    old_values: Optional[dict] = None,
-    new_values: Optional[dict] = None,
-):
-    try:
-        supabase.table("audit_logs").insert({
-            "user_id": user_id,
-            "action": action,
-            "table_name": table_name,
-            "record_id": str(record_id),
-            "old_values": old_values,
-            "new_values": new_values,
-        }).execute()
-    except Exception as exc:
-        logger.warning("audit_logs insert failed (action=%s, record=%s): %s", action, record_id, exc)
+from app.services.audit import record_audit_log
 
 
 @router.get("")

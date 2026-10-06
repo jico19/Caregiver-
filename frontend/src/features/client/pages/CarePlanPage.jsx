@@ -1,0 +1,123 @@
+import { useAuth } from '../../../shared/hooks/useAuth';
+import useFetch from '../../../shared/hooks/useFetch';
+
+export default function CarePlanPage() {
+  const { token } = useAuth();
+  const { data, isLoading: loading, error: errorMsg } = useFetch('/clients/me/care-plan', {
+    enabled: !!token,
+    defaultData: { care_plan: null },
+  });
+  const carePlan = data?.care_plan || null;
+
+  if (loading) {
+    return <div className="loading-text">Loading plan of care...</div>;
+  }
+
+  return (
+    <div className="container-880">
+      <div className="page-head">
+        <h1 className="page-title">
+          Personalized Plan of Care (POC)
+        </h1>
+        <p className="page-subtitle">
+          Clinical supervisor directives, daily assistance routines, and safety instructions.
+        </p>
+      </div>
+
+      {errorMsg && (
+        <div role="alert" className="alert alert-error">
+          {errorMsg}
+        </div>
+      )}
+
+      {!carePlan && !errorMsg && (
+
+        <div className="card p-8 text-center">
+          <h2 className="card-title mb-1">No Plan of Care on File Yet</h2>
+          <p className="empty-text">
+            Your care coordinator is still preparing your personalized plan of care.
+            Once published, your daily care activities and emergency protocol will appear here.
+          </p>
+        </div>
+      )}
+
+      {carePlan && (
+        <>
+      {/* Plan Header */}
+      <div className="card mb-6">
+        <div className="grid grid-cols-4 max-md:grid-cols-1 gap-4">
+          <div>
+            <div className="meta-block">Care Recipient</div>
+            <div className="meta-value-strong">
+              {carePlan?.client_name || 'Client'}
+            </div>
+          </div>
+          <div>
+            <div className="meta-block">Clinical Supervisor</div>
+            <div className="meta-value">
+              {carePlan?.primary_nurse}
+            </div>
+          </div>
+          <div>
+            <div className="meta-block">Plan Status</div>
+            <div className="meta-value-status">
+              {carePlan?.plan_status?.replace('_', ' ')}
+            </div>
+          </div>
+          <div>
+            <div className="meta-block">Effective Date</div>
+            <div className="meta-value">
+              {carePlan?.effective_date}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Activities Table */}
+      <div className="card mb-6">
+        <h2 className="section-title">
+          Authorized Daily Living Activities (ADLs)
+        </h2>
+
+        <div className="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Activity</th>
+                <th>Frequency</th>
+                <th>Caregiver Directive</th>
+              </tr>
+            </thead>
+            <tbody>
+              {carePlan?.daily_activities?.map((item, idx) => (
+                <tr key={idx}>
+                  <td className="font-medium">
+                    {item.task}
+                  </td>
+                  <td className="text-primary font-medium">
+                    {item.frequency}
+                  </td>
+                  <td className="text-secondary">
+                    {item.notes}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Emergency Card */}
+      <div className="emergency-callout">
+        <h3 className="emergency-callout-title">
+          Emergency Protocol
+        </h3>
+        <p className="emergency-callout-text">
+          {carePlan?.emergency_protocol}
+        </p>
+      </div>
+        </>
+      )}
+    </div>
+  );
+}

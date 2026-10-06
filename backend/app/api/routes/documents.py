@@ -4,7 +4,7 @@ from typing import Optional
 from app.core.dependencies import admin_scope_for, get_current_user
 from app.core.supabase import get_supabase
 from app.services.document_service import document_service, MAX_FILE_SIZE
-from app.api.routes.admin import record_audit_log
+from app.services.audit import record_audit_log
 
 router = APIRouter()
 

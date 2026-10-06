@@ -266,14 +266,21 @@ def validate_state(state: str) -> str:
     return state
 
 
+_VALID_STATE_IDS: set[int] = set()
+
+
 def validate_state_id(supabase, state_id: int) -> int:
-    """Ensure a client-supplied state_id exists in the states table."""
+    """Ensure a client-supplied state_id exists in the states table (memoized)."""
     if state_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="state_id is required")
+    global _VALID_STATE_IDS
+    if state_id in _VALID_STATE_IDS:
+        return state_id
     res = supabase.table("states").select("id").eq("id", state_id).single().execute()
     if not res.data:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Invalid state_id '{state_id}'",
         )
+    _VALID_STATE_IDS.add(state_id)
     return state_id

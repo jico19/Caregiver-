@@ -2,7 +2,7 @@
 import pytest
 from conftest import auth_headers
 from app.core.config import settings
-from app.api.routes.admin import record_audit_log
+from app.services.audit import record_audit_log
 
 
 def test_record_audit_log_captures_request_metadata(client):

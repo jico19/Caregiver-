@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 import logging
 import os
 from app.core.supabase import get_supabase
-from app.api.routes.admin import record_audit_log
+from app.services.audit import record_audit_log
 
 logger = logging.getLogger(__name__)
 

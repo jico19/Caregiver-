@@ -18,10 +18,43 @@ from app.services import document_service as document_service_mod
 from app.api.routes import auth as auth_mod
 from app.api.routes import states as states_mod
 from app.api.routes import caregivers as caregivers_mod
+from app.api.routes.caregivers import (
+    applications as cg_apps_mod,
+    portal as cg_portal_mod,
+    documents as cg_docs_mod,
+    roster as cg_roster_mod,
+    communications as cg_comms_mod,
+)
 from app.api.routes import admin as admin_mod
+from app.api.routes.admin import (
+    dashboard as admin_dashboard_mod,
+    caregivers as admin_caregivers_mod,
+    clients as admin_clients_mod,
+    care_plans as admin_care_plans_mod,
+    schedules as admin_schedules_mod,
+    authorizations as admin_authorizations_mod,
+    audit_logs as admin_audit_logs_mod,
+    announcements as admin_announcements_mod,
+    referrals as admin_referrals_mod,
+    reports as admin_reports_mod,
+    documents as admin_documents_mod,
+    training as admin_training_mod,
+    settings as admin_settings_mod,
+    legal_hold as admin_legal_hold_mod,
+    assignments as admin_assignments_mod,
+    restore as admin_restore_mod,
+)
 from app.api.routes import admin_users as admin_users_mod
 from app.api.routes import training as training_mod
 from app.api.routes import clients as clients_mod
+from app.api.routes.clients import (
+    portal as cl_portal_mod,
+    agreements as cl_agreements_mod,
+    authorizations as cl_auths_mod,
+    clinical as cl_clinical_mod,
+    notifications as cl_notifs_mod,
+)
+from app.utils import notifications as notifications_mod
 
 # u-admin is the promoted super admin (state_id None == all states), matching
 # migrations/13. u-admin-fl/in/ga are state-scoped administrators.
@@ -364,10 +397,26 @@ def client(monkeypatch):
     monkeypatch.setattr(caregivers_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(caregivers_mod, "get_supabase_anon", lambda: fake)
     monkeypatch.setattr(admin_mod, "get_supabase", lambda: fake)
+    for m in (
+        admin_dashboard_mod, admin_caregivers_mod, admin_clients_mod,
+        admin_care_plans_mod, admin_schedules_mod, admin_authorizations_mod,
+        admin_audit_logs_mod, admin_announcements_mod, admin_referrals_mod,
+        admin_reports_mod, admin_documents_mod, admin_training_mod,
+        admin_settings_mod, admin_legal_hold_mod, admin_assignments_mod,
+        admin_restore_mod,
+        cg_apps_mod, cg_portal_mod, cg_docs_mod, cg_roster_mod, cg_comms_mod,
+        cl_portal_mod, cl_agreements_mod, cl_auths_mod, cl_clinical_mod, cl_notifs_mod,
+    ):
+        monkeypatch.setattr(m, "get_supabase", lambda: fake)
+        if hasattr(m, "notify"):
+            monkeypatch.setattr(m, "notify", fake_notify)
+        if hasattr(m, "get_supabase_anon"):
+            monkeypatch.setattr(m, "get_supabase_anon", lambda: fake)
     monkeypatch.setattr(admin_users_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(training_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(clients_mod, "get_supabase", lambda: fake)
     monkeypatch.setattr(document_service_mod, "get_supabase", lambda: fake)
+    monkeypatch.setattr(notifications_mod, "notify", fake_notify)
     monkeypatch.setattr(caregivers_mod, "notify", fake_notify)
     monkeypatch.setattr(admin_mod, "notify", fake_notify)
     monkeypatch.setattr(clients_mod, "notify", fake_notify)

@@ -1,61 +1,69 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import PublicLayout from '../layouts/PublicLayout';
-import CaregiverLayout from '../layouts/CaregiverLayout';
-import ClientLayout from '../layouts/ClientLayout';
-import AdminLayout from '../layouts/AdminLayout';
-import { useAuth } from '../contexts/AuthContext';
+import PublicLayout from '../shared/layouts/PublicLayout';
+import CaregiverLayout from '../shared/layouts/CaregiverLayout';
+import ClientLayout from '../shared/layouts/ClientLayout';
+import AdminLayout from '../shared/layouts/AdminLayout';
+import LoadingState from '../shared/components/common/LoadingState';
+import { useAuth } from '../shared/hooks/useAuth';
 
-import StatePage from '../pages/public/StatePage';
-import ServicesPage from '../pages/public/ServicesPage';
-import CareersPage from '../pages/public/CareersPage';
-import FormsPage from '../pages/public/FormsPage';
-import LicensingPage from '../pages/public/LicensingPage';
-import ContactPage from '../pages/public/ContactPage';
+// Public pages
+const StatePage = lazy(() => import('../features/public/pages/StatePage'));
+const ServicesPage = lazy(() => import('../features/public/pages/ServicesPage'));
+const CareersPage = lazy(() => import('../features/public/pages/CareersPage'));
+const FormsPage = lazy(() => import('../features/public/pages/FormsPage'));
+const LicensingPage = lazy(() => import('../features/public/pages/LicensingPage'));
+const ContactPage = lazy(() => import('../features/public/pages/ContactPage'));
 
-import CaregiverLoginPage from '../pages/caregiver/LoginPage';
-import CaregiverDashboardPage from '../pages/caregiver/DashboardPage';
-import CaregiverApplicationPage from '../pages/caregiver/ApplicationPage';
-import CaregiverDocumentsPage from '../pages/caregiver/DocumentsPage';
-import CaregiverTrainingPage from '../pages/caregiver/TrainingPage';
-import CaregiverTrainingCertificatePage from '../pages/caregiver/TrainingCertificatePage';
-import CaregiverProfilePage from '../pages/caregiver/ProfilePage';
-import CaregiverNotificationsPage from '../pages/caregiver/NotificationsPage';
-import CaregiverClientsPage from '../pages/caregiver/ClientsPage';
-import CaregiverClientCarePlanPage from '../pages/caregiver/ClientCarePlanPage';
-import CaregiverClientSchedulePage from '../pages/caregiver/ClientSchedulePage';
+// Auth pages
+const CaregiverLoginPage = lazy(() => import('../features/auth/pages/LoginPage'));
+const ClientLoginPage = lazy(() => import('../features/auth/pages/ClientLoginPage'));
 
-import ClientLoginPage from '../pages/client/LoginPage';
-import ClientDashboardPage from '../pages/client/DashboardPage';
-import ClientIntakePage from '../pages/client/IntakePage';
-import ClientFormsPage from '../pages/client/FormsPage';
-import ClientDocumentsPage from '../pages/client/DocumentsPage';
-import ClientAuthorizationsPage from '../pages/client/AuthorizationsPage';
-import ClientCarePlanPage from '../pages/client/CarePlanPage';
-import ClientSchedulePage from '../pages/client/SchedulePage';
-import ClientProfilePage from '../pages/client/ProfilePage';
-import ClientNotificationsPage from '../pages/client/NotificationsPage';
+// Caregiver pages
+const CaregiverDashboardPage = lazy(() => import('../features/caregiver/pages/DashboardPage'));
+const CaregiverApplicationPage = lazy(() => import('../features/caregiver/pages/ApplicationPage'));
+const CaregiverDocumentsPage = lazy(() => import('../features/caregiver/pages/DocumentsPage'));
+const CaregiverTrainingPage = lazy(() => import('../features/caregiver/pages/TrainingPage'));
+const CaregiverTrainingCertificatePage = lazy(() => import('../features/caregiver/pages/TrainingCertificatePage'));
+const CaregiverProfilePage = lazy(() => import('../features/caregiver/pages/ProfilePage'));
+const CaregiverNotificationsPage = lazy(() => import('../features/caregiver/pages/NotificationsPage'));
+const CaregiverClientsPage = lazy(() => import('../features/caregiver/pages/ClientsPage'));
+const CaregiverClientCarePlanPage = lazy(() => import('../features/caregiver/pages/ClientCarePlanPage'));
+const CaregiverClientSchedulePage = lazy(() => import('../features/caregiver/pages/ClientSchedulePage'));
 
-import AdminDashboardPage from '../pages/admin/DashboardPage';
-import AdminCaregiversPage from '../pages/admin/CaregiversPage';
-import AdminCaregiverDetailPage from '../pages/admin/CaregiverDetailPage';
-import AdminClientsPage from '../pages/admin/ClientsPage';
-import AdminClientDetailPage from '../pages/admin/ClientDetailPage';
-import AdminDocumentsPage from '../pages/admin/DocumentsPage';
-import AdminTrainingPage from '../pages/admin/TrainingPage';
-import AdminAuthorizationsPage from '../pages/admin/AuthorizationsPage';
-import AdminReferralsPage from '../pages/admin/ReferralsPage';
-import AdminReportsPage from '../pages/admin/ReportsPage';
-import AdminUsersPage from '../pages/admin/UsersPage';
-import AdminSettingsPage from '../pages/admin/SettingsPage';
-import AdminAuditLogsPage from '../pages/admin/AuditLogsPage';
-import AdminAnnouncementsPage from '../pages/admin/AnnouncementsPage';
-import AdminNotificationsPage from '../pages/admin/NotificationsPage';
+// Client pages
+const ClientDashboardPage = lazy(() => import('../features/client/pages/DashboardPage'));
+const ClientIntakePage = lazy(() => import('../features/client/pages/IntakePage'));
+const ClientFormsPage = lazy(() => import('../features/client/pages/FormsPage'));
+const ClientDocumentsPage = lazy(() => import('../features/client/pages/DocumentsPage'));
+const ClientAuthorizationsPage = lazy(() => import('../features/client/pages/AuthorizationsPage'));
+const ClientCarePlanPage = lazy(() => import('../features/client/pages/CarePlanPage'));
+const ClientSchedulePage = lazy(() => import('../features/client/pages/SchedulePage'));
+const ClientProfilePage = lazy(() => import('../features/client/pages/ProfilePage'));
+const ClientNotificationsPage = lazy(() => import('../features/client/pages/NotificationsPage'));
+
+// Admin pages
+const AdminDashboardPage = lazy(() => import('../features/admin/pages/DashboardPage'));
+const AdminCaregiversPage = lazy(() => import('../features/admin/pages/CaregiversPage'));
+const AdminCaregiverDetailPage = lazy(() => import('../features/admin/pages/CaregiverDetailPage'));
+const AdminClientsPage = lazy(() => import('../features/admin/pages/ClientsPage'));
+const AdminClientDetailPage = lazy(() => import('../features/admin/pages/ClientDetailPage'));
+const AdminDocumentsPage = lazy(() => import('../features/admin/pages/DocumentsPage'));
+const AdminTrainingPage = lazy(() => import('../features/admin/pages/TrainingPage'));
+const AdminAuthorizationsPage = lazy(() => import('../features/admin/pages/AuthorizationsPage'));
+const AdminReferralsPage = lazy(() => import('../features/admin/pages/ReferralsPage'));
+const AdminReportsPage = lazy(() => import('../features/admin/pages/ReportsPage'));
+const AdminUsersPage = lazy(() => import('../features/admin/pages/UsersPage'));
+const AdminSettingsPage = lazy(() => import('../features/admin/pages/SettingsPage'));
+const AdminAuditLogsPage = lazy(() => import('../features/admin/pages/AuditLogsPage'));
+const AdminAnnouncementsPage = lazy(() => import('../features/admin/pages/AnnouncementsPage'));
+const AdminNotificationsPage = lazy(() => import('../features/admin/pages/NotificationsPage'));
 
 function CaregiverApplicationRoute() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return <div className="loading-screen">Loading...</div>;
+    return <LoadingState message="Checking session..." />;
   }
 
   // Logged-in users get the framed portal chrome; public applicants get the bare form
@@ -66,70 +74,72 @@ function CaregiverApplicationRoute() {
 
 export default function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/" element={<Navigate to="/florida" replace />} />
+    <Suspense fallback={<LoadingState message="Loading portal..." />}>
+      <Routes>
+        <Route path="/" element={<Navigate to="/florida" replace />} />
 
-      {/* Public state-scoped routes */}
-      <Route path="/:state" element={<PublicLayout />}>
-        <Route index element={<StatePage />} />
-        <Route path="services" element={<ServicesPage />} />
-        <Route path="careers" element={<CareersPage />} />
-        <Route path="forms" element={<FormsPage />} />
-        <Route path="licensing" element={<LicensingPage />} />
-        <Route path="contact" element={<ContactPage />} />
-      </Route>
+        {/* Public state-scoped routes */}
+        <Route path="/:state" element={<PublicLayout />}>
+          <Route index element={<StatePage />} />
+          <Route path="services" element={<ServicesPage />} />
+          <Route path="careers" element={<CareersPage />} />
+          <Route path="forms" element={<FormsPage />} />
+          <Route path="licensing" element={<LicensingPage />} />
+          <Route path="contact" element={<ContactPage />} />
+        </Route>
 
-      {/* Universal and portal login routes */}
-      <Route path="/login" element={<CaregiverLoginPage />} />
-      <Route path="/admin/login" element={<CaregiverLoginPage />} />
+        {/* Universal and portal login routes */}
+        <Route path="/login" element={<CaregiverLoginPage />} />
+        <Route path="/admin/login" element={<CaregiverLoginPage />} />
 
-      {/* Caregiver portal & public application */}
-      <Route path="/caregiver/login" element={<CaregiverLoginPage />} />
-      <Route path="/caregiver/application" element={<CaregiverApplicationRoute />} />
-      <Route path="/caregiver" element={<CaregiverLayout />}>
-        <Route path="dashboard" element={<CaregiverDashboardPage />} />
-        <Route path="clients" element={<CaregiverClientsPage />} />
-        <Route path="clients/:clientId/care-plan" element={<CaregiverClientCarePlanPage />} />
-        <Route path="clients/:clientId/schedule" element={<CaregiverClientSchedulePage />} />
-        <Route path="documents" element={<CaregiverDocumentsPage />} />
-        <Route path="training" element={<CaregiverTrainingPage />} />
-        <Route path="training-certificate/:courseId" element={<CaregiverTrainingCertificatePage />} />
-        <Route path="profile" element={<CaregiverProfilePage />} />
-        <Route path="notifications" element={<CaregiverNotificationsPage />} />
-      </Route>
+        {/* Caregiver portal & public application */}
+        <Route path="/caregiver/login" element={<CaregiverLoginPage />} />
+        <Route path="/caregiver/application" element={<CaregiverApplicationRoute />} />
+        <Route path="/caregiver" element={<CaregiverLayout />}>
+          <Route path="dashboard" element={<CaregiverDashboardPage />} />
+          <Route path="clients" element={<CaregiverClientsPage />} />
+          <Route path="clients/:clientId/care-plan" element={<CaregiverClientCarePlanPage />} />
+          <Route path="clients/:clientId/schedule" element={<CaregiverClientSchedulePage />} />
+          <Route path="documents" element={<CaregiverDocumentsPage />} />
+          <Route path="training" element={<CaregiverTrainingPage />} />
+          <Route path="training-certificate/:courseId" element={<CaregiverTrainingCertificatePage />} />
+          <Route path="profile" element={<CaregiverProfilePage />} />
+          <Route path="notifications" element={<CaregiverNotificationsPage />} />
+        </Route>
 
-      {/* Client portal */}
-      <Route path="/client/login" element={<ClientLoginPage />} />
-      <Route path="/client" element={<ClientLayout />}>
-        <Route path="dashboard" element={<ClientDashboardPage />} />
-        <Route path="intake" element={<ClientIntakePage />} />
-        <Route path="forms" element={<ClientFormsPage />} />
-        <Route path="documents" element={<ClientDocumentsPage />} />
-        <Route path="authorizations" element={<ClientAuthorizationsPage />} />
-        <Route path="care-plan" element={<ClientCarePlanPage />} />
-        <Route path="schedule" element={<ClientSchedulePage />} />
-        <Route path="profile" element={<ClientProfilePage />} />
-        <Route path="notifications" element={<ClientNotificationsPage />} />
-      </Route>
+        {/* Client portal */}
+        <Route path="/client/login" element={<ClientLoginPage />} />
+        <Route path="/client" element={<ClientLayout />}>
+          <Route path="dashboard" element={<ClientDashboardPage />} />
+          <Route path="intake" element={<ClientIntakePage />} />
+          <Route path="forms" element={<ClientFormsPage />} />
+          <Route path="documents" element={<ClientDocumentsPage />} />
+          <Route path="authorizations" element={<ClientAuthorizationsPage />} />
+          <Route path="care-plan" element={<ClientCarePlanPage />} />
+          <Route path="schedule" element={<ClientSchedulePage />} />
+          <Route path="profile" element={<ClientProfilePage />} />
+          <Route path="notifications" element={<ClientNotificationsPage />} />
+        </Route>
 
-      {/* Admin dashboard */}
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route path="dashboard" element={<AdminDashboardPage />} />
-        <Route path="caregivers" element={<AdminCaregiversPage />} />
-        <Route path="caregivers/:id" element={<AdminCaregiverDetailPage />} />
-        <Route path="clients" element={<AdminClientsPage />} />
-        <Route path="clients/:id" element={<AdminClientDetailPage />} />
-        <Route path="documents" element={<AdminDocumentsPage />} />
-        <Route path="training" element={<AdminTrainingPage />} />
-        <Route path="authorizations" element={<AdminAuthorizationsPage />} />
-        <Route path="referrals" element={<AdminReferralsPage />} />
-        <Route path="reports" element={<AdminReportsPage />} />
-        <Route path="users" element={<AdminUsersPage />} />
-        <Route path="settings" element={<AdminSettingsPage />} />
-        <Route path="audit-logs" element={<AdminAuditLogsPage />} />
-        <Route path="announcements" element={<AdminAnnouncementsPage />} />
-        <Route path="notifications" element={<AdminNotificationsPage />} />
-      </Route>
-    </Routes>
+        {/* Admin dashboard */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route path="dashboard" element={<AdminDashboardPage />} />
+          <Route path="caregivers" element={<AdminCaregiversPage />} />
+          <Route path="caregivers/:id" element={<AdminCaregiverDetailPage />} />
+          <Route path="clients" element={<AdminClientsPage />} />
+          <Route path="clients/:id" element={<AdminClientDetailPage />} />
+          <Route path="documents" element={<AdminDocumentsPage />} />
+          <Route path="training" element={<AdminTrainingPage />} />
+          <Route path="authorizations" element={<AdminAuthorizationsPage />} />
+          <Route path="referrals" element={<AdminReferralsPage />} />
+          <Route path="reports" element={<AdminReportsPage />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
+          <Route path="audit-logs" element={<AdminAuditLogsPage />} />
+          <Route path="announcements" element={<AdminAnnouncementsPage />} />
+          <Route path="notifications" element={<AdminNotificationsPage />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }

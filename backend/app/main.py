@@ -13,9 +13,9 @@ from app.jobs.training_reminders import scan_due_training
 from app.jobs.retention_purge import run_retention_purge
 from app.middleware.logging import log_requests
 from app.api.routes import (
-    auth, states, services, forms,
+    auth, states,
     caregivers, clients, documents,
-    training, authorizations, admin,
+    training, admin,
     admin_users
 )
 
@@ -72,13 +72,10 @@ API_PREFIX = "/api/v1"
 
 app.include_router(auth.router, prefix=f"{API_PREFIX}/auth", tags=["auth"])
 app.include_router(states.router, prefix=f"{API_PREFIX}/states", tags=["states"])
-app.include_router(services.router, prefix=f"{API_PREFIX}/services", tags=["services"])
-app.include_router(forms.router, prefix=f"{API_PREFIX}/forms", tags=["forms"])
 app.include_router(caregivers.router, prefix=f"{API_PREFIX}/caregivers", tags=["caregivers"])
 app.include_router(clients.router, prefix=f"{API_PREFIX}/clients", tags=["clients"])
 app.include_router(documents.router, prefix=f"{API_PREFIX}/documents", tags=["documents"])
 app.include_router(training.router, prefix=f"{API_PREFIX}/training", tags=["training"])
-app.include_router(authorizations.router, prefix=f"{API_PREFIX}/authorizations", tags=["authorizations"])
 app.include_router(admin.router, prefix=f"{API_PREFIX}/admin", tags=["admin"])
 app.include_router(admin_users.router, prefix=f"{API_PREFIX}/admin/users", tags=["admin-users"])
 
