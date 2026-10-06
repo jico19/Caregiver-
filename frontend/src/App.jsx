@@ -3,18 +3,21 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './shared/contexts/AuthContext';
 import { StateProvider } from './shared/contexts/StateContext';
 import { queryClient } from './shared/lib/queryClient';
+import ErrorBoundary from './shared/components/common/ErrorBoundary';
 import AppRoutes from './routes/AppRoutes';
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <QueryClientProvider client={queryClient}>
-          <StateProvider>
-            <AppRoutes />
-          </StateProvider>
-        </QueryClientProvider>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <QueryClientProvider client={queryClient}>
+            <StateProvider>
+              <AppRoutes />
+            </StateProvider>
+          </QueryClientProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

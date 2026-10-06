@@ -11,11 +11,10 @@ export default function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState('');
 
-  const params = new URLSearchParams();
-  if (statusFilter) params.set('status', statusFilter);
-  if (sortBy) params.set('sort_by', sortBy);
-  const queryString = params.toString();
-  const fetchUrl = `/admin/clients${queryString ? `?${queryString}` : ''}`;
+  const queryParams = {
+    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(sortBy ? { sort_by: sortBy } : {}),
+  };
 
   const {
     items: clients,
@@ -28,8 +27,9 @@ export default function ClientsPage() {
     setPage,
     setPageSize,
   } = usePaginatedFetch({
-    url: fetchUrl,
+    url: '/admin/clients',
     token,
+    params: queryParams,
     listKey: 'clients',
   });
 

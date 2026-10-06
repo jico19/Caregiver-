@@ -25,10 +25,13 @@ export default function useFetch(url, options = {}) {
   const search = qs.toString();
   const fullUrl = `${url}${search ? `?${search}` : ''}`;
 
+  // When authenticated, wait until user session is resolved to prevent double-fetch on mount
+  const isAuthReady = !token || Boolean(user?.id);
+
   const queryOptions = {
-    queryKey: [url, params, user?.id],
+    queryKey: [url, params, user?.id ?? 'anon'],
     queryFn: ({ signal }) => api.get(fullUrl, token || undefined, signal),
-    enabled,
+    enabled: enabled && isAuthReady,
     placeholderData: defaultData,
   };
 
@@ -39,6 +42,7 @@ export default function useFetch(url, options = {}) {
   return {
     data: query.data ?? defaultData,
     isLoading: query.isLoading,
+    loading: query.isLoading,
     isFetching: query.isFetching,
     isSuccess: query.isSuccess,
     error: query.error ? (query.error.detail || query.error.message || 'Failed to load data.') : '',

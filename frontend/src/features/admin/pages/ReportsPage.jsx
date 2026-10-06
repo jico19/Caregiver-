@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { useAuth } from '../../../shared/hooks/useAuth';
-import { api } from '../../../shared/services/api';
+import useFetch from '../../../shared/hooks/useFetch';
 
 const AUTH_STATUS_BADGE = {
   active: 'badge badge-green',
@@ -24,27 +23,13 @@ function daysLabel(days) {
 
 export default function ReportsPage() {
   const { token } = useAuth();
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-    api
-      .get('/admin/reports', token)
-      .then((res) => {
-        if (!cancelled) setData(res);
-      })
-      .catch((err) => {
-        if (!cancelled) setErrorMsg(err.detail || 'Failed to load reports.');
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
+  const {
+    data,
+    isLoading: loading,
+    error: errorMsg,
+  } = useFetch('/admin/reports', {
+    enabled: !!token,
+  });
 
   if (loading) {
     return (
