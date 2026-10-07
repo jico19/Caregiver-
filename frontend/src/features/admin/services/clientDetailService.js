@@ -24,10 +24,25 @@ export async function fetchClientDetailBundle(id, token) {
   return { res, planRes, schedRes, asgnRes, cgRes };
 }
 
-export function assignCaregiverApi(id, caregiverId, role, token) {
+export function assignCaregiverApi(
+  id,
+  caregiverId,
+  role,
+  token,
+  overrideCompliance = false,
+  overrideReason = ''
+) {
+  const payload = {
+    caregiver_id: caregiverId,
+    role,
+  };
+  if (overrideCompliance) {
+    payload.override_compliance = true;
+    payload.override_reason = overrideReason;
+  }
   return api.post(
     `/admin/clients/${id}/assignments`,
-    { caregiver_id: caregiverId, role },
+    payload,
     token
   );
 }

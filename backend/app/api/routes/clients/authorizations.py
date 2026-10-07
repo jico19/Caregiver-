@@ -8,6 +8,7 @@ from app.core.dependencies import require_client
 from app.core.soft_delete import active_only
 from app.core.supabase import get_supabase
 from app.services.audit import record_audit_log
+from app.services.authorizations import compute_auth_units
 from app.services.document_service import document_service
 from app.utils.notifications import notify
 
@@ -72,6 +73,11 @@ async def upload_authorization(
         "source": "client",
         "document_id": doc_id,
         "notes": notes.strip() if notes else "Submitted for authorization review.",
+        "hcpcs_code": "T1019",
+        "service_description": "Personal Care Services",
+        "total_units_authorized": 0,
+        "units_used": 0,
+        "unit_type": "15_min",
     }
 
     def _save_auth():
@@ -99,7 +105,8 @@ async def upload_authorization(
             "Authorization Submitted",
             "Your authorization document has been received and queued for care coordinator review.",
         )
-        return auth_res.data[0]
+        saved = auth_res.data[0]
+        return compute_auth_units(saved)
 
     saved_auth = await run_in_threadpool(_save_auth)
     return {"message": "Authorization submitted for review", "authorization": saved_auth}
@@ -112,7 +119,9 @@ def get_my_authorizations(user: dict = Depends(require_client)):
 
     res = (
         active_only(
-            supabase.table("authorizations").select("*, states(name, code, slug)"),
+            supabase.table("authorizations").select(
+                "id, client_id, state_id, authorization_number, start_date, end_date, status, source, document_id, notes, hcpcs_code, service_description, total_units_authorized, units_used, max_weekly_hours, unit_type, created_at, states(name, code, slug)"
+            ),
             "authorizations",
         )
         .eq("client_id", user_id)
@@ -134,10 +143,9 @@ def get_my_authorizations(user: dict = Depends(require_client)):
         elif end_d and end_d < today:
             auth_status = "expired"
 
-        computed_list.append({
-            **auth,
-            "status": auth_status,
-            "days_until_expiration": days_left,
-        })
+        computed = compute_auth_units(auth)
+        computed["status"] = auth_status
+        computed["days_until_expiration"] = days_left
+        computed_list.append(computed)
 
     return {"authorizations": computed_list}

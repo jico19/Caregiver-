@@ -39,6 +39,8 @@ export function useClientDetailData(id, token) {
   const [selectedCaregiverId, setSelectedCaregiverId] = useState('');
   const [selectedRole, setSelectedRole] = useState('primary');
   const [assigning, setAssigning] = useState(false);
+  const [overrideCompliance, setOverrideCompliance] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
 
   const carePlanMgmt = useCarePlanManagement(
     id,
@@ -69,7 +71,19 @@ export function useClientDetailData(id, token) {
     }
     setSchedule(schedRes?.schedule || []);
     setAssignments(asgnRes?.assignments || []);
-    const cgs = cgRes?.caregivers || (Array.isArray(cgRes) ? cgRes : []);
+    const rawCgs = cgRes?.applications || cgRes?.caregivers || (Array.isArray(cgRes) ? cgRes : []);
+    const cgs = rawCgs.map((item) => {
+      const cgInfo = item.caregivers || item;
+      return {
+        id: item.caregiver_id || item.id,
+        first_name: cgInfo.first_name || item.first_name || '',
+        last_name: cgInfo.last_name || item.last_name || '',
+        ssn_last4: cgInfo.ssn_last4 || item.ssn_last4 || '',
+        state_id: item.state_id || cgInfo.state_id,
+        status: item.status,
+        compliance: item.compliance || null,
+      };
+    });
     setAvailableCaregivers(cgs);
     applyCarePlan(planRes?.care_plan || null);
   }, [applyCarePlan]);
@@ -120,6 +134,12 @@ export function useClientDetailData(id, token) {
     };
   }, [id, token, applyClientPayload]);
 
+  const handleSelectCaregiver = (cgId) => {
+    setSelectedCaregiverId(cgId);
+    setOverrideCompliance(false);
+    setOverrideReason('');
+  };
+
   const handleAssignCaregiver = async (e) => {
     e.preventDefault();
     if (!selectedCaregiverId) return;
@@ -127,9 +147,18 @@ export function useClientDetailData(id, token) {
     setSuccessMsg('');
     setAssigning(true);
     try {
-      await assignCaregiverApi(id, selectedCaregiverId, selectedRole, token);
+      await assignCaregiverApi(
+        id,
+        selectedCaregiverId,
+        selectedRole,
+        token,
+        overrideCompliance,
+        overrideReason
+      );
       setSuccessMsg('Caregiver assigned successfully.');
       setSelectedCaregiverId('');
+      setOverrideCompliance(false);
+      setOverrideReason('');
       await refreshDetail();
     } catch (err) {
       setErrorMsg(err.detail || 'Failed to assign caregiver.');
@@ -283,10 +312,14 @@ export function useClientDetailData(id, token) {
     assignments,
     availableCaregivers,
     selectedCaregiverId,
-    setSelectedCaregiverId,
+    setSelectedCaregiverId: handleSelectCaregiver,
     selectedRole,
     setSelectedRole,
     assigning,
+    overrideCompliance,
+    setOverrideCompliance,
+    overrideReason,
+    setOverrideReason,
     handleAssignCaregiver,
     handleEndAssignment,
   };

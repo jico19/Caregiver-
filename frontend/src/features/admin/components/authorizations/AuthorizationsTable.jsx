@@ -1,10 +1,12 @@
 import Card from '../../../../shared/components/common/Card';
 import EmptyState from '../../../../shared/components/common/EmptyState';
 import StatusBadge from '../../../../shared/components/common/StatusBadge';
-import { getAuthStatusDetails } from '../../constants/authorizationConstants';
+import { getAuthStatusDetails, calculateUnitProgress } from '../../constants/authorizationConstants';
+import { downloadDocument } from '../../../../shared/utils/documentUtils';
 
 export default function AuthorizationsTable({
   loading,
+  token,
   totalCount,
   filteredAuthorizations,
   copiedAuthId,
@@ -12,6 +14,7 @@ export default function AuthorizationsTable({
   reviewingId,
   reviewAction,
   onReview,
+  onEdit,
   onOpenForm,
   onResetFilters,
 }) {
@@ -58,6 +61,8 @@ export default function AuthorizationsTable({
                 <th>Authorization #</th>
                 <th>Client</th>
                 <th>State</th>
+                <th>Procedure (HCPCS)</th>
+                <th>Units & Balance</th>
                 <th>Start Date</th>
                 <th>End Date</th>
                 <th>Status</th>
@@ -69,6 +74,10 @@ export default function AuthorizationsTable({
               {filteredAuthorizations.map((a) => {
                 const statusInfo = getAuthStatusDetails(a.start_date, a.end_date, a.status);
                 const isCopied = copiedAuthId === a.id;
+                const totalUnits = a.total_units_authorized ?? 0;
+                const unitsUsed = a.units_used ?? 0;
+                const remainingHours = a.remaining_hours ?? (a.unit_type === '15_min' ? ((totalUnits - unitsUsed) * 0.25).toFixed(1) : (totalUnits - unitsUsed));
+                const progress = calculateUnitProgress(totalUnits, unitsUsed);
 
                 return (
                   <tr key={a.id} className="hover:bg-base-200/40 transition-colors">
@@ -112,6 +121,41 @@ export default function AuthorizationsTable({
                       </span>
                     </td>
 
+                    {/* Procedure & Code */}
+                    <td className="whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="badge badge-sm badge-outline font-mono font-semibold text-primary">
+                          {a.hcpcs_code || 'T1019'}
+                        </span>
+                        <span className="text-xs text-slate-700">
+                          {a.service_description || 'Personal Care'}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Units & Balance Progress */}
+                    <td>
+                      <div className="w-40">
+                        <div className="flex justify-between items-center text-[11px] mb-1">
+                          <span className="font-medium text-slate-800">
+                            {unitsUsed} / {totalUnits} u
+                          </span>
+                          <span className={`font-medium ${Number(remainingHours) < 0 ? 'text-error font-semibold' : 'text-primary'}`}>
+                            {Number(remainingHours) < 0 ? `${Math.abs(Number(remainingHours))}h over` : `${remainingHours}h left`}
+                          </span>
+                        </div>
+                        <progress
+                          className={`progress ${progress.statusColor} h-1.5 w-full`}
+                          value={progress.percent}
+                          max="100"
+                        />
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 mt-0.5">
+                          <span>{progress.percent}% used</span>
+                          {a.max_weekly_hours ? <span>Cap: {a.max_weekly_hours}h/wk</span> : null}
+                        </div>
+                      </div>
+                    </td>
+
                     {/* Start Date */}
                     <td className="text-slate-500 whitespace-nowrap text-xs">
                       {a.start_date}
@@ -130,21 +174,42 @@ export default function AuthorizationsTable({
                       <StatusBadge status={statusInfo.statusKey} label={statusInfo.label} />
                     </td>
 
-                    {/* Notes */}
+                    {/* Notes & Document */}
                     <td className="max-w-xs text-xs">
-                      {a.notes ? (
-                        <div className="truncate text-slate-600" title={a.notes}>
-                          {a.notes}
-                        </div>
-                      ) : (
-                        <span className="text-slate-400 italic">Standard authorization</span>
-                      )}
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {a.notes ? (
+                          <span className="truncate text-slate-600 max-w-[180px]" title={a.notes}>
+                            {a.notes}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Standard authorization</span>
+                        )}
+                        {a.document_id && (
+                          <button
+                            type="button"
+                            onClick={() => downloadDocument(a.document_id, token)}
+                            className="btn btn-ghost btn-xs text-primary font-semibold gap-0.5 px-1.5 h-5 min-h-0 text-[11px] border border-primary/20"
+                            title="View uploaded authorization document"
+                          >
+                            Doc ↗
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {/* Actions */}
                     <td className="whitespace-nowrap">
                       {a.status === 'pending' ? (
                         <div className="inline-flex items-center gap-1.5">
+                          {onEdit && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(a)}
+                              className="btn btn-xs btn-ghost border border-base-300 text-xs"
+                            >
+                              Edit
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onReview(a.id, 'approved')}
@@ -163,12 +228,23 @@ export default function AuthorizationsTable({
                           </button>
                         </div>
                       ) : (
-                        <a
-                          href={`/admin/clients/${a.client_id}`}
-                          className="text-xs font-medium text-primary hover:underline"
-                        >
-                          View client
-                        </a>
+                        <div className="inline-flex items-center gap-2">
+                          {onEdit && (
+                            <button
+                              type="button"
+                              onClick={() => onEdit(a)}
+                              className="btn btn-xs btn-ghost border border-base-300 text-xs"
+                            >
+                              Edit
+                            </button>
+                          )}
+                          <a
+                            href={`/admin/clients/${a.client_id}`}
+                            className="text-xs font-medium text-primary hover:underline"
+                          >
+                            View
+                          </a>
+                        </div>
                       )}
                     </td>
                   </tr>

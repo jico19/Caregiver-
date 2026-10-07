@@ -22,6 +22,7 @@ from app.utils.pagination import PaginationParams, paginate
 
 logger = logging.getLogger(__name__)
 
+from app.services.compliance import batch_check_caregivers_compliance
 from app.schemas.caregivers import CaregiverApplicationListResponse
 
 router = APIRouter()
@@ -40,6 +41,18 @@ def list_caregivers(
 ):
     supabase = get_supabase()
 
+    def _attach_compliance(items):
+        cg_records = [
+            {"id": a.get("caregiver_id") or a.get("id"), "state_id": a.get("state_id")}
+            for a in items
+        ]
+        compliance_map = batch_check_caregivers_compliance(supabase, cg_records)
+        for a in items:
+            cg_id = a.get("caregiver_id") or a.get("id")
+            if cg_id in compliance_map:
+                a["compliance"] = compliance_map[cg_id]
+        return items
+
     query = active_only(
         supabase.table("caregiver_applications").select(
             "id, caregiver_id, state_id, status, submitted_at, reviewed_at, reviewed_by, notes, rejection_reason, created_at, updated_at, caregivers(first_name, last_name, phone, address, ssn_last4, deleted_at), states(code, name, slug)",
@@ -57,7 +70,8 @@ def list_caregivers(
     # If an explicit status filter was requested and matched nothing, return empty
     # rather than synthesizing un-filtered approved caregivers (fixes L1).
     if status_filter and status_filter != "all":
-        return {"applications": result.pop("items"), **result}
+        items = _attach_compliance(result.pop("items"))
+        return {"applications": items, **result}
 
     if result.get("total", 0) == 0:
         cg_query = active_only(
@@ -80,6 +94,7 @@ def list_caregivers(
                 "caregivers": cg,
                 "states": cg.get("states"),
             })
+        synth_apps = _attach_compliance(synth_apps)
         return {
             "applications": synth_apps,
             "total": cg_result.get("total", 0),
@@ -88,7 +103,8 @@ def list_caregivers(
             "pages": cg_result.get("pages", 0),
         }
 
-    return {"applications": result.pop("items"), **result}
+    items = _attach_compliance(result.pop("items"))
+    return {"applications": items, **result}
 
 
 @router.post("/caregivers/{application_id}/review")

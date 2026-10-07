@@ -13,7 +13,17 @@ export default function CaregiverAssignmentsSection({
   assigning,
   handleAssignCaregiver,
   handleEndAssignment,
+  isSuperAdmin = false,
+  overrideCompliance = false,
+  setOverrideCompliance = () => {},
+  overrideReason = '',
+  setOverrideReason = () => {},
 }) {
+  const selectedCg = availableCaregivers.find((cg) => cg.id === selectedCaregiverId);
+  const compliance = selectedCg?.compliance;
+  const isCompliant = selectedCg ? Boolean(compliance?.compliant) : false;
+  const canAssign = isCompliant || (isSuperAdmin && overrideCompliance && overrideReason.trim().length > 0);
+
   return (
     <Card className="mb-6 p-0 overflow-hidden">
       <div className="p-4 border-b border-base-300">
@@ -37,6 +47,7 @@ export default function CaregiverAssignmentsSection({
                 {availableCaregivers.map((cg) => (
                   <option key={cg.id} value={cg.id}>
                     {cg.first_name} {cg.last_name} ({cg.ssn_last4 ? `SSN: ***-${cg.ssn_last4}` : cg.id})
+                    {cg.compliance?.status ? ` — [${cg.compliance.status}]` : ''}
                   </option>
                 ))}
               </select>
@@ -58,13 +69,90 @@ export default function CaregiverAssignmentsSection({
             <div>
               <button
                 type="submit"
-                disabled={assigning || !selectedCaregiverId}
+                disabled={assigning || !selectedCaregiverId || !canAssign}
+                title={!isCompliant && !overrideCompliance ? compliance?.blocking_reasons?.join('; ') : ''}
                 className="btn btn-primary btn-sm w-full"
               >
                 {assigning ? 'Assigning...' : '+ Assign Caregiver'}
               </button>
             </div>
           </div>
+
+          {selectedCg && !compliance && (
+            <div className="mt-3 pt-3 border-t border-base-300">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="loading loading-spinner loading-xs"></span>
+                <span>Checking caregiver compliance status...</span>
+              </div>
+            </div>
+          )}
+
+          {selectedCg && compliance && (
+            <div className="mt-3 pt-3 border-t border-base-300">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-slate-600 font-medium">Compliance Status:</span>
+                {compliance.compliant ? (
+                  <span className="badge badge-success badge-sm text-xs text-white">
+                    Compliant
+                  </span>
+                ) : compliance.status === 'Credentials Expired' ? (
+                  <span className="badge badge-error badge-sm text-xs text-white">
+                    Credentials Expired
+                  </span>
+                ) : compliance.status === 'Missing Documents' ? (
+                  <span className="badge badge-warning badge-sm text-xs text-slate-900">
+                    Missing Documents
+                  </span>
+                ) : (
+                  <span className="badge badge-error badge-sm text-xs text-white">
+                    {compliance.status || 'Non-Compliant'}
+                  </span>
+                )}
+              </div>
+
+              {!compliance.compliant && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-900 space-y-1">
+                  <div className="font-semibold flex items-center gap-1 text-red-800">
+                    <span>⚠️ Compliance Lock Active: Cannot assign non-compliant caregiver</span>
+                  </div>
+                  <ul className="list-disc list-inside space-y-0.5 text-red-700">
+                    {compliance.blocking_reasons?.map((reason, idx) => (
+                      <li key={idx}>{reason}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {!compliance.compliant && isSuperAdmin && (
+                <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded text-xs space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer font-semibold text-amber-900">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={overrideCompliance}
+                      onChange={(e) => setOverrideCompliance(e.target.checked)}
+                    />
+                    <span>Super Admin Compliance Override</span>
+                  </label>
+                  {overrideCompliance && (
+                    <div className="space-y-1">
+                      <label className="block text-slate-700 font-medium text-xs">
+                        Override Justification (Required for audit log) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={overrideReason}
+                        onChange={(e) => setOverrideReason(e.target.value)}
+                        placeholder="e.g. State director emergency authorization"
+                        className="input input-bordered input-xs w-full text-xs"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </form>
       </div>
 

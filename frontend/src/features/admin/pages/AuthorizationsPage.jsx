@@ -17,11 +17,17 @@ export default function AuthorizationsPage() {
         title="Medicaid Authorizations"
         badge="FL • IN • GA"
         badgeVariant="info"
-        description="Issue, track expiration windows, and maintain compliance for state Medicaid service approvals."
+        description="Issue, track expiration windows, procedure codes (T1019, S5125), and care unit burn-down."
         actions={
           <button
             type="button"
-            onClick={() => data.setShowForm(!data.showForm)}
+            onClick={() => {
+              if (data.showForm) {
+                data.handleCloseForm();
+              } else {
+                data.setShowForm(true);
+              }
+            }}
             className={`btn btn-sm ${data.showForm ? 'btn-ghost' : 'btn-primary'}`}
           >
             {data.showForm ? (
@@ -77,7 +83,20 @@ export default function AuthorizationsPage() {
           setNotes={data.setNotes}
           submitting={data.submitting}
           onSubmit={data.handleCreateAuth}
-          onClose={() => data.setShowForm(false)}
+          onClose={data.handleCloseForm}
+          editingAuth={data.editingAuth}
+          hcpcsCode={data.hcpcsCode}
+          setHcpcsCode={data.setHcpcsCode}
+          serviceDescription={data.serviceDescription}
+          setServiceDescription={data.setServiceDescription}
+          totalUnits={data.totalUnits}
+          setTotalUnits={data.setTotalUnits}
+          unitsUsed={data.unitsUsed}
+          setUnitsUsed={data.setUnitsUsed}
+          maxWeeklyHours={data.maxWeeklyHours}
+          setMaxWeeklyHours={data.setMaxWeeklyHours}
+          unitType={data.unitType}
+          setUnitType={data.setUnitType}
         />
       )}
 
@@ -99,6 +118,7 @@ export default function AuthorizationsPage() {
 
       <AuthorizationsTable
         loading={data.loading}
+        token={token}
         totalCount={data.authorizations.length}
         filteredAuthorizations={data.filteredAuthorizations}
         copiedAuthId={data.copiedAuthId}
@@ -106,7 +126,11 @@ export default function AuthorizationsPage() {
         reviewingId={data.reviewingId}
         reviewAction={data.reviewAction}
         onReview={data.handleReview}
-        onOpenForm={() => data.setShowForm(true)}
+        onEdit={data.handleStartEdit}
+        onOpenForm={() => {
+          data.handleCloseForm();
+          data.setShowForm(true);
+        }}
         onResetFilters={data.handleResetFilters}
       />
     </PageContainer>

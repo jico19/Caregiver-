@@ -25,6 +25,35 @@ export const COMMON_NOTE_PRESETS = [
   'Respite Care Services — Level 2 support',
 ];
 
+export const HCPCS_PROCEDURES = [
+  { code: 'T1019', name: 'Personal Care Services', description: 'Personal care assistance, 15 min per unit' },
+  { code: 'S5125', name: 'Attendant Care Services', description: 'Attendant care / personal support, 15 min per unit' },
+  { code: 'S5130', name: 'Homemaker Services', description: 'Homemaker & chore assistance, 15 min per unit' },
+  { code: 'T1000', name: 'Private Duty Nursing', description: 'Skilled nursing care, 15 min per unit' },
+  { code: 'S5150', name: 'Respite Care Services', description: 'Unskilled respite care, 15 min per unit' },
+];
+
+export const UNIT_TYPES = [
+  { value: '15_min', label: '15 Minutes (4 units/hr)' },
+  { value: 'hourly', label: 'Hourly (1 unit/hr)' },
+  { value: 'visit', label: 'Per Visit' },
+];
+
+export function calculateUnitProgress(totalUnits, unitsUsed) {
+  const total = Number(totalUnits) || 0;
+  const used = Number(unitsUsed) || 0;
+  if (total <= 0) return { percent: 0, statusColor: 'progress-info' };
+  const percent = Math.max(0, Math.min(100, Math.round((used / total) * 100)));
+  let statusColor = 'progress-primary';
+  if (used > total || percent >= 90) {
+    statusColor = 'progress-error';
+  } else if (percent >= 75) {
+    statusColor = 'progress-warning';
+  }
+  return { percent, statusColor };
+}
+
+
 export function getTodayStr() {
   const now = new Date();
   const yyyy = now.getFullYear();

@@ -62,6 +62,12 @@ class StateEmbeddedInfo(BaseModel):
     slug: Optional[str] = None
 
 
+class CaregiverComplianceSummary(BaseModel):
+    compliant: bool
+    status: str
+    blocking_reasons: list[str] = []
+
+
 class CaregiverApplicationListItem(BaseModel):
     id: str
     caregiver_id: Optional[str] = None
@@ -76,6 +82,7 @@ class CaregiverApplicationListItem(BaseModel):
     updated_at: Optional[datetime] = None
     caregivers: Optional[CaregiverEmbeddedInfo] = None
     states: Optional[StateEmbeddedInfo] = None
+    compliance: Optional[CaregiverComplianceSummary] = None
 
 
 class CaregiverApplicationListResponse(BaseModel):

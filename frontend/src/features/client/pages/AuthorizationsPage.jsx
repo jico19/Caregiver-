@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
@@ -20,7 +20,7 @@ export default function AuthorizationsPage() {
     enabled: !!token,
     defaultData: { authorizations: [] },
   });
-  const authorizations = data?.authorizations || (Array.isArray(data) ? data : []);
+  const authorizations = useMemo(() => data?.authorizations || (Array.isArray(data) ? data : []), [data]);
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState('');
 
@@ -31,6 +31,48 @@ export default function AuthorizationsPage() {
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  // Summarize active care allowances
+  const activeAuths = useMemo(() => {
+    return authorizations.filter((a) => a.status === 'active' || a.status === 'expiring_soon');
+  }, [authorizations]);
+
+  const { totalRemainingHours, totalAuthorizedHours, totalUsedHours, totalRemainingUnits, totalAuthorizedUnits } = useMemo(() => {
+    let remH = 0;
+    let authH = 0;
+    let usedH = 0;
+    let remU = 0;
+    let authU = 0;
+
+    for (const a of activeAuths) {
+      const uTotal = a.total_units_authorized ?? 0;
+      const uUsed = a.units_used ?? 0;
+      const uRem = a.units_remaining ?? (uTotal - uUsed);
+      const is15Min = (a.unit_type || '15_min') === '15_min';
+
+      const rHours = a.remaining_hours !== undefined ? a.remaining_hours : (is15Min ? uRem * 0.25 : uRem);
+      const tHours = a.total_hours !== undefined ? a.total_hours : (is15Min ? uTotal * 0.25 : uTotal);
+      const usHours = a.hours_used !== undefined ? a.hours_used : (is15Min ? uUsed * 0.25 : uUsed);
+
+      remH += Number(rHours) || 0;
+      authH += Number(tHours) || 0;
+      usedH += Number(usHours) || 0;
+      remU += Number(uRem) || 0;
+      authU += Number(uTotal) || 0;
+    }
+
+    return {
+      totalRemainingHours: remH,
+      totalAuthorizedHours: authH,
+      totalUsedHours: usedH,
+      totalRemainingUnits: remU,
+      totalAuthorizedUnits: authU,
+    };
+  }, [activeAuths]);
+
+  const overallPercent = totalAuthorizedHours > 0
+    ? Math.min(100, Math.round((totalUsedHours / totalAuthorizedHours) * 100))
+    : 0;
 
   async function handleUpload(e) {
     e.preventDefault();
@@ -92,12 +134,72 @@ export default function AuthorizationsPage() {
     {
       key: 'authorization_number',
       label: 'Authorization #',
-      render: (val) => <span className="font-semibold text-slate-900">{val}</span>,
+      render: (val) => <span className="font-semibold text-slate-900 font-mono text-xs">{val}</span>,
+    },
+    {
+      key: 'procedure',
+      label: 'Service & Procedure',
+      render: (_, row) => (
+        <div>
+          <div className="font-medium text-slate-900 text-xs flex items-center gap-1.5">
+            <span className="badge badge-xs badge-outline font-mono font-bold text-primary">
+              {row.hcpcs_code || 'T1019'}
+            </span>
+            <span>{row.service_description || 'Personal Care Services'}</span>
+          </div>
+          {row.max_weekly_hours ? (
+            <div className="text-[11px] text-slate-500 mt-0.5">
+              Weekly limit: {row.max_weekly_hours} hrs/week
+            </div>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'allowance',
+      label: 'Care Allowance & Balance',
+      render: (_, row) => {
+        const total = row.total_units_authorized ?? 0;
+        const used = row.units_used ?? 0;
+        const remaining = row.units_remaining ?? (total - used);
+        const is15Min = (row.unit_type || '15_min') === '15_min';
+        const remHours = row.remaining_hours !== undefined
+          ? row.remaining_hours
+          : (is15Min ? (remaining * 0.25).toFixed(1) : remaining);
+        const totalHours = row.total_hours !== undefined
+          ? row.total_hours
+          : (is15Min ? (total * 0.25).toFixed(1) : total);
+        const isOver = used > total;
+        const pct = total > 0 ? Math.max(0, Math.min(100, Math.round((used / total) * 100))) : 0;
+        const progressColor = isOver || pct >= 90 ? 'progress-error' : (pct >= 75 ? 'progress-warning' : 'progress-primary');
+
+        return (
+          <div className="w-40">
+            <div className="flex justify-between items-center text-xs mb-1">
+              <span className={`font-bold ${Number(remHours) < 0 ? 'text-error' : 'text-slate-800'}`}>
+                {Number(remHours) < 0 ? `${Math.abs(Number(remHours))} hrs over` : `${remHours} hrs left`}
+              </span>
+              <span className="text-slate-500 text-[11px]">
+                {used} / {total} u
+              </span>
+            </div>
+            <progress
+              className={`progress ${progressColor} h-2 w-full`}
+              value={pct}
+              max="100"
+            />
+            <div className="flex justify-between items-center text-[10px] text-slate-400 mt-0.5">
+              <span>{pct}% used</span>
+              <span>{totalHours} hrs total</span>
+            </div>
+          </div>
+        );
+      },
     },
     {
       key: 'state',
       label: 'State',
-      render: (_, row) => <span className="text-slate-600">{row.states?.code || 'State'}</span>,
+      render: (_, row) => <span className="badge badge-sm badge-ghost">{row.states?.code || 'State'}</span>,
     },
     {
       key: 'dates',
@@ -105,10 +207,10 @@ export default function AuthorizationsPage() {
       render: (_, row) => {
         const isExpiringSoon = row.days_until_expiration !== null && row.days_until_expiration <= 30;
         return (
-          <div className="text-slate-600 whitespace-nowrap">
-            <span>{row.start_date} to {row.end_date}</span>
+          <div className="text-slate-600 whitespace-nowrap text-xs">
+            <div>{row.start_date} to {row.end_date}</div>
             {isExpiringSoon && row.days_until_expiration !== null && row.status === 'active' && (
-              <span className="block text-xs font-semibold text-orange-600">
+              <span className="block text-[11px] font-semibold text-orange-600 mt-0.5">
                 {row.days_until_expiration} days remaining
               </span>
             )}
@@ -134,7 +236,7 @@ export default function AuthorizationsPage() {
           <button
             type="button"
             onClick={() => openDocument(row.document_id)}
-            className="btn btn-ghost btn-xs text-green-700 hover:text-green-800 font-semibold"
+            className="btn btn-ghost btn-xs text-primary hover:text-primary font-semibold"
           >
             View File ↓
           </button>
@@ -153,7 +255,7 @@ export default function AuthorizationsPage() {
     <PageContainer>
       <PageHeader
         title="Medicaid & Insurance Authorizations"
-        subtitle="Official state authorizations governing covered hours, service periods, and home care provisions."
+        subtitle="Official state approvals governing covered care hours, HCPCS procedure codes, and weekly limits."
         actions={
           <button
             type="button"
@@ -172,6 +274,50 @@ export default function AuthorizationsPage() {
       )}
 
       <Toast message={toastMsg} type="success" onClose={() => setToastMsg('')} />
+
+      {/* Active Care Allowance Summary Cards */}
+      {activeAuths.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <Card className={`p-4 ${totalRemainingHours < 0 ? 'bg-error/5 border border-error/20' : 'bg-primary/5 border border-primary/20'}`}>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Remaining Care Allowance
+            </div>
+            <div className={`text-2xl font-bold ${totalRemainingHours < 0 ? 'text-error' : 'text-primary'} mt-1`}>
+              {totalRemainingHours < 0 ? `-${Math.abs(totalRemainingHours).toFixed(1)}` : totalRemainingHours.toFixed(1)}{' '}
+              <span className="text-sm font-normal text-slate-600">Hours</span>
+            </div>
+            <div className={`text-xs mt-1 ${totalRemainingUnits < 0 ? 'text-error font-medium' : 'text-slate-500'}`}>
+              {totalRemainingUnits < 0
+                ? `${Math.abs(totalRemainingUnits)} billing units over allowance`
+                : `${totalRemainingUnits} billing units remaining`}
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-base-100 border border-base-200">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Total Authorized Hours
+            </div>
+            <div className="text-2xl font-bold text-slate-900 mt-1">
+              {totalAuthorizedHours.toFixed(1)} <span className="text-sm font-normal text-slate-600">Hours</span>
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {totalAuthorizedUnits} units across {activeAuths.length} active approval{activeAuths.length > 1 ? 's' : ''}
+            </div>
+          </Card>
+
+          <Card className="p-4 bg-base-100 border border-base-200">
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Hours Consumed
+            </div>
+            <div className="text-2xl font-bold text-slate-700 mt-1">
+              {totalUsedHours.toFixed(1)} <span className="text-sm font-normal text-slate-600">Hours</span>
+            </div>
+            <div className="text-xs text-slate-500 mt-1">
+              {overallPercent}% total utilization
+            </div>
+          </Card>
+        </div>
+      )}
 
       {showUpload && (
         <Card title="Submit Authorization Document" className="mb-6">

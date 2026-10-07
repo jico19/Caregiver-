@@ -13,7 +13,7 @@ import CaregiverAssignmentsSection from '../components/client-detail/CaregiverAs
 
 export default function ClientDetailPage() {
   const { id } = useParams();
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const detail = useClientDetailData(id, token);
 
   if (detail.loading) {
@@ -122,6 +122,11 @@ export default function ClientDetailPage() {
         assigning={detail.assigning}
         handleAssignCaregiver={detail.handleAssignCaregiver}
         handleEndAssignment={detail.handleEndAssignment}
+        isSuperAdmin={user?.role === 'super_admin'}
+        overrideCompliance={detail.overrideCompliance}
+        setOverrideCompliance={detail.setOverrideCompliance}
+        overrideReason={detail.overrideReason}
+        setOverrideReason={detail.setOverrideReason}
       />
 
       {/* Service Schedule Section */}
