@@ -1,3 +1,4 @@
+import { Plus, X } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { useAuthorizationsData } from '../hooks/useAuthorizationsData';
 import PageContainer from '../../../shared/components/common/PageContainer';
@@ -28,16 +29,16 @@ export default function AuthorizationsPage() {
                 data.setShowForm(true);
               }
             }}
-            className={`btn btn-sm ${data.showForm ? 'btn-ghost' : 'btn-primary'}`}
+            className={`btn btn-sm inline-flex items-center gap-1.5 ${data.showForm ? 'btn-ghost' : 'btn-primary'}`}
           >
             {data.showForm ? (
               <>
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                <X size={15} />
                 Close Form
               </>
             ) : (
               <>
-                <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                <Plus size={15} />
                 Issue New Authorization
               </>
             )}
@@ -48,14 +49,18 @@ export default function AuthorizationsPage() {
       {data.errorMsg && (
         <div role="alert" className="alert alert-error mb-4 flex justify-between items-center text-sm py-2 px-4 rounded-box">
           <span>{data.errorMsg}</span>
-          <button type="button" onClick={() => data.setErrorMsg('')} className="btn btn-ghost btn-xs btn-circle">✕</button>
+          <button type="button" onClick={() => data.setErrorMsg('')} className="btn btn-ghost btn-xs btn-circle" aria-label="Close error">
+            <X size={13} />
+          </button>
         </div>
       )}
 
       {data.successMsg && (
         <div role="status" className="alert alert-success mb-4 flex justify-between items-center text-sm py-2 px-4 rounded-box">
           <span>{data.successMsg}</span>
-          <button type="button" onClick={() => data.setSuccessMsg('')} className="btn btn-ghost btn-xs btn-circle">✕</button>
+          <button type="button" onClick={() => data.setSuccessMsg('')} className="btn btn-ghost btn-xs btn-circle" aria-label="Close message">
+            <X size={13} />
+          </button>
         </div>
       )}
 

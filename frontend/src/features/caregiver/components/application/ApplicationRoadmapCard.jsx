@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
 import Card from '../../../../shared/components/common/Card';
 import StatusBadge from '../../../../shared/components/common/StatusBadge';
 import { ROADMAP_STEPS } from '../../../../shared/utils/caregiverStatus';
@@ -24,8 +25,8 @@ export default function ApplicationRoadmapCard({
 
       <div className="flex items-center gap-3 flex-wrap mb-4">
         {ROADMAP_STEPS.map((step, i) => (
-          <span key={step.key} className="flex items-center gap-3">
-            {i > 0 && <span className="text-xs text-slate-400">→</span>}
+          <span key={step.key} className="flex items-center gap-2">
+            {i > 0 && <ChevronRight size={13} className="text-slate-400" />}
             <Link
               to={step.to}
               className="badge badge-soft text-slate-700 hover:text-emerald-800 text-xs px-2.5 py-1"

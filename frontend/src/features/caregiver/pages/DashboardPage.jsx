@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { STATUS_META, milestoneMeta } from '../../../shared/utils/caregiverStatus';
@@ -98,9 +99,9 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/caregiver/application"
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
             >
-              {appStatus ? 'View Application →' : 'Start Application →'}
+              {appStatus ? 'View Application' : 'Start Application'} <ArrowRight size={11} />
             </Link>
           </Card>
 
@@ -119,9 +120,9 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/caregiver/documents"
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
             >
-              Upload Documents →
+              Upload Documents <ArrowRight size={11} />
             </Link>
           </Card>
 
@@ -140,9 +141,9 @@ export default function DashboardPage() {
             </div>
             <Link
               to="/caregiver/training"
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
             >
-              Go to Training →
+              Go to Training <ArrowRight size={11} />
             </Link>
           </Card>
         </div>
@@ -157,9 +158,9 @@ export default function DashboardPage() {
             </h2>
             <Link
               to="/caregiver/documents"
-              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+              className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
             >
-              Manage Credentials →
+              Manage Credentials <ArrowRight size={11} />
             </Link>
           </div>
 
@@ -197,8 +198,8 @@ export default function DashboardPage() {
           </div>
 
           {credentialStatus.summary?.compliant && (
-            <p className="text-xs text-emerald-700 font-medium mt-3 mb-0">
-              ✓ All required credentials for your state are on file and current.
+            <p className="text-xs text-emerald-700 font-medium mt-3 mb-0 inline-flex items-center gap-1.5">
+              <CheckCircle2 size={13} /> All required credentials for your state are on file and current.
             </p>
           )}
         </Card>
@@ -237,8 +238,8 @@ export default function DashboardPage() {
               Update your contact telephone, home address, and licensing state details anytime.
             </p>
           </div>
-          <Link to="/caregiver/profile" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-            Edit Profile →
+          <Link to="/caregiver/profile" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1">
+            Edit Profile <ArrowRight size={11} />
           </Link>
         </Card>
 
@@ -249,8 +250,8 @@ export default function DashboardPage() {
               View system alerts, approval notices, credential reminders, and training updates.
             </p>
           </div>
-          <Link to="/caregiver/notifications" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-            Check Notifications →
+          <Link to="/caregiver/notifications" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1">
+            Check Notifications <ArrowRight size={11} />
           </Link>
         </Card>
 
@@ -265,9 +266,9 @@ export default function DashboardPage() {
             href={packetUrl(profile?.states?.code || STATE_PACKET_CODE[user?.state_id])}
             target="_blank"
             rel="noreferrer"
-            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800"
+            className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
           >
-            Get Employment Packet (PDF) →
+            Get Employment Packet (PDF) <ArrowRight size={11} />
           </a>
         </Card>
       </div>

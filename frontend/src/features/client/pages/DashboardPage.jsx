@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import LoadingState from '../../../shared/components/common/LoadingState';
@@ -85,8 +86,8 @@ export default function DashboardPage() {
               Please sign pending agreements ({pendingAgreements.map((a) => a.title).join(', ')}) to maintain active service status.
             </p>
           </div>
-          <Link to="/client/forms" className="btn btn-sm btn-primary">
-            Sign Agreements Now →
+          <Link to="/client/forms" className="btn btn-sm btn-primary inline-flex items-center gap-1">
+            Sign Agreements Now <ArrowRight size={13} />
           </Link>
         </div>
       )}
@@ -109,9 +110,9 @@ export default function DashboardPage() {
           </p>
           <Link
             to="/client/intake"
-            className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto"
+            className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto inline-flex items-center gap-1"
           >
-            {isIntakeComplete ? 'Review Intake →' : 'Complete Intake →'}
+            {isIntakeComplete ? 'Review Intake' : 'Complete Intake'} <ArrowRight size={11} />
           </Link>
         </Card>
 
@@ -146,8 +147,8 @@ export default function DashboardPage() {
               ? `${expiringAuths.length} expiring within 30 days.`
               : 'Approved hours validated by Medicaid.'}
           </p>
-          <Link to="/client/authorizations" className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto">
-            View Authorizations →
+          <Link to="/client/authorizations" className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto inline-flex items-center gap-1">
+            View Authorizations <ArrowRight size={11} />
           </Link>
         </Card>
 
@@ -163,8 +164,8 @@ export default function DashboardPage() {
           <p className="text-xs text-slate-600 m-0 mb-3 leading-normal">
             Agency updates, shift logs, and announcements.
           </p>
-          <Link to="/client/notifications" className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto">
-            View Notifications ({notifications.length}) →
+          <Link to="/client/notifications" className="text-xs font-semibold text-green-700 hover:text-green-800 underline mt-auto inline-flex items-center gap-1">
+            View Notifications ({notifications.length}) <ArrowRight size={11} />
           </Link>
         </Card>
       </div>
@@ -174,8 +175,8 @@ export default function DashboardPage() {
         <Card
           title="Plan of Care Summary"
           actions={
-            <Link to="/client/care-plan" className="text-xs font-semibold text-green-700 hover:text-green-800 underline">
-              Full Plan →
+            <Link to="/client/care-plan" className="text-xs font-semibold text-green-700 hover:text-green-800 underline inline-flex items-center gap-1">
+              Full Plan <ArrowRight size={11} />
             </Link>
           }
         >
@@ -214,8 +215,8 @@ export default function DashboardPage() {
         <Card
           title="Upcoming Service Schedule"
           actions={
-            <Link to="/client/schedule" className="text-xs font-semibold text-green-700 hover:text-green-800 underline">
-              Full Schedule →
+            <Link to="/client/schedule" className="text-xs font-semibold text-green-700 hover:text-green-800 underline inline-flex items-center gap-1">
+              Full Schedule <ArrowRight size={11} />
             </Link>
           }
         >
@@ -244,8 +245,8 @@ export default function DashboardPage() {
         <Card
           title="Document Compliance Status"
           actions={
-            <Link to="/client/documents" className="text-xs font-semibold text-green-700 hover:text-green-800 underline">
-              Manage Documents →
+            <Link to="/client/documents" className="text-xs font-semibold text-green-700 hover:text-green-800 underline inline-flex items-center gap-1">
+              Manage Documents <ArrowRight size={11} />
             </Link>
           }
           className="mb-6"

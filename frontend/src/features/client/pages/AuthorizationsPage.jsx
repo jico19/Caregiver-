@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Plus, X } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
@@ -260,9 +261,9 @@ export default function AuthorizationsPage() {
           <button
             type="button"
             onClick={() => setShowUpload(!showUpload)}
-            className="btn btn-primary btn-sm"
+            className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
           >
-            {showUpload ? 'Close Upload' : 'Upload Document +'}
+            {showUpload ? <><X size={14} /> Close Upload</> : <><Plus size={14} /> Upload Document</>}
           </button>
         }
       />

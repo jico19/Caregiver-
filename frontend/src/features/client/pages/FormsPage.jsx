@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ExternalLink } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
@@ -97,8 +98,8 @@ export default function FormsPage() {
             >
               Admission Packet (PDF)
             </a>
-            <Link to={`/${stateSlug}/forms`} className="btn btn-outline btn-sm text-slate-700">
-              State Forms ↗
+            <Link to={`/${stateSlug}/forms`} className="btn btn-outline btn-sm text-slate-700 inline-flex items-center gap-1">
+              State Forms <ExternalLink size={12} />
             </Link>
           </div>
         }

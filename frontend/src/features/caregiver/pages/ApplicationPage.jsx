@@ -1,4 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { formatBusinessDaysAgo } from '../../../shared/utils/businessDays';
 import { STATUS_META, milestoneMeta } from '../../../shared/utils/caregiverStatus';
@@ -67,8 +68,8 @@ export default function ApplicationPage() {
         </div>
 
         {!auth.user && (
-          <Link to="/caregiver/login" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-            Already registered? Sign In →
+          <Link to="/caregiver/login" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1">
+            Already registered? Sign In <ArrowRight size={11} />
           </Link>
         )}
 

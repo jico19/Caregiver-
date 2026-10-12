@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, Check, X } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import { queryClient } from '../../../shared/lib/queryClient';
@@ -154,18 +155,18 @@ export default function DocumentsPage() {
                           <button
                             type="button"
                             onClick={() => handleInspect(doc.id)}
-                            className="btn btn-outline btn-xs"
+                            className="btn btn-outline btn-xs inline-flex items-center gap-1"
                           >
-                            Inspect
+                            <Eye size={12} /> Inspect
                           </button>
                           {doc.status !== 'approved' && (
                             <button
                               type="button"
                               disabled={isBusy}
                               onClick={() => handleReview(doc.id, 'approved')}
-                              className="btn btn-primary btn-xs"
+                              className="btn btn-primary btn-xs inline-flex items-center gap-1"
                             >
-                              Approve
+                              <Check size={12} /> Approve
                             </button>
                           )}
                           {doc.status !== 'rejected' && (
@@ -173,9 +174,9 @@ export default function DocumentsPage() {
                               type="button"
                               disabled={isBusy}
                               onClick={() => handleReview(doc.id, 'rejected')}
-                              className="btn btn-ghost btn-xs text-red-600 hover:bg-red-50 border border-red-200"
+                              className="btn btn-ghost btn-xs text-error hover:bg-error/10 border border-error/30 inline-flex items-center gap-1"
                             >
-                              Reject
+                              <X size={12} /> Reject
                             </button>
                           )}
                         </div>

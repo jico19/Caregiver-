@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Phone, MapPin, Building2 } from 'lucide-react';
 import useFetch from '../../../shared/hooks/useFetch';
 import PageContainer from '../../../shared/components/common/PageContainer';
 import PageHeader from '../../../shared/components/common/PageHeader';
@@ -57,9 +58,9 @@ export default function CaregiverClientsPage() {
                 </div>
 
                 <div className="text-xs text-slate-600 space-y-1 mb-4 leading-normal">
-                  {client.phone && <div>📞 {client.phone}</div>}
-                  {client.address && <div>📍 {client.address}</div>}
-                  {client.states?.name && <div>🌴 State: {client.states.name}</div>}
+                  {client.phone && <div className="inline-flex items-center gap-1.5"><Phone size={12} className="text-slate-400" /> {client.phone}</div>}
+                  {client.address && <div className="inline-flex items-center gap-1.5"><MapPin size={12} className="text-slate-400" /> {client.address}</div>}
+                  {client.states?.name && <div className="inline-flex items-center gap-1.5"><Building2 size={12} className="text-slate-400" /> State: {client.states.name}</div>}
                 </div>
               </div>
 

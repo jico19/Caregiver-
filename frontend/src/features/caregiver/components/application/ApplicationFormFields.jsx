@@ -1,4 +1,5 @@
 import { Controller } from 'react-hook-form';
+import { CheckCircle2 } from 'lucide-react';
 import SignaturePad from '../../../../shared/components/common/SignaturePad';
 import Card from '../../../../shared/components/common/Card';
 import FormField from '../../../../shared/components/common/FormField';
@@ -163,8 +164,8 @@ export default function ApplicationFormFields({
             <p className="text-xs text-red-600 mt-1">{errors.signature_data.message}</p>
           )}
           {signatureValue && (
-            <p className="text-xs text-emerald-600 mt-2 font-medium">
-              ✓ Signature captured
+            <p className="text-xs text-emerald-600 mt-2 font-medium inline-flex items-center gap-1">
+              <CheckCircle2 size={13} /> Signature captured
             </p>
           )}
         </div>

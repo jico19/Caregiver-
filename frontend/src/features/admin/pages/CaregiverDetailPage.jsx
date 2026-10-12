@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import PageContainer from '../../../shared/components/common/PageContainer';
@@ -118,8 +119,8 @@ export default function CaregiverDetailPage() {
         <div role="alert" className="alert alert-error mb-4">
           <span>Application not found.</span>
         </div>
-        <Link to="/admin/caregivers" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to Caregiver Applications
+        <Link to="/admin/caregivers" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={13} /> Back to Caregiver Applications
         </Link>
       </PageContainer>
     );
@@ -134,8 +135,8 @@ export default function CaregiverDetailPage() {
   return (
     <PageContainer>
       <div className="mb-2">
-        <Link to="/admin/caregivers" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to Caregiver Applications
+        <Link to="/admin/caregivers" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={13} /> Back to Caregiver Applications
         </Link>
       </div>
 

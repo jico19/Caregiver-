@@ -1,4 +1,5 @@
 import { Link, useParams } from 'react-router-dom';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { CLIENT_STATUS_LABELS } from '../constants/clientDetailConstants';
 import { useClientDetailData } from '../hooks/useClientDetailData';
@@ -30,8 +31,8 @@ export default function ClientDetailPage() {
         <div role="alert" className="alert alert-error mb-4">
           <span>Client not found.</span>
         </div>
-        <Link to="/admin/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to Clients
+        <Link to="/admin/clients" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={13} /> Back to Clients
         </Link>
       </PageContainer>
     );
@@ -40,8 +41,8 @@ export default function ClientDetailPage() {
   return (
     <PageContainer>
       <div className="mb-2">
-        <Link to="/admin/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to Clients
+        <Link to="/admin/clients" className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1">
+          <ArrowLeft size={13} /> Back to Clients
         </Link>
       </div>
 
@@ -56,9 +57,9 @@ export default function ClientDetailPage() {
             />
             <Link
               to={`/admin/authorizations?client_id=${detail.client.id}&state_id=${detail.client.state_id}`}
-              className="btn btn-outline btn-xs"
+              className="btn btn-outline btn-xs inline-flex items-center gap-1"
             >
-              Authorizations →
+              Authorizations <ArrowRight size={12} />
             </Link>
           </div>
         }

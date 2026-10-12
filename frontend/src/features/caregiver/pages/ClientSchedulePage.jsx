@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import useFetch from '../../../shared/hooks/useFetch';
 import PageContainer from '../../../shared/components/common/PageContainer';
 import PageHeader from '../../../shared/components/common/PageHeader';
@@ -26,8 +27,8 @@ export default function CaregiverClientSchedulePage() {
         <div role="alert" className="alert alert-error mb-4">
           <span>Unable to load schedule: {error.message || 'You may not be assigned to this client.'}</span>
         </div>
-        <Link to="/caregiver/clients" className="btn btn-outline btn-sm">
-          Back to My Clients
+        <Link to="/caregiver/clients" className="btn btn-outline btn-sm inline-flex items-center gap-1">
+          <ArrowLeft size={12} /> Back to My Clients
         </Link>
       </PageContainer>
     );
@@ -39,8 +40,8 @@ export default function CaregiverClientSchedulePage() {
   return (
     <PageContainer>
       <div className="mb-2">
-        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to My Clients
+        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1">
+          <ArrowLeft size={12} /> Back to My Clients
         </Link>
       </div>
 

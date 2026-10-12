@@ -107,6 +107,58 @@ def list_caregivers(
     return {"applications": items, **result}
 
 
+@router.get("/caregivers/analytics")
+def get_caregivers_analytics(
+    state_id: Optional[int] = Query(None, ge=1),
+    scope: AdminScope = Depends(require_admin_scoped),
+):
+    """Aggregate staffing metrics, applicant pipeline counts, and state distributions."""
+    supabase = get_supabase()
+
+    cg_q = scope_query(
+        active_only(
+            supabase.table("caregivers").select("id, state_id"),
+            "caregivers",
+        ),
+        scope,
+    )
+    app_q = scope_query(
+        active_only(
+            supabase.table("caregiver_applications").select("id, status, state_id"),
+            "caregiver_applications",
+        ),
+        scope,
+    )
+
+    if state_id:
+        s_id = assert_permitted_filter(scope, state_id)
+        cg_q = cg_q.eq("state_id", s_id)
+        app_q = app_q.eq("state_id", s_id)
+
+    cg_res = cg_q.execute()
+    app_res = app_q.execute()
+
+    caregivers_list = cg_res.data or []
+    apps_list = app_res.data or []
+
+    total_caregivers = len(caregivers_list)
+    pending_apps = sum(1 for a in apps_list if a.get("status") in ["submitted", "under_review"])
+    onboarding_apps = sum(1 for a in apps_list if a.get("status") in ["approved", "onboarding"])
+
+    by_state_map = {}
+    for c in caregivers_list:
+        sid = c.get("state_id")
+        if sid:
+            by_state_map[sid] = by_state_map.get(sid, 0) + 1
+
+    return {
+        "total_caregivers": total_caregivers,
+        "pending_applications": pending_apps,
+        "in_onboarding": onboarding_apps,
+        "by_state": by_state_map,
+    }
+
+
 @router.post("/caregivers/{application_id}/review")
 def review_caregiver_application(
     application_id: str,

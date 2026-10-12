@@ -114,6 +114,51 @@ def list_referrals(
     return {"referrals": result.pop("items"), **result}
 
 
+@router.get("/referrals/analytics")
+def get_referral_analytics(
+    state_id: Optional[int] = Query(None, ge=1),
+    scope: AdminScope = Depends(require_admin_scoped),
+):
+    """Aggregate referral metrics, status pipeline counts, and source distributions."""
+    supabase = get_supabase()
+
+    base_q = scope_query(
+        active_only(
+            supabase.table("client_referrals").select(
+                "id, status, referral_source, state_id"
+            ),
+            "client_referrals",
+        ),
+        scope,
+    )
+    if state_id:
+        base_q = base_q.eq("state_id", assert_permitted_filter(scope, state_id))
+
+    res = base_q.execute()
+    rows = res.data or []
+
+    total = len(rows)
+    by_status = {"new": 0, "contacted": 0, "converted": 0, "closed": 0}
+    by_source_map = {}
+
+    for r in rows:
+        st = r.get("status")
+        if st in by_status:
+            by_status[st] += 1
+        src = r.get("referral_source") or "Direct / Website"
+        by_source_map[src] = by_source_map.get(src, 0) + 1
+
+    by_source = [{"source": k, "count": v} for k, v in sorted(by_source_map.items(), key=lambda x: x[1], reverse=True)]
+    conversion_rate = round((by_status["converted"] / total * 100), 1) if total > 0 else 0.0
+
+    return {
+        "total_referrals": total,
+        "by_status": by_status,
+        "by_source": by_source,
+        "conversion_rate_pct": conversion_rate,
+    }
+
+
 @router.patch("/referrals/{referral_id}")
 def update_referral_status(
     referral_id: str,

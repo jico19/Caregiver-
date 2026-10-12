@@ -9,6 +9,7 @@ import StatusBadge from '../../../shared/components/common/StatusBadge';
 import FormField from '../../../shared/components/common/FormField';
 import Pagination from '../../../shared/components/common/Pagination';
 import { api } from '../../../shared/services/api';
+import { Plus, X } from 'lucide-react';
 
 export default function TrainingPage() {
   const { token } = useAuth();
@@ -82,9 +83,9 @@ export default function TrainingPage() {
 
             <button
               onClick={() => setShowAssignModal(true)}
-              className="btn btn-primary btn-sm"
+              className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
             >
-              + Assign Course
+              <Plus size={14} /> Assign Course
             </button>
           </div>
         }
@@ -177,8 +178,9 @@ export default function TrainingPage() {
                 type="button"
                 onClick={() => setShowAssignModal(false)}
                 className="btn btn-ghost btn-xs btn-circle text-slate-400 hover:text-slate-600"
+                aria-label="Close modal"
               >
-                ✕
+                <X size={14} />
               </button>
             </div>
             <form onSubmit={handleAssignSubmit}>

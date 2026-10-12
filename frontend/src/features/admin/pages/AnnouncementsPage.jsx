@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Megaphone, Send } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import { queryClient } from '../../../shared/lib/queryClient';
@@ -140,7 +141,8 @@ export default function AnnouncementsPage() {
       )}
 
       <Card className="p-6 mb-6">
-        <h2 className="text-base font-semibold text-slate-900 m-0 pb-3 mb-4 border-b border-base-200">
+        <h2 className="text-base font-semibold text-slate-900 m-0 pb-3 mb-4 border-b border-base-200 flex items-center">
+          <Megaphone size={16} className="text-primary mr-2" />
           Publish New Announcement
         </h2>
         <form onSubmit={handleCreate} className="space-y-4">
@@ -192,7 +194,8 @@ export default function AnnouncementsPage() {
             />
           </FormField>
           <div className="flex justify-end pt-2">
-            <button type="submit" disabled={busy} className="btn btn-primary btn-sm">
+            <button type="submit" disabled={busy} className="btn btn-primary btn-sm inline-flex items-center gap-1.5">
+              <Send size={13} />
               {busy ? 'Publishing...' : 'Publish Announcement'}
             </button>
           </div>

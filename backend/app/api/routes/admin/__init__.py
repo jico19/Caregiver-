@@ -20,6 +20,8 @@ from .legal_hold import router as legal_hold_router
 from .assignments import router as assignments_router
 from .restore import router as restore_router
 from .notifications import router as notifications_router
+from .users import router as users_router
+from . import users
 
 router = APIRouter()
 
@@ -40,5 +42,6 @@ router.include_router(legal_hold_router)
 router.include_router(assignments_router)
 router.include_router(restore_router)
 router.include_router(notifications_router)
+router.include_router(users_router, prefix="/users", tags=["admin-users"])
 
-__all__ = ["router", "get_supabase", "notify", "record_audit_log"]
+__all__ = ["router", "get_supabase", "notify", "record_audit_log", "users"]

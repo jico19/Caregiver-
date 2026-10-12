@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import { api } from '../../../shared/services/api';
@@ -264,17 +265,17 @@ function ClientIntakeForm({ initialProfile, token, user, fetchError }) {
             <button
               type="submit"
               disabled={submitting}
-              className="btn btn-primary w-full mt-2"
+              className="btn btn-primary w-full mt-2 inline-flex items-center justify-center gap-1.5"
             >
-              {submitting ? 'Saving Intake...' : 'Sign & Submit Intake →'}
+              {submitting ? 'Saving Intake...' : <>Sign & Submit Intake <ArrowRight size={13} /></>}
             </button>
           </div>
         </Card>
       </form>
 
       <div className="flex justify-end mt-6">
-        <Link to="/client/documents" className="text-xs font-semibold text-green-700 hover:text-green-800 underline">
-          Go to Document Submission →
+        <Link to="/client/documents" className="text-xs font-semibold text-green-700 hover:text-green-800 underline inline-flex items-center gap-1">
+          Go to Document Submission <ArrowRight size={11} />
         </Link>
       </div>
     </PageContainer>

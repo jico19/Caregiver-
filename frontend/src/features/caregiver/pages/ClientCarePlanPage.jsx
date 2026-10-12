@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, AlertTriangle } from 'lucide-react';
 import useFetch from '../../../shared/hooks/useFetch';
 import PageContainer from '../../../shared/components/common/PageContainer';
 import PageHeader from '../../../shared/components/common/PageHeader';
@@ -39,8 +40,8 @@ export default function CaregiverClientCarePlanPage() {
   return (
     <PageContainer>
       <div className="mb-2">
-        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800">
-          ← Back to My Clients
+        <Link to="/caregiver/clients" className="text-xs font-semibold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1">
+          <ArrowLeft size={12} /> Back to My Clients
         </Link>
       </div>
 
@@ -108,10 +109,13 @@ export default function CaregiverClientCarePlanPage() {
           </Card>
 
           {carePlan.emergency_protocol && (
-            <Card className="p-5 border-l-4 border-l-amber-500">
-              <h2 className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">
-                Emergency Protocol
-              </h2>
+            <Card className="p-5 border border-amber-200 bg-amber-50/30">
+              <div className="flex items-center gap-1.5 mb-2">
+                <AlertTriangle size={14} className="text-amber-800" />
+                <h2 className="text-xs font-semibold text-amber-800 uppercase tracking-wide m-0">
+                  Emergency Protocol
+                </h2>
+              </div>
               <p className="text-xs text-slate-700 leading-normal whitespace-pre-wrap m-0">
                 {carePlan.emergency_protocol}
               </p>

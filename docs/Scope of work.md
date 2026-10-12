@@ -5,17 +5,17 @@ Indiana (IN)
 Georgia (GA)
 
 1. Website Integration
-Link all three state websites into one unified platform.
-Allow users to easily switch between Florida, Indiana, and Georgia websites.
-Maintain state-specific services, forms, and licensing information.
+   Link all three state websites into one unified platform.
+   Allow users to easily switch between Florida, Indiana, and Georgia websites.
+   Maintain state-specific services, forms, and licensing information.
 
 2. Caregiver Portal
-Online Application
-Online caregiver application
-Download employment packet
-Electronic signatures
-Mobile-friendly application
-Document Management
+   Online Application
+   Online caregiver application
+   Download employment packet
+   Electronic signatures
+   Mobile-friendly application
+   Document Management
 
 Caregivers can securely upload:
 
@@ -56,7 +56,7 @@ View pending requirements
 Receive company announcements
 
 3. Client Portal
-Online Intake
+   Online Intake
 
 Clients can:
 
@@ -96,43 +96,43 @@ Secure messaging with the agency (optional)
 
 
 4. Administrator Dashboard
-Caregiver Management
-Review caregiver applications
-Approve/reject applicants
-Track onboarding progress
-Monitor document compliance
-Monitor training completion
-Send reminders
-Generate reports
-Client Management
-Review online referrals
-Approve admissions
-Monitor authorization status
-Track missing documents
-Monitor service start dates
-Reports & Analytics
-Caregiver compliance report
-Expiring credential report
-In-service completion report
-Client authorization report
-Referral source report
-Website inquiry report
+   Caregiver Management
+   Review caregiver applications
+   Approve/reject applicants
+   Track onboarding progress
+   Monitor document compliance
+   Monitor training completion
+   Send reminders
+   Generate reports
+   Client Management
+   Review online referrals
+   Approve admissions
+   Monitor authorization status
+   Track missing documents
+   Monitor service start dates
+   Reports & Analytics
+   Caregiver compliance report
+   Expiring credential report
+   In-service completion report
+   Client authorization report
+   Referral source report
+   Website inquiry report
 
 
 5. Automation Features
-Email notifications
-SMS reminders
-Expiring credential alerts
-Authorization expiration alerts
-Training reminders
-New referral notifications
-Document upload confirmations
-Electronic signature workflow
+   Email notifications
+   SMS reminders
+   Expiring credential alerts
+   Authorization expiration alerts
+   Training reminders
+   New referral notifications
+   Document upload confirmations
+   Electronic signature workflow
 
 6. Security & Compliance
-HIPAA-compliant client portal
-Secure document storage
-Role-based user access
-SSL encryption
-Audit logs
-Electronic signatures
+   HIPAA-compliant client portal
+   Secure document storage
+   Role-based user access
+   SSL encryption
+   Audit logs
+   Electronic signatures

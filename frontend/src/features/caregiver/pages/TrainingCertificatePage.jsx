@@ -1,4 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft, Printer } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import useFetch from '../../../shared/hooks/useFetch';
 import PageContainer from '../../../shared/components/common/PageContainer';
@@ -42,15 +43,15 @@ export default function TrainingCertificatePage() {
   return (
     <PageContainer size="narrow">
       <div className="print-hidden flex justify-between items-center flex-wrap gap-2 mb-6">
-        <Link to="/caregiver/training" className="text-slate-600 hover:text-slate-900 text-xs font-medium">
-          ← Back to In-Service Training
+        <Link to="/caregiver/training" className="text-slate-600 hover:text-slate-900 text-xs font-medium inline-flex items-center gap-1">
+          <ArrowLeft size={12} /> Back to In-Service Training
         </Link>
         <button
           type="button"
           onClick={() => window.print()}
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm inline-flex items-center gap-1.5"
         >
-          Print / Save as PDF
+          <Printer size={14} /> Print / Save as PDF
         </button>
       </div>
 

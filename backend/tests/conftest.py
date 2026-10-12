@@ -49,8 +49,8 @@ from app.api.routes.admin import (
     assignments as admin_assignments_mod,
     restore as admin_restore_mod,
     notifications as admin_notifications_mod,
+    users as admin_users_mod,
 )
-from app.api.routes import admin_users as admin_users_mod
 from app.api.routes import training as training_mod
 from app.api.routes import clients as clients_mod
 from app.api.routes.clients import (

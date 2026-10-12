@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../../shared/hooks/useAuth';
 import { api } from '../../../shared/services/api';
 import { queryClient } from '../../../shared/lib/queryClient';
@@ -157,8 +158,8 @@ export default function TrainingPage() {
 
                 {status === 'completed' && (
                   <div className="space-y-2">
-                    <div className="text-center font-medium text-xs text-emerald-700 bg-emerald-50 py-1.5 px-2 rounded border border-emerald-200">
-                      Completed on {course.completed_at ? new Date(course.completed_at).toLocaleDateString() : 'Record'} ✓
+                    <div className="text-center font-medium text-xs text-emerald-700 bg-emerald-50 py-1.5 px-2 rounded border border-emerald-200 inline-flex items-center justify-center gap-1 w-full">
+                      <CheckCircle2 size={13} /> Completed on {course.completed_at ? new Date(course.completed_at).toLocaleDateString() : 'Record'}
                     </div>
                     <Link
                       to={`/caregiver/training-certificate/${course.id}`}
